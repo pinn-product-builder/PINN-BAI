@@ -1,8 +1,22 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import {
+  Calendar,
+  Edit3,
+  Save,
+  X,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  DollarSign,
+  Target,
+  Percent,
+  Lightbulb,
+  AlertTriangle,
+  RefreshCw,
+} from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -11,169 +25,95 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  BarChart3,
-  Calendar,
-  ChevronDown,
-  Download,
-  Edit3,
-  LayoutDashboard,
-  Lightbulb,
-  LogOut,
-  Save,
-  Settings,
-  TrendingDown,
-  TrendingUp,
-  Upload,
-  Users,
-  X,
-} from 'lucide-react';
-import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
+  BarChart,
+  Bar,
 } from 'recharts';
+import { useToast } from '@/hooks/use-toast';
 import {
-  mockOrganizations,
   mockDashboardMetrics,
-  mockFunnelData,
   mockChartData,
+  mockFunnelData,
   mockInsights,
+  mockOrganizations,
 } from '@/lib/mock-data';
 
-const ClientDashboard = () => {
-  const { orgId } = useParams<{ orgId: string }>();
-  const navigate = useNavigate();
-  const [isEditMode, setIsEditMode] = useState(false);
+const insightConfig = {
+  recommendation: { icon: Lightbulb, className: 'text-accent border-l-accent' },
+  alert: { icon: AlertTriangle, className: 'text-warning border-l-warning' },
+  trend: { icon: TrendingUp, className: 'text-success border-l-success' },
+};
+
+const Dashboard = () => {
+  const { orgId } = useParams();
+  const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
   const [dateRange, setDateRange] = useState('30d');
 
-  const organization = mockOrganizations.find((o) => o.id === orgId) || mockOrganizations[0];
-  const metrics = mockDashboardMetrics;
+  const currentOrg = mockOrganizations.find((org) => org.id === orgId);
 
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
+  const handleSaveLayout = () => {
+    toast({
+      title: 'Layout salvo',
+      description: 'As alterações no dashboard foram salvas com sucesso.',
+    });
+    setIsEditing(false);
   };
 
-  const formatCurrency = (num: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0,
-    }).format(num);
-  };
-
-  const insightTypeConfig = {
-    recommendation: { icon: Lightbulb, color: 'text-success', bg: 'bg-success/10' },
-    alert: { icon: TrendingDown, color: 'text-warning', bg: 'bg-warning/10' },
-    trend: { icon: TrendingUp, color: 'text-info', bg: 'bg-info/10' },
-  };
+  const metrics = [
+    {
+      id: 'leads',
+      title: 'Total de Leads',
+      value: mockDashboardMetrics.totalLeads.toLocaleString('pt-BR'),
+      change: `+${mockDashboardMetrics.newLeadsToday} hoje`,
+      trend: 'up',
+      icon: Users,
+    },
+    {
+      id: 'conversions',
+      title: 'Deals Ativos',
+      value: mockDashboardMetrics.activeDeals.toLocaleString('pt-BR'),
+      change: '+12% vs mês anterior',
+      trend: 'up',
+      icon: Target,
+    },
+    {
+      id: 'rate',
+      title: 'Taxa de Conversão',
+      value: `${mockDashboardMetrics.conversionRate}%`,
+      change: '+2.3% vs mês anterior',
+      trend: 'up',
+      icon: Percent,
+    },
+    {
+      id: 'revenue',
+      title: 'Receita',
+      value: `R$ ${(mockDashboardMetrics.revenue / 1000).toFixed(0)}k`,
+      change: `+${mockDashboardMetrics.growthRate}% crescimento`,
+      trend: 'up',
+      icon: DollarSign,
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border">
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex items-center gap-3 p-6 border-b border-sidebar-border">
-            <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-accent-foreground" />
-            </div>
-            <span className="text-xl font-bold text-sidebar-foreground">Pinn BAI</span>
-          </div>
-
-          {/* Organization info */}
-          <div className="p-4 border-b border-sidebar-border">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-sidebar-accent flex items-center justify-center">
-                <span className="text-lg font-semibold text-sidebar-accent-foreground">
-                  {organization.name.charAt(0)}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sidebar-foreground truncate">{organization.name}</p>
-                <Badge variant="outline" className="text-xs text-sidebar-foreground/60 border-sidebar-border">
-                  {organization.plan === 4 ? 'Enterprise' : organization.plan === 3 ? 'Business' : organization.plan === 2 ? 'Professional' : 'Starter'}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1">
-            <Link
-              to={`/client/${orgId}/dashboard`}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-sidebar-accent text-sidebar-accent-foreground"
-            >
-              <LayoutDashboard className="w-5 h-5" />
-              <span className="font-medium">Dashboard</span>
-            </Link>
-            <Link
-              to={`/client/${orgId}/import`}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-            >
-              <Upload className="w-5 h-5" />
-              <span className="font-medium">Importar Dados</span>
-            </Link>
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-            >
-              <Settings className="w-5 h-5" />
-              <span className="font-medium">Configurações</span>
-            </button>
-          </nav>
-
-          {/* User section */}
-          <div className="p-4 border-t border-sidebar-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center">
-                  <span className="text-sm font-medium text-sidebar-accent-foreground">
-                    {organization.adminName.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-sidebar-foreground">{organization.adminName}</p>
-                  <p className="text-xs text-sidebar-foreground/60">Admin</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                onClick={() => navigate('/login')}
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+    <div className="p-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">{currentOrg?.name}</p>
         </div>
-      </aside>
-
-      {/* Main content */}
-      <main className="ml-64 p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
-              Visão geral dos seus indicadores de performance
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Date filter */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-muted-foreground" />
             <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger className="w-40">
-                <Calendar className="w-4 h-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -183,238 +123,185 @@ const ClientDashboard = () => {
                 <SelectItem value="1y">Último ano</SelectItem>
               </SelectContent>
             </Select>
-
-            {/* Edit mode toggle */}
-            {isEditMode ? (
-              <>
-                <Button variant="outline" onClick={() => setIsEditMode(false)}>
-                  <X className="w-4 h-4 mr-2" />
-                  Cancelar
-                </Button>
-                <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                  <Save className="w-4 h-4 mr-2" />
-                  Salvar Layout
-                </Button>
-              </>
-            ) : (
-              <Button variant="outline" onClick={() => setIsEditMode(true)}>
-                <Edit3 className="w-4 h-4 mr-2" />
-                Editar Dashboard
+          </div>
+          {isEditing ? (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsEditing(false)}>
+                <X className="w-4 h-4 mr-2" />
+                Cancelar
               </Button>
-            )}
-          </div>
+              <Button
+                onClick={handleSaveLayout}
+                className="bg-accent hover:bg-accent/90 text-accent-foreground"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Salvar Layout
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" onClick={() => setIsEditing(true)}>
+              <Edit3 className="w-4 h-4 mr-2" />
+              Editar Dashboard
+            </Button>
+          )}
         </div>
+      </div>
 
-        {/* Edit mode banner */}
-        {isEditMode && (
-          <div className="mb-6 p-4 bg-accent/10 border border-accent/20 rounded-lg flex items-center gap-3">
-            <Edit3 className="w-5 h-5 text-accent" />
-            <p className="text-sm text-foreground">
-              <strong>Modo de edição ativo.</strong> Arraste e redimensione os widgets para personalizar seu dashboard.
-            </p>
-          </div>
-        )}
-
-        {/* Metrics cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className={isEditMode ? 'ring-2 ring-dashed ring-accent/30' : ''}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-muted-foreground">Total de Leads</p>
-                <Badge className="bg-success/10 text-success">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  +{metrics.growthRate}%
-                </Badge>
-              </div>
-              <p className="text-3xl font-bold text-foreground">{formatNumber(metrics.totalLeads)}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                +{metrics.newLeadsToday} hoje
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={isEditMode ? 'ring-2 ring-dashed ring-accent/30' : ''}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-muted-foreground">Taxa de Conversão</p>
-              </div>
-              <p className="text-3xl font-bold text-foreground">{metrics.conversionRate}%</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Média do período
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={isEditMode ? 'ring-2 ring-dashed ring-accent/30' : ''}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-muted-foreground">Negócios Ativos</p>
-              </div>
-              <p className="text-3xl font-bold text-foreground">{metrics.activeDeals}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Em andamento
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={isEditMode ? 'ring-2 ring-dashed ring-accent/30' : ''}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-muted-foreground">Receita</p>
-                <Badge className="bg-success/10 text-success">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  +18%
-                </Badge>
-              </div>
-              <p className="text-3xl font-bold text-foreground">{formatCurrency(metrics.revenue)}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                No período
-              </p>
-            </CardContent>
-          </Card>
+      {isEditing && (
+        <div className="mb-4 p-3 bg-accent/10 border border-accent/20 rounded-lg flex items-center gap-2">
+          <Edit3 className="w-4 h-4 text-accent" />
+          <span className="text-sm text-accent">
+            Modo de edição ativo. O drag & drop será habilitado quando o backend estiver integrado.
+          </span>
         </div>
+      )}
 
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Leads over time chart */}
-          <Card className={isEditMode ? 'ring-2 ring-dashed ring-accent/30' : ''}>
-            <CardHeader>
-              <CardTitle className="text-lg">Leads por Mês</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mockChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar dataKey="leads" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <Card key={metric.id} className={isEditing ? 'ring-2 ring-dashed ring-accent/30' : ''}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-muted-foreground">{metric.title}</p>
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-primary" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-2xl font-bold text-foreground">{metric.value}</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    {metric.trend === 'up' ? (
+                      <TrendingUp className="w-4 h-4 text-success" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4 text-destructive" />
+                    )}
+                    <span className={`text-xs ${metric.trend === 'up' ? 'text-success' : 'text-destructive'}`}>
+                      {metric.change}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-          {/* Conversions trend */}
-          <Card className={isEditMode ? 'ring-2 ring-dashed ring-accent/30' : ''}>
-            <CardHeader>
-              <CardTitle className="text-lg">Tendência de Conversões</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={mockChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="conversions"
-                      stroke="hsl(var(--chart-2))"
-                      strokeWidth={2}
-                      dot={{ fill: 'hsl(var(--chart-2))' }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <Card className={isEditing ? 'ring-2 ring-dashed ring-accent/30' : ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Evolução de Leads</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={mockChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar dataKey="leads" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Leads" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Funnel and Insights */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Funnel */}
-          <Card className={`lg:col-span-1 ${isEditMode ? 'ring-2 ring-dashed ring-accent/30' : ''}`}>
-            <CardHeader>
-              <CardTitle className="text-lg">Funil de Conversão</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockFunnelData.map((stage, index) => {
-                  const widthPercent = (stage.value / mockFunnelData[0].value) * 100;
-                  return (
-                    <div key={stage.stage} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-foreground font-medium">{stage.stage}</span>
-                        <span className="text-muted-foreground">{stage.value.toLocaleString('pt-BR')}</span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${widthPercent}%`,
-                            backgroundColor: `hsl(var(--chart-${index + 1}))`,
-                          }}
-                        />
-                      </div>
+        <Card className={isEditing ? 'ring-2 ring-dashed ring-accent/30' : ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Conversões</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={mockChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Line type="monotone" dataKey="conversions" stroke="hsl(var(--accent))" strokeWidth={2} name="Conversões" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Funnel and Insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className={isEditing ? 'ring-2 ring-dashed ring-accent/30' : ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Funil de Vendas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {mockFunnelData.map((stage, index) => {
+                const widthPercent = (stage.value / mockFunnelData[0].value) * 100;
+                return (
+                  <div key={stage.stage} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-foreground font-medium">{stage.stage}</span>
+                      <span className="text-muted-foreground">{stage.value.toLocaleString('pt-BR')}</span>
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI Insights */}
-          <Card className={`lg:col-span-2 ${isEditMode ? 'ring-2 ring-dashed ring-accent/30' : ''}`}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-accent" />
-                  Insights Inteligentes
-                </CardTitle>
-                <Badge variant="outline" className="text-xs">
-                  Atualizado há 2h
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockInsights.map((insight) => {
-                  const config = insightTypeConfig[insight.type];
-                  const Icon = config.icon;
-                  return (
-                    <div
-                      key={insight.id}
-                      className="flex gap-4 p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-                    >
-                      <div className={`w-10 h-10 rounded-lg ${config.bg} flex items-center justify-center flex-shrink-0`}>
-                        <Icon className={`w-5 h-5 ${config.color}`} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-foreground leading-relaxed">{insight.content}</p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {new Date(insight.createdAt).toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                      </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${widthPercent}%`, backgroundColor: stage.color }}
+                      />
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={`lg:col-span-2 ${isEditing ? 'ring-2 ring-dashed ring-accent/30' : ''}`}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-accent" />
+                Insights IA
+              </CardTitle>
+              <Button variant="ghost" size="sm">
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {mockInsights.map((insight) => {
+                const config = insightConfig[insight.type];
+                const Icon = config.icon;
+                return (
+                  <div key={insight.id} className={`p-3 rounded-lg border border-l-4 bg-card ${config.className}`}>
+                    <div className="flex items-start gap-2">
+                      <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+                      <p className="text-sm text-foreground">{insight.content}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
 
-export default ClientDashboard;
+export default Dashboard;

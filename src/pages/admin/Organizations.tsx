@@ -13,9 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
-  BarChart3,
   Building2,
-  LogOut,
   Plus,
   Search,
   Users,
@@ -30,7 +28,7 @@ const statusConfig = {
   trial: { label: 'Trial', variant: 'secondary' as const, className: 'bg-warning text-warning-foreground' },
 };
 
-const AdminOrganizations = () => {
+const Organizations = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
@@ -56,216 +54,169 @@ const AdminOrganizations = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border">
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex items-center gap-3 p-6 border-b border-sidebar-border">
-            <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-accent-foreground" />
-            </div>
-            <span className="text-xl font-bold text-sidebar-foreground">Pinn BAI</span>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1">
-            <Link
-              to="/admin/organizations"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-sidebar-accent text-sidebar-accent-foreground"
-            >
-              <Building2 className="w-5 h-5" />
-              <span className="font-medium">Organizações</span>
-            </Link>
-          </nav>
-
-          {/* User section */}
-          <div className="p-4 border-t border-sidebar-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center">
-                  <span className="text-sm font-medium text-sidebar-accent-foreground">A</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-sidebar-foreground">Admin</p>
-                  <p className="text-xs text-sidebar-foreground/60">Plataforma</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                onClick={() => navigate('/login')}
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+    <div className="p-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Organizações</h1>
+          <p className="text-muted-foreground mt-1">
+            Gerencie os clientes da plataforma Pinn BAI
+          </p>
         </div>
-      </aside>
+        <Button
+          className="bg-accent hover:bg-accent/90 text-accent-foreground"
+          onClick={() => navigate('/admin/organizations/new')}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Nova Organização
+        </Button>
+      </div>
 
-      {/* Main content */}
-      <main className="ml-64 p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Organizações</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie os clientes da plataforma Pinn BAI
-            </p>
-          </div>
-          <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-            <Plus className="w-4 h-4 mr-2" />
-            Nova Organização
-          </Button>
-        </div>
-
-        {/* Stats cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total de Clientes</p>
-                  <p className="text-3xl font-bold text-foreground">{stats.total}</p>
-                </div>
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Building2 className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Ativos</p>
-                  <p className="text-3xl font-bold text-success">{stats.active}</p>
-                </div>
-                <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Em Trial</p>
-                  <p className="text-3xl font-bold text-warning">{stats.trial}</p>
-                </div>
-                <div className="w-12 h-12 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Suspensos</p>
-                  <p className="text-3xl font-bold text-destructive">{stats.suspended}</p>
-                </div>
-                <div className="w-12 h-12 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <AlertCircle className="w-6 h-6 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Organizations table */}
+      {/* Stats cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card>
-          <CardHeader>
+          <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Lista de Organizações</CardTitle>
-                <CardDescription>
-                  {filteredOrgs.length} organizações encontradas
-                </CardDescription>
+                <p className="text-sm font-medium text-muted-foreground">Total de Clientes</p>
+                <p className="text-3xl font-bold text-foreground">{stats.total}</p>
               </div>
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome ou email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-primary" />
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Organização</TableHead>
-                  <TableHead>Admin</TableHead>
-                  <TableHead>Plano</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Usuários</TableHead>
-                  <TableHead className="text-right">Leads</TableHead>
-                  <TableHead>Criado em</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrgs.map((org) => {
-                  const status = statusConfig[org.status];
-                  return (
-                    <TableRow
-                      key={org.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/client/${org.id}/dashboard`)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <span className="text-sm font-semibold text-primary">
-                              {org.name.charAt(0)}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">{org.name}</p>
-                            <p className="text-sm text-muted-foreground">{org.slug}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-foreground">{org.adminName}</p>
-                          <p className="text-sm text-muted-foreground">{org.adminEmail}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{planNames[org.plan]}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={status.className} variant={status.variant}>
-                          {status.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">{org.totalUsers}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {org.totalLeads.toLocaleString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(org.createdAt)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
           </CardContent>
         </Card>
-      </main>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Ativos</p>
+                <p className="text-3xl font-bold text-success">{stats.active}</p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Em Trial</p>
+                <p className="text-3xl font-bold text-warning">{stats.trial}</p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-warning/10 flex items-center justify-center">
+                <Users className="w-6 h-6 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Suspensos</p>
+                <p className="text-3xl font-bold text-destructive">{stats.suspended}</p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-destructive/10 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-destructive" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Organizations table */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Lista de Organizações</CardTitle>
+              <CardDescription>
+                {filteredOrgs.length} organizações encontradas
+              </CardDescription>
+            </div>
+            <div className="relative w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Organização</TableHead>
+                <TableHead>Admin</TableHead>
+                <TableHead>Plano</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Usuários</TableHead>
+                <TableHead className="text-right">Leads</TableHead>
+                <TableHead>Criado em</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredOrgs.map((org) => {
+                const status = statusConfig[org.status];
+                return (
+                  <TableRow
+                    key={org.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/client/${org.id}/dashboard`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <span className="text-sm font-semibold text-primary">
+                            {org.name.charAt(0)}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{org.name}</p>
+                          <p className="text-sm text-muted-foreground">{org.slug}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-foreground">{org.adminName}</p>
+                        <p className="text-sm text-muted-foreground">{org.adminEmail}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{planNames[org.plan]}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={status.className} variant={status.variant}>
+                        {status.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{org.totalUsers}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {org.totalLeads.toLocaleString('pt-BR')}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(org.createdAt)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
-export default AdminOrganizations;
+export default Organizations;
