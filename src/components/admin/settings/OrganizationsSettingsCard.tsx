@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,11 +33,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Settings, Database, Trash2, Edit, ExternalLink, Loader2 } from 'lucide-react';
+import { Building2, Plus, Settings, Database, Trash2, Edit, ExternalLink, Loader2, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { mockOrganizations, planNames, type Organization } from '@/lib/mock-data';
 
 const OrganizationsSettingsCard = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [organizations, setOrganizations] = useState<Organization[]>(mockOrganizations);
   const [isCreating, setIsCreating] = useState(false);
@@ -169,13 +171,21 @@ const OrganizationsSettingsCard = () => {
               <CardDescription>Crie, configure e gerencie clientes da plataforma</CardDescription>
             </div>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Organização
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => navigate('/admin/organizations/onboarding')}
+              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              <Wand2 className="w-4 h-4 mr-2" />
+              Wizard Completo
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Rápido
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Criar Nova Organização</DialogTitle>
@@ -253,6 +263,7 @@ const OrganizationsSettingsCard = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

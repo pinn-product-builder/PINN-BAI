@@ -17,6 +17,9 @@ import AdminUsers from "./pages/admin/Users";
 import Activity from "./pages/admin/Activity";
 import AdminSettings from "./pages/admin/Settings";
 
+// Onboarding Wizard
+import OnboardingWizard from "./components/onboarding/OnboardingWizard";
+
 // Client Pages
 import ClientLayout from "./components/layouts/ClientLayout";
 import Dashboard from "./pages/client/Dashboard";
@@ -44,6 +47,7 @@ const App = () => (
             <Route index element={<Navigate to="/admin/organizations" replace />} />
             <Route path="organizations" element={<Organizations />} />
             <Route path="organizations/new" element={<NewOrganization />} />
+            <Route path="organizations/onboarding" element={<OnboardingWizard />} />
             <Route path="templates" element={<Templates />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="activity" element={<Activity />} />
