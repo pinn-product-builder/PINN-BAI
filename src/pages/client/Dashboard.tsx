@@ -20,6 +20,7 @@ import BarChartWidget from '@/components/dashboard/widgets/BarChartWidget';
 import PieChartWidget from '@/components/dashboard/widgets/PieChartWidget';
 import FunnelWidget from '@/components/dashboard/widgets/FunnelWidget';
 import InsightCard from '@/components/dashboard/widgets/InsightCard';
+import TableWidget from '@/components/dashboard/widgets/TableWidget';
 
 const Dashboard = () => {
   const { orgId } = useParams();
@@ -158,6 +159,16 @@ const Dashboard = () => {
         <InsightCard
           title="Insights IA"
           description="Insights gerados automaticamente por inteligência artificial com base nos dados do seu dashboard. Recomendações são ações sugeridas, alertas indicam problemas detectados, e tendências mostram padrões identificados."
+        />
+      </div>
+
+      {/* Recent Leads Table - Full width */}
+      <div className={isEditing ? 'ring-2 ring-dashed ring-accent/30 rounded-lg' : ''}>
+        <TableWidget
+          title="Leads Recentes"
+          description="Últimos leads capturados no período selecionado. Clique em um lead para ver detalhes completos e histórico de interações."
+          pageSize={5}
+          showPagination={true}
         />
       </div>
     </div>

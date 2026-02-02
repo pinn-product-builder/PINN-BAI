@@ -275,6 +275,23 @@ export interface AIInsight {
   createdAt: string;
 }
 
+// ============= Lead Types =============
+
+export type LeadSource = 'google_ads' | 'linkedin' | 'referral' | 'organic' | 'email';
+export type LeadStatus = 'new' | 'qualified' | 'in_analysis' | 'proposal' | 'converted' | 'lost';
+
+export interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  source: LeadSource;
+  status: LeadStatus;
+  value?: number;
+  createdAt: string;
+  orgId: string;
+}
+
 export interface ActivityLog {
   id: string;
   userId: string;
@@ -714,6 +731,137 @@ export const mockDatasets: Dataset[] = [
     mappings: {},
     createdAt: '2024-03-15T09:00:00Z',
     updatedAt: '2024-03-15T09:00:00Z',
+  },
+];
+
+// Mock leads data
+export const mockLeads: Lead[] = [
+  {
+    id: 'lead-1',
+    name: 'João Silva',
+    email: 'joao.silva@email.com',
+    phone: '(11) 99999-1234',
+    source: 'google_ads',
+    status: 'qualified',
+    value: 15000,
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2h ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-2',
+    name: 'Maria Santos',
+    email: 'maria.santos@empresa.com',
+    phone: '(21) 98888-5678',
+    source: 'linkedin',
+    status: 'new',
+    value: 8000,
+    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5h ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-3',
+    name: 'Pedro Costa',
+    email: 'pedro.costa@startup.io',
+    source: 'referral',
+    status: 'in_analysis',
+    value: 25000,
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1d ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-4',
+    name: 'Ana Rodrigues',
+    email: 'ana.rodrigues@corp.com.br',
+    phone: '(31) 97777-9012',
+    source: 'organic',
+    status: 'qualified',
+    value: 12000,
+    createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(), // 1d ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-5',
+    name: 'Carlos Lima',
+    email: 'carlos.lima@tech.com',
+    source: 'email',
+    status: 'converted',
+    value: 32000,
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2d ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-6',
+    name: 'Fernanda Oliveira',
+    email: 'fernanda@marketing.com',
+    phone: '(41) 96666-3456',
+    source: 'google_ads',
+    status: 'proposal',
+    value: 45000,
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3d ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-7',
+    name: 'Roberto Mendes',
+    email: 'roberto.mendes@empresa.br',
+    source: 'linkedin',
+    status: 'new',
+    value: 18000,
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4d ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-8',
+    name: 'Luciana Ferreira',
+    email: 'luciana@vendas.net',
+    phone: '(51) 95555-7890',
+    source: 'referral',
+    status: 'in_analysis',
+    value: 22000,
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5d ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-9',
+    name: 'Marcos Almeida',
+    email: 'marcos@industria.com',
+    source: 'organic',
+    status: 'lost',
+    value: 9000,
+    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), // 6d ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-10',
+    name: 'Patricia Souza',
+    email: 'patricia.souza@comercio.com',
+    phone: '(61) 94444-1234',
+    source: 'email',
+    status: 'qualified',
+    value: 28000,
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7d ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-11',
+    name: 'Ricardo Gomes',
+    email: 'ricardo@consulting.io',
+    source: 'google_ads',
+    status: 'new',
+    value: 16000,
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8d ago
+    orgId: 'org-1',
+  },
+  {
+    id: 'lead-12',
+    name: 'Beatriz Carvalho',
+    email: 'beatriz@startup.tech',
+    phone: '(71) 93333-5678',
+    source: 'linkedin',
+    status: 'converted',
+    value: 55000,
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10d ago
+    orgId: 'org-1',
   },
 ];
 
