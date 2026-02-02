@@ -1,130 +1,128 @@
 
-# Plano: Dashboard do Cliente com Widgets de Alta Qualidade
+# Plano: Widget de Tabela de Leads Recentes
 
 ## Resumo
 
-Refatorar a página `src/pages/client/Dashboard.tsx` para utilizar os novos componentes de widgets de alta qualidade já criados, substituindo a implementação inline atual por componentes reutilizáveis, profissionais e ricos em informações visuais.
-
-## O Que Será Feito
-
-### Layout do Novo Dashboard
-
-O novo dashboard terá:
-- **Header**: Título, nome da organização, seletor de período e botão de edição
-- **4 Metric Cards**: Cards de métricas com sparklines e tooltips explicativos
-- **2 Charts Principais**: AreaChart (Evolução) + LineChart (Multi-métricas)
-- **2 Charts Secundários**: BarChart (Por Canal) + PieChart (Distribuição)
-- **Funil de Vendas**: Widget dedicado com taxas de conversão
-- **Insights IA**: Painel com recomendações categorizadas por prioridade
-
-### Componentes Utilizados
-
-| Widget | Arquivo | Descrição |
-|--------|---------|-----------|
-| MetricCard | `widgets/MetricCard.tsx` | 4 métricas com sparklines e trends |
-| AreaChartWidget | `widgets/AreaChartWidget.tsx` | Gráfico de área com gradiente |
-| LineChartWidget | `widgets/LineChartWidget.tsx` | Multi-série com 2 eixos Y |
-| BarChartWidget | `widgets/BarChartWidget.tsx` | Barras horizontais por canal |
-| PieChartWidget | `widgets/PieChartWidget.tsx` | Distribuição com donut opcional |
-| FunnelWidget | `widgets/FunnelWidget.tsx` | Funil animado com conversões |
-| InsightCard | `widgets/InsightCard.tsx` | Insights IA categorizados |
+Criar um novo componente `TableWidget.tsx` para exibir leads recentes no dashboard, seguindo o padrão visual de alta qualidade dos demais widgets, com recursos como paginação, ordenação visual, badges de status e ações rápidas.
 
 ---
 
-## Estrutura Visual
+## Visual do Widget
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  Dashboard                                              [Período] [Editar]   │
-│  TechCorp Solutions                                                          │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐         │
-│  │ Total Leads  │ │ Conversões   │ │ Taxa Conv.   │ │ Receita MRR  │         │
-│  │    2.450     │ │     156      │ │    12.5%     │ │  R$ 458k     │         │
-│  │ ▲ +16.7%     │ │ ▲ +22.0%     │ │ ▲ +4.2%      │ │ ▲ +23.4%     │         │
-│  │  ~~~~~~~~    │ │  ~~~~~~~~    │ │  ~~~~~~~~    │ │  ~~~~~~~~    │         │
-│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘         │
-│                                                                              │
-│  ┌─────────────────────────────────────┐ ┌─────────────────────────────────┐ │
-│  │  Evolução de Leads (Area Chart)     │ │  Métricas Combinadas (Line)     │ │
-│  │                                     │ │                                 │ │
-│  │      ████████████                   │ │      /\    /\                   │ │
-│  │    ██            ██                 │ │     /  \  /  \                  │ │
-│  │  ██                ██               │ │    /    \/    \                 │ │
-│  │                                     │ │                                 │ │
-│  └─────────────────────────────────────┘ └─────────────────────────────────┘ │
-│                                                                              │
-│  ┌──────────────────────┐ ┌──────────────────────┐ ┌──────────────────────┐  │
-│  │  Leads por Canal     │ │  Status dos Leads    │ │  Funil de Vendas     │  │
-│  │  (Bar Horizontal)    │ │  (Donut Chart)       │ │                      │  │
-│  │                      │ │        ___           │ │  Visitantes ████████ │  │
-│  │  Google Ads ████████ │ │       /   \          │ │  Leads      ██████   │  │
-│  │  LinkedIn   █████    │ │      | 2.1k|         │ │  Opport.    ████     │  │
-│  │  Referral   ███      │ │       \___/          │ │  Propostas  ██       │  │
-│  └──────────────────────┘ └──────────────────────┘ └──────────────────────┘  │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────────┐│
-│  │  ✨ Insights IA                                                          ││
-│  │  ┌─────────────────────────────────────────────────────────────────────┐ ││
-│  │  │ 💡 [Alta] Taxa de conversão aumentou 15%...                         │ ││
-│  │  └─────────────────────────────────────────────────────────────────────┘ ││
-│  │  ┌─────────────────────────────────────────────────────────────────────┐ ││
-│  │  │ ⚠️ [Média] Queda de 8% nos leads B2B...                             │ ││
-│  │  └─────────────────────────────────────────────────────────────────────┘ ││
-│  └──────────────────────────────────────────────────────────────────────────┘│
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Leads Recentes                                                    (i)      │
+│  Últimos leads capturados no período selecionado                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Nome              Email                  Origem      Status      Data      │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│  ○ João Silva      joao@email.com        Google Ads  ●Qualificado  Há 2h   │
+│  ○ Maria Santos    maria@empresa.com     LinkedIn    ●Novo         Há 5h   │
+│  ○ Pedro Costa     pedro@startup.io      Referral    ●Em Análise   Há 1d   │
+│  ○ Ana Rodrigues   ana@corp.com.br       Organic     ●Qualificado  Há 1d   │
+│  ○ Carlos Lima     carlos@tech.com       Email       ●Convertido   Há 2d   │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Mostrando 1-5 de 47 leads                              [<] 1 2 3 ... [>]   │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## O Que Será Criado
+
+### 1. Novo Componente: `TableWidget.tsx`
+
+Características do widget:
+- **Header com tooltip**: Título + ícone de info com descrição detalhada
+- **Tabela responsiva**: Usa os componentes `Table` já existentes
+- **Avatares**: Iniciais do nome com cores únicas
+- **Badges de status**: Coloridos por status (Novo, Qualificado, Em Análise, Convertido)
+- **Origem do lead**: Com ícones representativos
+- **Data relativa**: "Há 2h", "Há 1d" usando date-fns
+- **Paginação**: Componente de paginação funcional
+- **Limite de linhas**: 5 leads por página (configurável)
+
+### 2. Mock Data de Leads
+
+Adicionar ao `mock-data.ts`:
+```typescript
+interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  source: 'google_ads' | 'linkedin' | 'referral' | 'organic' | 'email';
+  status: 'new' | 'qualified' | 'in_analysis' | 'proposal' | 'converted' | 'lost';
+  value?: number;
+  createdAt: string;
+  orgId: string;
+}
+```
+
+### 3. Integração no Dashboard
+
+Adicionar o widget na página `Dashboard.tsx` abaixo dos Insights IA.
 
 ---
 
 ## Detalhes Técnicos
 
-### Arquivo Modificado
+### Arquivos Criados/Modificados
 
-**`src/pages/client/Dashboard.tsx`**
+| Arquivo | Ação |
+|---------|------|
+| `src/components/dashboard/widgets/TableWidget.tsx` | Criar |
+| `src/lib/mock-data.ts` | Adicionar interface Lead e mockLeads |
+| `src/pages/client/Dashboard.tsx` | Importar e usar TableWidget |
 
-Mudanças principais:
-1. Importar os novos componentes de widgets
-2. Remover implementações inline de charts
-3. Substituir por componentes reutilizáveis
-4. Adicionar descrições explicativas para cada métrica
-5. Melhorar o grid layout para acomodar mais widgets
+### Props do Componente
 
-### Métricas com Explicações
+```typescript
+interface TableWidgetProps {
+  title: string;
+  description: string;
+  pageSize?: number;
+  showPagination?: boolean;
+}
+```
 
-Cada métrica terá um tooltip detalhado:
+### Status e Cores
 
-| Métrica | Descrição |
-|---------|-----------|
-| Total de Leads | Número total de leads capturados no período. Inclui todos os canais de aquisição. |
-| Conversões | Leads que se tornaram clientes pagantes. Calculado pela mudança de status para "Cliente". |
-| Taxa de Conversão | Percentual de leads convertidos. Fórmula: (Clientes / Total Leads) x 100. |
-| Receita MRR | Receita Recorrente Mensal. Soma de todas as assinaturas ativas normalizadas. |
+| Status | Cor | Label PT-BR |
+|--------|-----|-------------|
+| new | Azul | Novo |
+| qualified | Verde | Qualificado |
+| in_analysis | Amarelo | Em Análise |
+| proposal | Roxo | Proposta |
+| converted | Esmeralda | Convertido |
+| lost | Vermelho | Perdido |
 
-### Grid Responsivo
+### Origens e Ícones
 
-O layout utilizará CSS Grid com breakpoints:
-- Mobile: 1 coluna
-- Tablet: 2 colunas
-- Desktop: 4 colunas para métricas, 2-3 para charts
+| Origem | Ícone Lucide |
+|--------|--------------|
+| google_ads | Chrome |
+| linkedin | Linkedin |
+| referral | Users |
+| organic | Globe |
+| email | Mail |
+
+---
+
+## Responsividade
+
+- **Desktop**: Todas as colunas visíveis
+- **Tablet**: Ocultar coluna Telefone
+- **Mobile**: Mostrar apenas Nome, Status e Data (layout compacto)
 
 ---
 
 ## Benefícios
 
-1. **Código Limpo**: Componentes reutilizáveis em vez de código duplicado
-2. **Consistência Visual**: Todos os widgets seguem o mesmo design system
-3. **Tooltips Informativos**: Cada métrica tem explicação detalhada
-4. **Sparklines**: Mini gráficos de tendência em cada card
-5. **Gradientes e Animações**: Visual de alta qualidade com Recharts
-6. **Acessibilidade**: Cores com contraste adequado e textos descritivos
-
----
-
-## Arquivos Afetados
-
-| Arquivo | Ação |
-|---------|------|
-| `src/pages/client/Dashboard.tsx` | Reescrever com novos widgets |
+1. **Visão Rápida**: Admin vê leads recentes sem sair do dashboard
+2. **Contexto Visual**: Badges e avatares facilitam identificação
+3. **Paginação**: Navegar por todos os leads sem scroll infinito
+4. **Consistência**: Segue o design system dos demais widgets
+5. **Acessibilidade**: Textos descritivos e contraste adequado
