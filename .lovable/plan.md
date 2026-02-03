@@ -1,486 +1,241 @@
 
-# Plano: Sistema PINN BAI 100% Funcional com Integrações Reais
 
-## Resumo Executivo
+# Motor de Recomendação de Widgets Inteligente
 
-Transformar o sistema de protótipo com dados mock para uma plataforma de produção completa, incluindo:
-- Banco de dados real no Supabase com schema multi-tenant
-- Autenticação funcional com controle de papéis seguros
-- Integrações reais (Supabase externo, Google Sheets, CSV, API)
-- Seleção inteligente de tabelas e colunas
-- Motor de recomendação de widgets baseado no tipo de dados
-- Dashboards dinâmicos de alta qualidade UX
+## Objetivo
+
+Implementar um sistema de recomendação inteligente que analisa os mapeamentos de dados configurados e sugere automaticamente os widgets mais adequados para visualização, com scores de relevância, justificativas claras e interface interativa para aceitar/rejeitar/customizar.
 
 ---
 
-## Fase 1: Estrutura do Banco de Dados
-
-### 1.1 Tabelas a Criar
-
-| Tabela | Descricao |
-|--------|-----------|
-| `profiles` | Perfis de usuarios (nome, avatar, org_id) |
-| `user_roles` | Papeis dos usuarios (tabela separada por seguranca) |
-| `organizations` | Organizacoes/clientes da plataforma |
-| `integrations` | Conexoes de fontes de dados |
-| `selected_tables` | Tabelas selecionadas de cada integracao |
-| `data_mappings` | Mapeamentos de campos para metricas |
-| `dashboards` | Configuracoes de dashboards |
-| `dashboard_widgets` | Widgets de cada dashboard |
-| `leads` | Dados de leads sincronizados |
-| `activity_logs` | Logs de atividade do sistema |
-
-### 1.2 Enum Types
+## Arquitetura da Solução
 
 ```text
-app_role: 'platform_admin' | 'client_admin' | 'analyst' | 'viewer'
-org_status: 'active' | 'suspended' | 'trial'
-org_plan: 1 | 2 | 3 | 4
-integration_type: 'supabase' | 'google_sheets' | 'csv' | 'api'
-integration_status: 'pending' | 'connected' | 'error' | 'syncing'
-lead_source: 'google_ads' | 'linkedin' | 'referral' | 'organic' | 'email' | 'other'
-lead_status: 'new' | 'qualified' | 'in_analysis' | 'proposal' | 'converted' | 'lost'
-widget_type: 'metric_card' | 'area_chart' | 'bar_chart' | 'line_chart' | 'pie_chart' | 'funnel' | 'table' | 'insight_card'
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    MOTOR DE RECOMENDAÇÃO DE WIDGETS                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐       │
+│  │   MappingStep   │────▶│  recommend-     │────▶│   PreviewStep   │       │
+│  │   (Mapeamentos) │     │  widgets (Edge) │     │  (Recomendações)│       │
+│  │                 │     │                 │     │                 │       │
+│  │  - source_field │     │  - Analisa tipos│     │  - Lista ranked │       │
+│  │  - target_metric│     │  - Calcula score│     │  - Aceitar/     │       │
+│  │  - transform    │     │  - Gera config  │     │    Rejeitar     │       │
+│  └─────────────────┘     └─────────────────┘     └─────────────────┘       │
+│                                                                             │
+│  REGRAS DE RECOMENDAÇÃO:                                                   │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │ Tipo de Dado        │ Widget Sugerido │ Score │ Justificativa        │ │
+│  ├───────────────────────────────────────────────────────────────────────┤ │
+│  │ Contador (COUNT)    │ MetricCard      │ 95    │ Exibição de totais   │ │
+│  │ Valor monetário     │ MetricCard ($)  │ 92    │ Formato R$ + trend   │ │
+│  │ Percentual          │ MetricCard (%)  │ 90    │ Taxa de conversão    │ │
+│  │ Série temporal      │ AreaChart       │ 88    │ Evolução no tempo    │ │
+│  │ Categórico          │ PieChart/Bar    │ 87    │ Distribuição         │ │
+│  │ Funil               │ FunnelWidget    │ 89    │ Estágios de vendas   │ │
+│  │ Lista de registros  │ TableWidget     │ 80    │ Detalhamento         │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 Seguranca (RLS)
+---
 
-- Usuarios so veem dados da propria organizacao
-- Platform admins veem todas organizacoes
-- Funcao `has_role()` separada para evitar recursao
-- Tabela `user_roles` isolada conforme boas praticas
+## Fase 1: Aprimorar Edge Function recommend-widgets
+
+### 1.1 Análise Avançada de Dados
+
+A Edge Function será aprimorada para:
+
+| Análise | Detecção | Widget Recomendado |
+|---------|----------|-------------------|
+| Campo numérico + agregação SUM | Detecta valores monetários | MetricCard com formato currency |
+| Campo numérico + agregação COUNT | Detecta contadores | MetricCard com formato number |
+| Campo numérico + agregação AVG | Detecta médias | MetricCard com comparação |
+| Campo de data (created_at, etc.) | Detecta série temporal | AreaChart ou LineChart |
+| Campo categórico (source, status) | Detecta distribuição | PieChart ou BarChart |
+| Múltiplos status sequenciais | Detecta funil | FunnelWidget |
+| Campo de texto + email/nome | Detecta lista | TableWidget |
+| Plano >= 3 | Funcionalidade IA | InsightCard |
+
+### 1.2 Sistema de Scoring
+
+Cada recomendação recebe um score (0-100) baseado em:
+- **Relevância do tipo de dado** (40%)
+- **Quantidade de dados disponíveis** (20%)
+- **Compatibilidade com plano** (20%)
+- **Boas práticas de UX** (20%)
 
 ---
 
-## Fase 2: Autenticacao e Autorizacao
+## Fase 2: Hook useWidgetRecommendations
 
-### 2.1 Componentes a Criar
+### 2.1 Interface do Hook
 
-| Arquivo | Funcao |
-|---------|--------|
-| `src/contexts/AuthContext.tsx` | Context global de autenticacao |
-| `src/hooks/useAuth.ts` | Hook para login/logout/sessao |
-| `src/components/auth/ProtectedRoute.tsx` | Protecao de rotas por papel |
-| `src/components/auth/RoleGuard.tsx` | Protecao por papel especifico |
+```typescript
+interface UseWidgetRecommendationsParams {
+  orgId?: string;
+  mappings: DataMapping[];
+  plan: number;
+}
 
-### 2.2 Fluxo de Login
+interface UseWidgetRecommendationsReturn {
+  recommendations: WidgetRecommendation[];
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
+}
+```
 
-1. Usuario insere email/senha
-2. Supabase Auth valida credenciais
-3. Sistema busca perfil e papel via `user_roles`
-4. Redireciona para area correta (admin ou cliente)
-5. Context armazena sessao e dados do usuario
+### 2.2 Lógica
 
-### 2.3 Trigger de Criacao de Perfil
-
-Ao criar usuario via Supabase Auth, trigger automaticamente:
-- Cria registro em `profiles`
-- Permite associar papel posteriormente
+- Chama a Edge Function `recommend-widgets` quando os mapeamentos mudam
+- Filtra recomendações por plano do usuário
+- Ordena por score (maior primeiro)
+- Cache via React Query
 
 ---
 
-## Fase 3: Sistema de Selecao de Tabelas e Campos
+## Fase 3: Interface de Recomendações no PreviewStep
 
-### 3.1 Fluxo de Selecao de Tabelas
+### 3.1 Novo Layout
 
-O sistema permitira que o admin selecione quais tabelas usar:
+O PreviewStep terá uma seção de recomendações inteligentes:
 
 ```text
-1. Conectar fonte de dados (Supabase/Sheets/API)
-2. Sistema lista todas as tabelas disponiveis
-3. Admin marca quais tabelas deseja usar
-4. Para cada tabela, exibe preview de dados
-5. Admin seleciona quais colunas importar
-6. Sistema detecta tipos de dados automaticamente
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ✨ Recomendações Inteligentes                                             │
+│  Baseado nos seus dados, sugerimos os seguintes widgets:                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────────┐│
+│  │ ✓ ACEITO   MetricCard - Total de Leads              Score: 95         ││
+│  │            Baseado em: COUNT(leads.id)                                 ││
+│  │            "Exibe o número total de leads capturados"                  ││
+│  └────────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────────┐│
+│  │ ✓ ACEITO   MetricCard - Taxa de Conversão           Score: 92         ││
+│  │            Baseado em: conversions / total_leads                       ││
+│  │            "Percentual de leads convertidos em clientes"               ││
+│  └────────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────────┐│
+│  │ ? PENDENTE AreaChart - Evolução de Leads             Score: 88         ││
+│  │            Baseado em: leads.created_at (temporal)                     ││
+│  │            "Gráfico mostrando leads ao longo do tempo"                 ││
+│  │            [ Aceitar ]  [ Rejeitar ]  [ Customizar ]                   ││
+│  └────────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Interface de Selecao
+### 3.2 Estados de Recomendação
 
-```text
-+-------------------------------------------------------+
-|  Tabelas Disponiveis                                   |
-+-------------------------------------------------------+
-|  [x] leads (2.450 registros)                          |
-|      Colunas: id, name, email, source, status, value   |
-|                                                        |
-|  [x] conversions (320 registros)                       |
-|      Colunas: id, lead_id, revenue, converted_at       |
-|                                                        |
-|  [ ] users (45 registros)                              |
-|      Colunas: id, email, name, role, created_at        |
-|                                                        |
-|  [ ] monthly_metrics (12 registros)                    |
-|      Colunas: month, total_leads, revenue              |
-+-------------------------------------------------------+
-```
-
-### 3.3 Banco de Dados: selected_tables
-
-```sql
-create table public.selected_tables (
-  id uuid primary key default gen_random_uuid(),
-  integration_id uuid references integrations(id) on delete cascade,
-  table_name text not null,
-  selected_columns text[] not null,
-  is_primary boolean default false,
-  row_count integer,
-  created_at timestamptz default now()
-);
-```
+| Estado | Cor | Ação |
+|--------|-----|------|
+| Pendente | Amarelo/âmbar | Aguardando decisão do usuário |
+| Aceito | Verde | Widget será incluído no dashboard |
+| Rejeitado | Vermelho/cinza | Widget não será incluído |
+| Customizado | Azul | Usuário alterou configurações |
 
 ---
 
-## Fase 4: Motor de Recomendacao de Widgets
+## Fase 4: Componente WidgetRecommendationCard
 
-### 4.1 Analise Inteligente de Dados
+### 4.1 Props
 
-O sistema analisara automaticamente os dados mapeados para sugerir os melhores widgets:
-
-| Tipo de Dado | Widget Recomendado | Justificativa |
-|--------------|-------------------|---------------|
-| Contador (COUNT) | MetricCard | Exibicao de totais |
-| Valor monetario | MetricCard (currency) | Formato R$ com tendencia |
-| Percentual | MetricCard (%) | Taxa de conversao |
-| Serie temporal | AreaChart / LineChart | Evolucao ao longo do tempo |
-| Categorias (source, status) | PieChart / BarChart | Distribuicao |
-| Dados de funil | FunnelWidget | Estagios de conversao |
-| Lista de registros | TableWidget | Detalhamento |
-| Metricas + texto | InsightCard | Analises IA |
-
-### 4.2 Algoritmo de Recomendacao
-
-```text
-1. Analisar mapeamentos configurados
-2. Detectar tipos de metricas (contador, valor, percentual, temporal)
-3. Identificar relacoes entre campos (ex: source -> distribuicao)
-4. Gerar lista de widgets recomendados com score
-5. Apresentar ao admin em ordem de relevancia
-6. Admin pode aceitar/rejeitar/customizar
+```typescript
+interface WidgetRecommendationCardProps {
+  recommendation: WidgetRecommendation;
+  status: 'pending' | 'accepted' | 'rejected' | 'customized';
+  onAccept: () => void;
+  onReject: () => void;
+  onCustomize: () => void;
+}
 ```
 
-### 4.3 Interface de Recomendacoes
+### 4.2 Features
 
-```text
-+---------------------------------------------------------------+
-|  Widgets Recomendados                                          |
-+---------------------------------------------------------------+
-|  [Aceito] MetricCard - Total de Leads                         |
-|           Baseado no mapeamento: COUNT(leads.id)               |
-|                                                                |
-|  [Aceito] MetricCard - Taxa de Conversao                       |
-|           Baseado no mapeamento: conversions / leads * 100     |
-|                                                                |
-|  [Aceito] AreaChart - Evolucao de Leads                       |
-|           Baseado no mapeamento: leads.created_at (serie)      |
-|                                                                |
-|  [Aceito] PieChart - Distribuicao por Origem                   |
-|           Baseado no mapeamento: leads.source (categorico)     |
-|                                                                |
-|  [?] BarChart - Leads por Status                               |
-|       Baseado no mapeamento: leads.status (categorico)         |
-+---------------------------------------------------------------+
-```
+- Badge com score (cor baseada no valor: 90+ verde, 70-89 azul, <70 amarelo)
+- Ícone do tipo de widget
+- Descrição da justificativa (basedOn)
+- Tooltip com configurações sugeridas
+- Botões de ação com feedback visual
 
 ---
 
-## Fase 5: Edge Functions para Integracoes
+## Arquivos a Criar
 
-### 5.1 test-supabase-connection
-
-Testa conexao com Supabase externo e lista tabelas/colunas disponiveis.
-
-**Entrada:** `{ projectUrl, anonKey }`
-**Saida:** `{ success, tables: [{ name, columns, rowCount }] }`
-
-### 5.2 sync-supabase-data
-
-Sincroniza dados do Supabase externo para tabela local, aplicando mapeamentos.
-
-**Entrada:** `{ integrationId, selectedTables, mappings }`
-**Saida:** `{ success, syncedRecords, errors }`
-
-### 5.3 fetch-google-sheets
-
-Busca dados de planilha publica via API do Google.
-
-**Entrada:** `{ spreadsheetUrl, sheetName }`
-**Saida:** `{ success, columns, rows, sampleData }`
-
-### 5.4 sync-external-api
-
-Sincroniza dados de API REST externa.
-
-**Entrada:** `{ integrationId, endpoint, authConfig }`
-**Saida:** `{ success, records }`
-
-### 5.5 calculate-dashboard-metrics
-
-Calcula metricas do dashboard em tempo real baseado nos dados sincronizados.
-
-**Entrada:** `{ orgId, dateRange, widgetConfigs }`
-**Saida:** `{ metrics: { [widgetId]: { value, previousValue, data } } }`
-
-### 5.6 recommend-widgets
-
-Analisa dados e recomenda widgets ideais.
-
-**Entrada:** `{ orgId, mappings }`
-**Saida:** `{ recommendations: [{ type, title, score, config }] }`
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/hooks/useWidgetRecommendations.ts` | Hook para buscar recomendações via Edge Function |
+| `src/components/onboarding/WidgetRecommendationCard.tsx` | Card de recomendação individual |
+| `src/components/onboarding/WidgetRecommendationList.tsx` | Lista de recomendações com estado |
 
 ---
 
-## Fase 6: Hooks e Queries (React Query)
+## Arquivos a Modificar
 
-| Hook | Responsabilidade |
-|------|-----------------|
-| `useAuth` | Autenticacao e sessao |
-| `useOrganizations` | CRUD de organizacoes |
-| `useOrganization(id)` | Uma organizacao especifica |
-| `useIntegrations(orgId)` | Integracoes da organizacao |
-| `useIntegrationTables(integrationId)` | Tabelas de uma integracao |
-| `useLeads(orgId, filters)` | Leads com filtros e paginacao |
-| `useDashboard(orgId)` | Configuracao do dashboard |
-| `useDashboardMetrics(orgId, dateRange)` | Metricas calculadas em tempo real |
-| `useWidgetRecommendations(mappings)` | Recomendacoes de widgets |
-| `useActivityLogs(orgId)` | Logs de atividade |
-
----
-
-## Fase 7: Refatoracao de Paginas
-
-### 7.1 Login.tsx
-
-- Usar `supabase.auth.signInWithPassword()`
-- Buscar perfil e papel apos login
-- Redirecionar baseado no papel (admin vs cliente)
-
-### 7.2 AdminLayout.tsx / ClientLayout.tsx
-
-- Usar `useAuth()` para dados do usuario
-- Exibir nome/avatar real do perfil
-- Logout real com `supabase.auth.signOut()`
-- Buscar organizacao do contexto
-
-### 7.3 Organizations.tsx
-
-- Buscar do banco via `useOrganizations()`
-- Stats calculadas em tempo real via agregacao
-- CRUD funcional com mutations
-
-### 7.4 OnboardingWizard.tsx
-
-Refatoracao completa do wizard:
-
-**Step 1 - Organizacao:** Salvar em `organizations`
-**Step 2 - Integracao:** 
-- Testar conexao via Edge Function
-- Listar tabelas disponiveis
-- Permitir selecao de tabelas/colunas
-- Salvar em `integrations` e `selected_tables`
-
-**Step 3 - Mapeamento:**
-- Carregar tabelas/colunas selecionadas
-- Mapear para metricas do sistema
-- Salvar em `data_mappings`
-
-**Step 4 - Preview:**
-- Chamar `recommend-widgets` Edge Function
-- Exibir recomendacoes inteligentes
-- Permitir aceitar/rejeitar/customizar
-- Salvar em `dashboard_widgets`
-
-**Step 5 - Confirmacao:**
-- Criar dashboard em `dashboards`
-- Disparar sincronizacao inicial
-- Redirecionar para dashboard
-
-### 7.5 Dashboard.tsx
-
-- Buscar config via `useDashboard()`
-- Buscar metricas via `useDashboardMetrics()`
-- Renderizar widgets dinamicamente baseado na config
-- Filtro de periodo funcional (altera query)
-
-### 7.6 TableWidget.tsx
-
-- Receber `orgId` e `filters` via props
-- Buscar leads via `useLeads()`
-- Paginacao real do banco
-
----
-
-## Fase 8: Arquivos a Criar
-
-### Backend (Supabase)
-
-```text
-supabase/
-+-- functions/
-    +-- test-supabase-connection/
-    |   +-- index.ts
-    +-- sync-supabase-data/
-    |   +-- index.ts
-    +-- fetch-google-sheets/
-    |   +-- index.ts
-    +-- sync-external-api/
-    |   +-- index.ts
-    +-- calculate-dashboard-metrics/
-    |   +-- index.ts
-    +-- recommend-widgets/
-        +-- index.ts
-```
-
-### Frontend
-
-```text
-src/
-+-- contexts/
-|   +-- AuthContext.tsx
-+-- hooks/
-|   +-- useAuth.ts
-|   +-- useOrganizations.ts
-|   +-- useOrganization.ts
-|   +-- useIntegrations.ts
-|   +-- useIntegrationTables.ts
-|   +-- useLeads.ts
-|   +-- useDashboard.ts
-|   +-- useDashboardMetrics.ts
-|   +-- useWidgetRecommendations.ts
-|   +-- useActivityLogs.ts
-+-- components/
-|   +-- auth/
-|   |   +-- ProtectedRoute.tsx
-|   |   +-- RoleGuard.tsx
-|   +-- onboarding/
-|       +-- steps/
-|           +-- TableSelectionStep.tsx (novo)
-+-- types/
-|   +-- database.ts
-+-- lib/
-    +-- types.ts (manter apenas interfaces)
-```
-
----
-
-## Fase 9: Arquivos a Modificar
-
-| Arquivo | Mudancas |
+| Arquivo | Mudanças |
 |---------|----------|
-| `src/App.tsx` | Adicionar AuthProvider e ProtectedRoute |
-| `src/pages/Login.tsx` | Login real com Supabase Auth |
-| `src/pages/admin/Organizations.tsx` | Buscar dados do banco |
-| `src/pages/client/Dashboard.tsx` | Metricas dinamicas |
-| `src/components/layouts/AdminLayout.tsx` | Usar useAuth |
-| `src/components/layouts/ClientLayout.tsx` | Usar useAuth e dados reais |
-| `src/components/onboarding/OnboardingWizard.tsx` | Fluxo completo com banco |
-| `src/components/onboarding/steps/IntegrationStep.tsx` | Selecao de tabelas |
-| `src/components/onboarding/steps/MappingStep.tsx` | Dados reais |
-| `src/components/onboarding/steps/PreviewStep.tsx` | Recomendacoes IA |
-| `src/components/dashboard/widgets/*.tsx` | Receber dados via props |
-| `src/lib/mock-data.ts` | Manter apenas types, remover mocks |
+| `supabase/functions/recommend-widgets/index.ts` | Aprimorar algoritmo de recomendação |
+| `src/components/onboarding/steps/PreviewStep.tsx` | Integrar sistema de recomendações |
+| `src/components/onboarding/OnboardingWizard.tsx` | Passar mapeamentos corretos |
+| `src/lib/types.ts` | Adicionar novos tipos se necessário |
 
 ---
 
-## Ordem de Implementacao
+## Detalhes Técnicos
 
-### Etapa 1: Fundacao (Banco de Dados)
-1. Criar migracao SQL com todas as tabelas
-2. Criar enums e tipos
-3. Configurar RLS policies
-4. Criar funcao `has_role()`
-5. Criar trigger para perfil automatico
+### Algoritmo de Recomendação Aprimorado
 
-### Etapa 2: Autenticacao
-6. Criar AuthContext.tsx
-7. Criar useAuth.ts
-8. Criar ProtectedRoute.tsx
-9. Refatorar Login.tsx
-10. Refatorar App.tsx com protecao
+```text
+1. ANALISAR MAPEAMENTOS
+   - Para cada mapping, identificar:
+     - target_metric (total_leads, revenue, etc.)
+     - transform_type (currency, percentage, date)
+     - aggregation (count, sum, avg)
 
-### Etapa 3: Dados Basicos
-11. Criar hooks de dados
-12. Refatorar Organizations.tsx
-13. Refatorar layouts
-14. Criar arquivo de types limpo
+2. GERAR REGRAS DE SCORE
+   - Métricas principais (leads, revenue, conversion_rate): +95 score
+   - Métricas secundárias (avg_ticket, growth_rate): +85 score
+   - Dados temporais detectados: +88 score (AreaChart)
+   - Dados categóricos detectados: +87 score (PieChart)
+   - Combinação leads + conversions: +89 score (Funnel)
 
-### Etapa 4: Edge Functions
-15. Criar test-supabase-connection
-16. Criar fetch-google-sheets
-17. Criar sync-supabase-data
-18. Criar sync-external-api
-19. Criar calculate-dashboard-metrics
-20. Criar recommend-widgets
+3. FILTRAR POR PLANO
+   - Plano 1: MetricCard, AreaChart, BarChart, Table
+   - Plano 2: + LineChart, PieChart, DonutChart, Funnel
+   - Plano 3+: + RadarChart, InsightCard (IA)
 
-### Etapa 5: Integracoes Frontend
-21. Adicionar selecao de tabelas no IntegrationStep
-22. Refatorar MappingStep com dados reais
-23. Refatorar PreviewStep com recomendacoes
-24. Refatorar OnboardingWizard completo
-25. Implementar sincronizacao real
+4. ORDENAR E RETORNAR
+   - Ordenar por score descendente
+   - Limitar a top 10 recomendações
+   - Incluir config sugerida para cada widget
+```
 
-### Etapa 6: Dashboard Dinamico
-26. Criar useDashboardMetrics
-27. Refatorar Dashboard.tsx
-28. Conectar widgets a dados reais
-29. Implementar TableWidget com dados reais
+### Transição do MappingStep para PreviewStep
 
-### Etapa 7: Limpeza Final
-30. Remover todos os mocks de mock-data.ts
-31. Manter apenas interfaces e types
-32. Testar fluxo completo end-to-end
+Quando o usuário avança do step 3 para o step 4:
+1. Os mapeamentos são enviados para a Edge Function
+2. A função analisa e retorna recomendações rankeadas
+3. O PreviewStep exibe as recomendações automaticamente
+4. Usuário aceita/rejeita cada uma
+5. Widgets aceitos são usados para gerar o dashboard
 
 ---
 
 ## Resultado Final
 
-Apos implementacao:
+Após implementação:
 
-- **Login funcional** com email/senha via Supabase Auth
-- **Controle de papeis seguro** (platform_admin, client_admin, analyst, viewer)
-- **Organizacoes persistentes** com CRUD completo
-- **4 tipos de integracao funcionais**:
-  - Supabase externo (via URL + Anon Key)
-  - Google Sheets (via URL publica)
-  - Upload CSV (via Supabase Storage)
-  - API externa (REST com autenticacao)
-- **Selecao de tabelas e colunas** com interface intuitiva
-- **Recomendacao inteligente de widgets** baseada nos dados
-- **Dashboards dinamicos de alta qualidade** com metricas reais
-- **Tabela de leads** com dados reais e paginacao
-- **Logs de atividade** persistentes
-- **Zero mock data** - sistema 100% funcional
+- **Recomendações automáticas** baseadas nos dados mapeados
+- **Scores de relevância** com justificativas claras
+- **Interface interativa** para aceitar/rejeitar/customizar
+- **Filtro por plano** respeitando limitações
+- **Preview dinâmico** mostrando apenas widgets aceitos
+- **Configurações otimizadas** para cada tipo de widget
+- **UX de alta qualidade** com feedback visual e animações
 
----
-
-## Detalhes Tecnicos Importantes
-
-### Seguranca de Papeis
-
-Conforme instrucoes, papeis sao armazenados em tabela separada `user_roles` com funcao `has_role()` para evitar recursao e ataques de escalacao de privilegios.
-
-### Isolamento Multi-tenant
-
-Todas as tabelas com dados de cliente tem `org_id` e RLS policies garantem que:
-- Usuarios so veem dados da propria organizacao
-- Platform admins podem ver todas as organizacoes
-
-### Edge Functions CORS
-
-Todas as edge functions terao headers CORS configurados conforme padrao:
-
-```javascript
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type...',
-}
-```
-
-### Dashboard de Alta Qualidade UX
-
-Os dashboards manterao o padrao visual ja estabelecido:
-- Tooltips explicativos em cada metrica
-- Sparklines com gradientes
-- Animacoes suaves
-- Cores semanticas para status
-- Design responsivo
-- Acessibilidade (contraste, labels)
