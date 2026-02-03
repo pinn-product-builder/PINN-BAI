@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -13,37 +14,52 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const { signIn, profile, roles, isPlatformAdmin } = useAuth();
+
+  const from = (location.state as { from?: Location })?.from?.pathname || '/admin/organizations';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate login - will be replaced with Supabase Auth
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const { error } = await signIn(email, password);
 
-    // Mock authentication logic
-    if (email === 'admin@pinnbai.com' && password === 'admin123') {
-      toast({
-        title: 'Login realizado com sucesso',
-        description: 'Redirecionando para o painel administrativo...',
-      });
-      navigate('/admin/organizations');
-    } else if (email.includes('@') && password.length >= 6) {
-      toast({
-        title: 'Login realizado com sucesso',
-        description: 'Redirecionando para o dashboard...',
-      });
-      navigate('/client/org-1/dashboard');
-    } else {
+    if (error) {
       toast({
         title: 'Erro no login',
-        description: 'Email ou senha inválidos.',
+        description: error.message || 'Email ou senha inválidos.',
         variant: 'destructive',
       });
+      setIsLoading(false);
+      return;
     }
 
-    setIsLoading(false);
+    toast({
+      title: 'Login realizado com sucesso',
+      description: 'Redirecionando...',
+    });
+
+    // Small delay to allow auth state to update
+    setTimeout(() => {
+      // Check roles to determine redirect
+      if (isPlatformAdmin || roles.includes('platform_admin')) {
+        navigate('/admin/organizations');
+      } else if (profile?.org_id) {
+        navigate(`/client/${profile.org_id}/dashboard`);
+      } else {
+        navigate(from);
+      }
+      setIsLoading(false);
+    }, 500);
+  };
+
+  const handleForgotPassword = () => {
+    toast({
+      title: 'Recuperação de senha',
+      description: 'Funcionalidade em desenvolvimento.',
+    });
   };
 
   return (
@@ -113,12 +129,7 @@ const Login = () => {
                     <button
                       type="button"
                       className="text-sm text-accent hover:text-accent/80 transition-colors"
-                      onClick={() => {
-                        toast({
-                          title: 'Recuperação de senha',
-                          description: 'Funcionalidade será implementada com o backend.',
-                        });
-                      }}
+                      onClick={handleForgotPassword}
                     >
                       Esqueceu a senha?
                     </button>
@@ -165,7 +176,7 @@ const Login = () => {
 
               <div className="mt-6 p-4 bg-muted rounded-lg">
                 <p className="text-xs text-muted-foreground text-center">
-                  <strong>Demo:</strong> Use <code className="bg-background px-1 py-0.5 rounded">admin@pinnbai.com</code> / <code className="bg-background px-1 py-0.5 rounded">admin123</code> para acessar como admin da plataforma.
+                  Crie um usuário no Supabase Auth para acessar. Platform admins devem ter o papel <code className="bg-background px-1 py-0.5 rounded">platform_admin</code> na tabela user_roles.
                 </p>
               </div>
             </CardContent>
