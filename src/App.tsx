@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 // Pages
 import Login from "./pages/Login";
@@ -33,43 +35,59 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
 
-          {/* Admin routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/organizations" replace />} />
-            <Route path="organizations" element={<Organizations />} />
-            <Route path="organizations/new" element={<NewOrganization />} />
-            <Route path="organizations/onboarding" element={<OnboardingWizard />} />
-            <Route path="templates" element={<Templates />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="activity" element={<Activity />} />
-            <Route path="settings" element={<AdminSettings />} />
-          </Route>
+            {/* Admin routes - require platform_admin role */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredRoles={['platform_admin']}>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/admin/organizations" replace />} />
+              <Route path="organizations" element={<Organizations />} />
+              <Route path="organizations/new" element={<NewOrganization />} />
+              <Route path="organizations/onboarding" element={<OnboardingWizard />} />
+              <Route path="templates" element={<Templates />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="activity" element={<Activity />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
 
-          {/* Client routes */}
-          <Route path="/client/:orgId" element={<ClientLayout />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="import" element={<Import />} />
-            <Route path="datasets" element={<Datasets />} />
-            <Route path="insights" element={<Insights />} />
-            <Route path="users" element={<ClientUsers />} />
-            <Route path="settings" element={<ClientSettings />} />
-          </Route>
+            {/* Client routes - require authentication and org membership */}
+            <Route
+              path="/client/:orgId"
+              element={
+                <ProtectedRoute requiredRoles={['client_admin', 'analyst', 'viewer']}>
+                  <ClientLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="import" element={<Import />} />
+              <Route path="datasets" element={<Datasets />} />
+              <Route path="insights" element={<Insights />} />
+              <Route path="users" element={<ClientUsers />} />
+              <Route path="settings" element={<ClientSettings />} />
+            </Route>
 
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
