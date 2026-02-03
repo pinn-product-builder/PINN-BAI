@@ -75,12 +75,16 @@ export interface GoogleSheetsConfig {
   spreadsheetUrl: string;
   sheetName?: string;
   headerRow?: number;
+  refreshInterval?: number;
 }
 
 export interface CsvConfig {
   fileName: string;
-  fileUrl: string;
+  fileSize?: number;
+  fileUrl?: string;
   delimiter?: string;
+  encoding?: string;
+  uploadedAt?: string;
 }
 
 export interface ApiConfig {
@@ -90,6 +94,7 @@ export interface ApiConfig {
   authType: 'none' | 'bearer' | 'api_key' | 'basic';
   authValue?: string;
   headers?: Record<string, string>;
+  refreshInterval?: number;
 }
 
 // ============= Selected Table =============

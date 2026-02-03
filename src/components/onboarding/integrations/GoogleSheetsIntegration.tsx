@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileSpreadsheet, ExternalLink } from 'lucide-react';
-import type { GoogleSheetsConfig } from '@/lib/mock-data';
+import type { GoogleSheetsConfig } from '@/lib/types';
 
 interface GoogleSheetsIntegrationProps {
   onConnect: (config: GoogleSheetsConfig) => void;
