@@ -14,8 +14,42 @@ import {
   Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { OnboardingWizardState } from '@/lib/mock-data';
-import { planNames } from '@/lib/mock-data';
+import type { DataIntegration } from './IntegrationStep';
+
+// Local types for confirmation step
+interface DataMapping {
+  id: string;
+  sourceField: string;
+  sourceTable: string;
+  targetMetric: string;
+}
+
+interface DashboardWidgetConfig {
+  id: string;
+  type: string;
+  title: string;
+}
+
+interface OnboardingWizardState {
+  currentStep: number;
+  organization: {
+    name: string;
+    adminName: string;
+    adminEmail: string;
+    plan: 1 | 2 | 3 | 4;
+  };
+  integration: DataIntegration | null;
+  mappings: DataMapping[];
+  selectedWidgets: DashboardWidgetConfig[];
+  isComplete: boolean;
+}
+
+const planNames: Record<number, string> = {
+  1: 'Básico',
+  2: 'Profissional',
+  3: 'Business',
+  4: 'Enterprise',
+};
 
 interface ConfirmationStepProps {
   state: OnboardingWizardState;

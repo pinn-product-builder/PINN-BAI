@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2, FileUp, Upload, File, X, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { CsvConfig } from '@/lib/mock-data';
+import type { CsvConfig } from '@/lib/types';
 
 interface CsvUploadIntegrationProps {
   onConnect: (config: CsvConfig) => void;

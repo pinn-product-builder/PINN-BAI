@@ -6,9 +6,41 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Info, Eye, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { DataMapping, DashboardWidgetConfig, DashboardWidgetType } from '@/lib/mock-data';
 
 import DashboardPreview from '../preview/DashboardPreview';
+
+// Local types for preview step
+interface DataMapping {
+  id: string;
+  sourceField: string;
+  sourceTable: string;
+  targetMetric: string;
+  transformation: string;
+  aggregation?: string;
+  format?: string;
+}
+
+type DashboardWidgetType = 
+  | 'metric_card' 
+  | 'area_chart' 
+  | 'bar_chart' 
+  | 'line_chart' 
+  | 'pie_chart' 
+  | 'donut_chart'
+  | 'funnel' 
+  | 'radar_chart'
+  | 'table' 
+  | 'insight_card';
+
+export interface DashboardWidgetConfig {
+  id: string;
+  type: DashboardWidgetType;
+  title: string;
+  description: string;
+  position: { x: number; y: number; w: number; h: number };
+  dataMapping: DataMapping[];
+  config: Record<string, unknown>;
+}
 
 interface PreviewStepProps {
   mappings: DataMapping[];

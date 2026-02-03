@@ -20,8 +20,21 @@ import {
 } from '@/components/ui/table';
 import { Plus, Trash2, ArrowRight, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { DataIntegration, DataMapping, TargetMetric, TransformationType, targetMetricLabels } from '@/lib/mock-data';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import type { DataIntegration } from './IntegrationStep';
+
+// Local types for mapping step
+export interface DataMapping {
+  id: string;
+  sourceField: string;
+  sourceTable: string;
+  targetMetric: string;
+  transformation: string;
+  aggregation?: string;
+  format?: string;
+}
+
+type TransformationType = 'none' | 'date' | 'number' | 'currency' | 'percentage' | 'text' | 'boolean';
 
 interface MappingStepProps {
   integration: DataIntegration | null;
@@ -38,7 +51,7 @@ const TRANSFORMATIONS: { value: TransformationType; label: string }[] = [
   { value: 'text', label: 'Texto' },
 ];
 
-const TARGET_METRICS: { value: TargetMetric; label: string; description: string }[] = [
+const TARGET_METRICS: { value: string; label: string; description: string }[] = [
   { value: 'total_leads', label: 'Total de Leads', description: 'Número total de leads no período' },
   { value: 'new_leads', label: 'Novos Leads', description: 'Leads capturados recentemente' },
   { value: 'conversions', label: 'Conversões', description: 'Leads convertidos em clientes' },
@@ -87,7 +100,7 @@ const MappingStep = ({ integration, mappings, onUpdate }: MappingStepProps) => {
     return column?.type || 'unknown';
   };
 
-  const getSampleValues = (columnName: string): string[] => {
+  const getSampleValues = (columnName: string): unknown[] => {
     const column = columns.find(c => c.name === columnName);
     return column?.sampleValues || [];
   };
@@ -212,7 +225,7 @@ const MappingStep = ({ integration, mappings, onUpdate }: MappingStepProps) => {
                       <div className="flex gap-1 mt-1">
                         {getSampleValues(mapping.sourceField).slice(0, 2).map((val, i) => (
                           <span key={i} className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                            {val}
+                            {String(val)}
                           </span>
                         ))}
                       </div>
@@ -248,7 +261,7 @@ const MappingStep = ({ integration, mappings, onUpdate }: MappingStepProps) => {
                     <Label className="text-xs text-muted-foreground">Métrica Destino</Label>
                     <Select
                       value={mapping.targetMetric}
-                      onValueChange={(value) => updateMapping(mapping.id, { targetMetric: value as TargetMetric })}
+                      onValueChange={(value) => updateMapping(mapping.id, { targetMetric: value })}
                     >
                       <SelectTrigger>
                         <SelectValue />

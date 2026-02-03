@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Loader2, Database, ExternalLink } from 'lucide-react';
-import type { SupabaseConfig } from '@/lib/mock-data';
+import type { SupabaseConfig } from '@/lib/types';
 
 interface SupabaseIntegrationProps {
   onConnect: (config: SupabaseConfig) => void;
@@ -19,8 +19,8 @@ const SupabaseIntegration = ({ onConnect, isConnecting }: SupabaseIntegrationPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onConnect({
-      ...config,
-      isConnected: true,
+      projectUrl: config.projectUrl,
+      anonKey: config.anonKey,
     });
   };
 

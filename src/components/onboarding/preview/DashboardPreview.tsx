@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { DashboardWidgetConfig } from '@/lib/mock-data';
+import type { DashboardWidgetConfig } from '../steps/PreviewStep';
 
 import MetricCard from '@/components/dashboard/widgets/MetricCard';
 import AreaChartWidget from '@/components/dashboard/widgets/AreaChartWidget';

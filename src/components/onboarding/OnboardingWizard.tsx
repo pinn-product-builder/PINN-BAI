@@ -6,13 +6,26 @@ import { Progress } from '@/components/ui/progress';
 import { Check, Building2, Database, MapPin, LayoutDashboard, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import type { OnboardingWizardState, DataIntegration, DataMapping, DashboardWidgetConfig } from '@/lib/mock-data';
 
 import OrganizationStep from './steps/OrganizationStep';
-import IntegrationStep from './steps/IntegrationStep';
-import MappingStep from './steps/MappingStep';
-import PreviewStep from './steps/PreviewStep';
+import IntegrationStep, { type DataIntegration } from './steps/IntegrationStep';
+import MappingStep, { type DataMapping } from './steps/MappingStep';
+import PreviewStep, { type DashboardWidgetConfig } from './steps/PreviewStep';
 import ConfirmationStep from './steps/ConfirmationStep';
+
+interface OnboardingWizardState {
+  currentStep: number;
+  organization: {
+    name: string;
+    adminName: string;
+    adminEmail: string;
+    plan: 1 | 2 | 3 | 4;
+  };
+  integration: DataIntegration | null;
+  mappings: DataMapping[];
+  selectedWidgets: DashboardWidgetConfig[];
+  isComplete: boolean;
+}
 
 const STEPS = [
   { id: 1, title: 'Organização', icon: Building2, description: 'Dados básicos' },

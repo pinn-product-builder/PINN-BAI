@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Globe, Plus, X } from 'lucide-react';
-import type { ApiConfig } from '@/lib/mock-data';
+import type { ApiConfig } from '@/lib/types';
 
 interface ApiIntegrationProps {
   onConnect: (config: ApiConfig) => void;
