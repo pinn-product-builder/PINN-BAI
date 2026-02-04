@@ -1,8 +1,9 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     BarChart,
@@ -12,19 +13,23 @@ import {
     Info,
     TrendingUp,
     AlertCircle,
-    Sparkles
+    Sparkles,
+    Trash2
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { DashboardWidget } from '@/lib/types';
 
 // Mocked dynamically for now, but will use actual widget components
 const WidgetRenderer = ({
     widget,
     activeFilter,
-    onFilter
+    onFilter,
+    onDelete
 }: {
     widget: DashboardWidget;
     activeFilter: { column: string; value: string } | null;
     onFilter: (column: string, value: string) => void;
+    onDelete: (id: string) => void;
 }) => {
     const isFiltered = activeFilter && widget.title.toLowerCase().includes(activeFilter.column);
 
@@ -46,9 +51,17 @@ const WidgetRenderer = ({
                         <CardTitle className="text-sm font-bold tracking-tight">{widget.title}</CardTitle>
                     </div>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                        <span className="text-[10px] uppercase font-bold text-muted-foreground mr-1">
-                            {activeFilter ? 'Filtrar' : 'Click to Filter'}
-                        </span>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(widget.id);
+                            }}
+                        >
+                            <Trash2 size={14} />
+                        </Button>
                         <Info className="w-4 h-4 text-muted-foreground cursor-help" />
                     </div>
                 </div>
@@ -87,6 +100,8 @@ const WidgetRenderer = ({
 const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
     const { organization } = useTheme();
     const [activeFilter, setActiveFilter] = React.useState<{ column: string; value: string } | null>(null);
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
 
     const handleFilter = (column: string, value: string) => {
         if (activeFilter?.column === column) {
@@ -111,6 +126,30 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         },
         enabled: !!dashboardId,
     });
+
+    const handleDelete = async (id: string) => {
+        try {
+            const { error } = await supabase
+                .from('dashboard_widgets')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            queryClient.invalidateQueries({ queryKey: ['dashboard-widgets', dashboardId] });
+
+            toast({
+                title: "Widget Excluído",
+                description: "O widget foi removido do seu painel.",
+            });
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Erro ao excluir",
+                description: error.message,
+            });
+        }
+    };
 
     if (isLoading) {
         return (
@@ -166,6 +205,7 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
                             widget={widget}
                             activeFilter={activeFilter}
                             onFilter={handleFilter}
+                            onDelete={handleDelete}
                         />
                     </div>
                 );
