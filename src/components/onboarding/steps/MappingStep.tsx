@@ -40,6 +40,7 @@ interface MappingStepProps {
   integration: DataIntegration | null;
   mappings: DataMapping[];
   onUpdate: (mappings: DataMapping[]) => void;
+  onPrimaryTableChange?: (tableName: string) => void;
 }
 
 const TRANSFORMATIONS: { value: TransformationType; label: string }[] = [
@@ -65,10 +66,16 @@ const TARGET_METRICS: { value: string; label: string; description: string }[] = 
   { value: 'created_date', label: 'Data de Criação', description: 'Data do registro' },
 ];
 
-const MappingStep = ({ integration, mappings, onUpdate }: MappingStepProps) => {
+const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: MappingStepProps) => {
   const [selectedTable, setSelectedTable] = useState<string>(
     integration?.tables?.[0]?.name || ''
   );
+
+  // Notify parent of primary table changes
+  const handleTableChange = (tableName: string) => {
+    setSelectedTable(tableName);
+    onPrimaryTableChange?.(tableName);
+  };
 
   const tables = integration?.tables || [];
   const currentTable = tables.find(t => t.name === selectedTable);
@@ -119,8 +126,8 @@ const MappingStep = ({ integration, mappings, onUpdate }: MappingStepProps) => {
       {/* Table Selection */}
       {tables.length > 0 && (
         <div className="space-y-2">
-          <Label>Tabela de Origem</Label>
-          <Select value={selectedTable} onValueChange={setSelectedTable}>
+          <Label>Tabela Principal (DataSource)</Label>
+          <Select value={selectedTable} onValueChange={handleTableChange}>
             <SelectTrigger className="max-w-xs">
               <SelectValue placeholder="Selecione uma tabela" />
             </SelectTrigger>
@@ -132,6 +139,9 @@ const MappingStep = ({ integration, mappings, onUpdate }: MappingStepProps) => {
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">
+            Esta tabela será usada como fonte de dados para os widgets do dashboard
+          </p>
         </div>
       )}
 
