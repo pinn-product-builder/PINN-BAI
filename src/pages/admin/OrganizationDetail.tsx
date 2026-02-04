@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,11 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
     ArrowLeft,
-    Building2,
     LayoutDashboard,
     Settings,
-    Users,
     Database,
     ExternalLink,
     Loader2,
@@ -18,12 +27,15 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useDeleteOrganization } from '@/hooks/useOrganizations';
 import { planNames } from '@/lib/mock-data';
 
 const OrganizationDetail = () => {
     const { orgId } = useParams();
     const navigate = useNavigate();
     const { toast } = useToast();
+    const deleteOrganization = useDeleteOrganization();
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const { data: organization, isLoading, error } = useQuery({
         queryKey: ['admin-organization', orgId],
@@ -148,12 +160,61 @@ const OrganizationDetail = () => {
                                 </div>
                                 <span className="text-xs text-muted-foreground italic">Nenhuma ativa</span>
                             </div>
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 text-destructive">
-                                <div className="flex items-center gap-3">
-                                    <Trash2 className="w-4 h-4" />
-                                    <span className="text-sm">Remover Organização</span>
-                                </div>
-                            </div>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <button className="w-full flex items-center justify-between p-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer">
+                                        <div className="flex items-center gap-3">
+                                            <Trash2 className="w-4 h-4" />
+                                            <span className="text-sm">Remover Organização</span>
+                                        </div>
+                                    </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta ação não pode ser desfeita. Isso irá deletar permanentemente a organização
+                                            <strong> {organization.name}</strong> e todos os dados associados (leads, dashboards, integrações, usuários).
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                            disabled={isDeleting}
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                setIsDeleting(true);
+                                                try {
+                                                    await deleteOrganization.mutateAsync(organization.id);
+                                                    toast({
+                                                        title: "Organização removida",
+                                                        description: `${organization.name} foi deletada com sucesso.`,
+                                                    });
+                                                    navigate('/admin/organizations');
+                                                } catch (error: any) {
+                                                    toast({
+                                                        title: "Erro ao deletar",
+                                                        description: error.message || "Não foi possível remover a organização.",
+                                                        variant: "destructive",
+                                                    });
+                                                } finally {
+                                                    setIsDeleting(false);
+                                                }
+                                            }}
+                                        >
+                                            {isDeleting ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                    Removendo...
+                                                </>
+                                            ) : (
+                                                "Sim, remover"
+                                            )}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </CardContent>
                     </Card>
                 </div>
