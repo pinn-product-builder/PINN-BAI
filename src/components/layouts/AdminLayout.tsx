@@ -13,7 +13,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { path: '/admin/hq', label: 'Global HQ', icon: LayoutDashboard },
+  { path: '/admin/hq', label: 'Pinn Command', icon: LayoutDashboard },
   { path: '/admin/organizations', label: 'Organizações', icon: Building2 },
   { path: '/admin/templates', label: 'Templates', icon: LayoutTemplate },
   { path: '/admin/users', label: 'Usuários', icon: Users },

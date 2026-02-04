@@ -16,16 +16,19 @@ import {
   Mic2,
   Play,
   Monitor,
-  Database
+  Database,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import DashboardEngine from '@/components/dashboard/DashboardEngine';
 import { Card, CardContent } from '@/components/ui/card';
+import { ReportGenerator } from '@/lib/report-generator';
 
 const Dashboard = () => {
   const { orgId } = useParams();
   const { toast } = useToast();
   const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Fetch the default dashboard for this organization
   const { data: dashboard, isLoading: isLoadingDash } = useQuery({
@@ -42,6 +45,37 @@ const Dashboard = () => {
       return data;
     },
   });
+
+  const handleExportPDF = async () => {
+    if (!dashboard) return;
+    setIsExporting(true);
+
+    toast({
+      title: "Gerando Relatório",
+      description: "Capturando dados e aplicando branding Pinn...",
+    });
+
+    try {
+      await ReportGenerator.generateDashboardPDF('dashboard-content', {
+        title: dashboard.name || 'Executive Dashboard',
+        organizationName: 'Sua Organização', // Em breve puxar nome real da org
+        aiSnapshot: "Olá! Hoje notamos um crescimento atípico de 22% nos leads provenientes do LinkedIn. Sua taxa de conversão geral está estável em 12.5%, mas o ticket médio subiu para R$ 2.4k.",
+      });
+
+      toast({
+        title: "Relatório Concluído",
+        description: "O PDF foi gerado com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao exportar",
+        description: "Não foi possível gerar o PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleVoiceBriefing = () => {
     setIsVoiceActive(true);
@@ -79,6 +113,15 @@ const Dashboard = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="h-12 px-6 rounded-xl gap-2 font-bold border-white/10 hover:bg-white/5 text-white/70"
+            onClick={handleExportPDF}
+            disabled={isExporting}
+          >
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Relatório PDF
+          </Button>
           <Button
             variant="outline"
             className="h-12 px-6 rounded-xl gap-2 font-bold border-accent/20 hover:bg-accent/5 text-accent"
@@ -139,7 +182,7 @@ const Dashboard = () => {
       </Card>
 
       {/* Dynamic Grid Engine */}
-      <div className="space-y-6">
+      <div className="space-y-6" id="dashboard-content">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Monitor className="w-5 h-5 text-accent" />

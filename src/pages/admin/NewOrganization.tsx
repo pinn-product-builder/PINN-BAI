@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { ArrowLeft, Building2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { planNames } from '@/lib/mock-data';
 
 const NewOrganization = () => {
@@ -30,16 +31,92 @@ const NewOrganization = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const slug = formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
 
-    toast({
-      title: 'Organização criada com sucesso',
-      description: `${formData.name} foi provisionada com o plano ${planNames[parseInt(formData.plan) as 1 | 2 | 3 | 4]}.`,
-    });
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .insert({
+          name: formData.name,
+          slug,
+          plan: parseInt(formData.plan),
+          admin_name: formData.adminName,
+          admin_email: formData.adminEmail,
+          status: 'active'
+        })
+        .select()
+        .single();
 
-    setIsLoading(false);
-    navigate('/admin/organizations');
+      if (orgError) throw orgError;
+
+      // Create initial dashboard for the org
+      const { data: dash, error: dashError } = await supabase
+        .from('dashboards')
+        .insert({
+          org_id: org.id,
+          name: 'Main Executive View',
+          is_default: true
+        })
+        .select()
+        .single();
+
+      if (dashError) throw dashError;
+
+      // Provision default widgets for the plan
+      const defaultWidgets = [
+        {
+          dashboard_id: dash.id,
+          title: 'MRR Consolidado',
+          type: 'metric_card' as const,
+          width: 4,
+          height: 2,
+          position_x: 0,
+          position_y: 0,
+          config: { showTrend: true, format: 'currency' }
+        },
+        {
+          dashboard_id: dash.id,
+          title: 'Total de Leads',
+          type: 'metric_card' as const,
+          width: 4,
+          height: 2,
+          position_x: 4,
+          position_y: 0,
+          config: { showTrend: true }
+        },
+        {
+          dashboard_id: dash.id,
+          title: 'Funil de Vendas',
+          type: 'bar_chart' as const,
+          width: 8,
+          height: 4,
+          position_x: 0,
+          position_y: 2,
+          config: { showLegend: true }
+        }
+      ];
+
+      const { error: widgetError } = await supabase
+        .from('dashboard_widgets')
+        .insert(defaultWidgets);
+
+      if (widgetError) throw widgetError;
+
+      toast({
+        title: 'Organização criada com sucesso',
+        description: `${formData.name} foi provisionada com dashboards padrão. Redirecionando...`,
+      });
+
+      navigate('/admin/hq');
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao criar organização',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
