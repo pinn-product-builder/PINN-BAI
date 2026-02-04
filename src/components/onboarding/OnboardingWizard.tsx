@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -13,8 +13,17 @@ import MappingStep, { type DataMapping } from './steps/MappingStep';
 import PreviewStep, { type DashboardWidgetConfig } from './steps/PreviewStep';
 import ConfirmationStep from './steps/ConfirmationStep';
 
+interface ExistingOrgData {
+  id: string;
+  name: string;
+  adminName: string;
+  adminEmail: string;
+  plan: 1 | 2 | 3 | 4;
+}
+
 interface OnboardingWizardState {
   currentStep: number;
+  organizationId?: string;
   organization: {
     name: string;
     adminName: string;
@@ -37,11 +46,21 @@ const STEPS = [
 
 const OnboardingWizard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
+  // Check if we're coming from NewOrganization with existing org data
+  const existingOrg = (location.state as { existingOrg?: ExistingOrgData })?.existingOrg;
+  
   const [state, setState] = useState<OnboardingWizardState>({
-    currentStep: 1,
-    organization: {
+    currentStep: existingOrg ? 2 : 1, // Skip to step 2 if org already exists
+    organizationId: existingOrg?.id,
+    organization: existingOrg ? {
+      name: existingOrg.name,
+      adminName: existingOrg.adminName,
+      adminEmail: existingOrg.adminEmail,
+      plan: existingOrg.plan,
+    } : {
       name: '',
       adminName: '',
       adminEmail: '',
@@ -54,8 +73,11 @@ const OnboardingWizard = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Filter steps if org already exists (skip step 1)
+  const visibleSteps = existingOrg ? STEPS.filter(s => s.id !== 1) : STEPS;
 
-  const progress = ((state.currentStep - 1) / (STEPS.length - 1)) * 100;
+  const progress = ((state.currentStep - (existingOrg ? 2 : 1)) / (visibleSteps.length - 1)) * 100;
 
   const canProceed = () => {
     switch (state.currentStep) {
@@ -81,7 +103,8 @@ const OnboardingWizard = () => {
   };
 
   const handleBack = () => {
-    if (state.currentStep > 1) {
+    const minStep = existingOrg ? 2 : 1;
+    if (state.currentStep > minStep) {
       setState(prev => ({ ...prev, currentStep: prev.currentStep - 1 }));
     }
   };
@@ -188,7 +211,7 @@ const OnboardingWizard = () => {
 
       {/* Steps Navigation */}
       <div className="flex items-center justify-between mb-8">
-        {STEPS.map((step, index) => {
+        {visibleSteps.map((step, index) => {
           const Icon = step.icon;
           const isActive = state.currentStep === step.id;
           const isCompleted = state.currentStep > step.id;
@@ -224,7 +247,7 @@ const OnboardingWizard = () => {
                   </p>
                 </div>
               </div>
-              {index < STEPS.length - 1 && (
+              {index < visibleSteps.length - 1 && (
                 <div 
                   className={cn(
                     "h-0.5 w-16 sm:w-24 mx-2 transition-colors",
@@ -250,7 +273,7 @@ const OnboardingWizard = () => {
           <Button
             variant="outline"
             onClick={handleBack}
-            disabled={state.currentStep === 1}
+            disabled={state.currentStep === (existingOrg ? 2 : 1)}
           >
             Voltar
           </Button>

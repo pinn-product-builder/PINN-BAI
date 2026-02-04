@@ -116,10 +116,21 @@ const NewOrganization = () => {
 
       toast({
         title: 'Organização criada com sucesso',
-        description: `${formData.name} foi provisionada com dashboards padrão. Redirecionando...`,
+        description: `${formData.name} foi criada. Configure a integração de dados.`,
       });
 
-      navigate('/admin/hq');
+      // Navigate to onboarding wizard step 2 (integration) with org data
+      navigate('/admin/organizations/onboarding', {
+        state: {
+          existingOrg: {
+            id: org.id,
+            name: formData.name,
+            adminName: formData.adminName,
+            adminEmail: formData.adminEmail,
+            plan: parseInt(formData.plan) as 1 | 2 | 3 | 4,
+          }
+        }
+      });
     } catch (error: any) {
       toast({
         title: 'Erro ao criar organização',
