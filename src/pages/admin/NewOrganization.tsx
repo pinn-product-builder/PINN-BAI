@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Building2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Building2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { planNames } from '@/lib/mock-data';
@@ -20,15 +20,27 @@ const NewOrganization = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     adminName: '',
     adminEmail: '',
+    adminPassword: '',
     plan: '1',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (formData.adminPassword.length < 6) {
+      toast({
+        title: 'Senha inválida',
+        description: 'A senha deve ter pelo menos 6 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -36,6 +48,7 @@ const NewOrganization = () => {
       const uniqueSuffix = crypto.randomUUID().substring(0, 8);
       const slug = `${baseSlug}-${uniqueSuffix}`;
 
+      // 1. Create organization first
       const { data: org, error: orgError } = await supabase
         .from('organizations')
         .insert({
@@ -51,7 +64,7 @@ const NewOrganization = () => {
 
       if (orgError) throw orgError;
 
-      // Create initial dashboard for the org (empty - widgets will be added via template in wizard)
+      // 2. Create initial dashboard for the org (empty - widgets will be added via template in wizard)
       const { data: dash, error: dashError } = await supabase
         .from('dashboards')
         .insert({
@@ -64,9 +77,32 @@ const NewOrganization = () => {
 
       if (dashError) throw dashError;
 
+      // 3. Create admin user via edge function
+      const { data: createUserResult, error: createUserError } = await supabase.functions.invoke('create-org-admin', {
+        body: {
+          email: formData.adminEmail,
+          password: formData.adminPassword,
+          fullName: formData.adminName,
+          orgId: org.id,
+        },
+      });
+
+      if (createUserError) {
+        // Rollback: delete org and dashboard if user creation fails
+        await supabase.from('dashboards').delete().eq('id', dash.id);
+        await supabase.from('organizations').delete().eq('id', org.id);
+        throw new Error(createUserError.message || 'Erro ao criar usuário admin');
+      }
+
+      if (createUserResult?.error) {
+        await supabase.from('dashboards').delete().eq('id', dash.id);
+        await supabase.from('organizations').delete().eq('id', org.id);
+        throw new Error(createUserResult.error);
+      }
+
       toast({
         title: 'Organização criada com sucesso',
-        description: `${formData.name} foi criada. Configure a integração de dados.`,
+        description: `${formData.name} foi criada e o admin ${formData.adminEmail} pode fazer login.`,
       });
 
       // Navigate to onboarding wizard step 2 (integration) with org data
@@ -159,6 +195,31 @@ const NewOrganization = () => {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adminPassword">Senha do Admin</Label>
+                <div className="relative">
+                  <Input
+                    id="adminPassword"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Mínimo 6 caracteres"
+                    value={formData.adminPassword}
+                    onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O admin usará este email e senha para acessar o dashboard
+                </p>
               </div>
 
               <div className="space-y-2">

@@ -31,6 +31,7 @@ export interface OnboardingWizardState {
     name: string;
     adminName: string;
     adminEmail: string;
+    adminPassword: string;
     plan: 1 | 2 | 3 | 4;
   };
   selectedTemplateId: string | null;
@@ -65,11 +66,13 @@ const OnboardingWizard = () => {
       name: existingOrg.name,
       adminName: existingOrg.adminName,
       adminEmail: existingOrg.adminEmail,
+      adminPassword: '', // Already created via NewOrganization
       plan: existingOrg.plan,
     } : {
       name: '',
       adminName: '',
       adminEmail: '',
+      adminPassword: '',
       plan: 2,
     },
     selectedTemplateId: null,
@@ -91,7 +94,7 @@ const OnboardingWizard = () => {
   const canProceed = () => {
     switch (state.currentStep) {
       case 1:
-        return state.organization.name && state.organization.adminEmail && state.organization.adminName;
+        return state.organization.name && state.organization.adminEmail && state.organization.adminName && state.organization.adminPassword.length >= 6;
       case 2:
         // Template step - can always proceed (selecting a template is optional)
         return true;
