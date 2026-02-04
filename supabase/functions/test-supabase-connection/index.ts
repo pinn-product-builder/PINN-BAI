@@ -213,6 +213,40 @@ serve(async (req) => {
         'queue', 'jobs', 'background_jobs', 'scheduled_tasks', 'cron_jobs',
         'cache', 'temp', 'temporary', 'staging', 'draft', 'drafts',
         'ai_anomalies', 'alert_triggers', 'dashboard_templates', 'data_joins',
+        
+        // Afonsina/Brazilian CRM patterns
+        'ad_spend_id', 'afonsina', 'antiduplicados', 'autobrokers', 'conversacoes',
+        'data_imports', 'dataset_column', 'dataset_rows', 'datasets',
+        'events_flat', 'events_id', 'funnel_current', 'funnel_daily',
+        'funnel_stage', 'funnel_ultra', 'funil_city', 'funil_ddd',
+        'ligacaoesboas_id', 'kanva_leads_afonsina', 'lead_lost_status',
+        'leads_all', 'mailchimp_subscribers', 'meetings', 'meeting_insights',
+        'org_memberships', 'organizacoes', 'tags', 'usuarios', 'traffego',
+        'user_access', 'user_agent',
+        
+        // Afonsina views (vw_*)
+        'vw_calls_by_assistant_daily', 'vw_calls_by_date_month_id', 'vw_calls_by_date_month_ut',
+        'vw_calls_daily_by_assistant', 'vw_calls_daily_org_ut', 'vw_calls_helped_source',
+        'vw_calls_month_daily', 'vw_calls_month_uf', 'vw_calls_weekly_daily',
+        'vw_daily_calls_by_assistant', 'vw_kpi_cost_breakdown_daily',
+        'vw_kpi_daily', 'vw_kpi_daily_org_id', 'vw_lead_stage_current_breakdown_vt',
+        'vw_kpi_reason_daily', 'vw_kpi_weekly_daily', 'vw_meetings_daily_by_assistant',
+        'vw_meetings_daily_org_ut', 'vw_meetings_dias', 'vw_meetings_daily_v2',
+        'vw_orders_daily', 'vw_orders_kpis_b2d', 'vw_agents_kpis_daily',
+        'vw_calendar_events_current_vt', 'vw_calls_b2d', 'vw_calls_kpi_b2d',
+        'vw_calls_kpis_daily', 'vw_calls_monthly', 'vw_calls_vt', 'vw_calls_weekly',
+        'vw_dashboard_daily_cdc_vt', 'vw_dashboard_kpi_b2d_v3', 'vw_dashboard_kpi_vt_v3',
+        'vw_dashboard_ligacoes_semanais', 'vw_dashboard_ligacoes_agendadas',
+        'vw_funnel_current_aasa', 'vw_funnel_daily_v2', 'vw_funnel_daily_v2_org',
+        'vw_funnel_repolog_candidates', 'vw_funnel_repolog_current',
+        'vw_funnel_repolog_candidates_uf', 'vw_kanva_leads_stage_current',
+        'vw_kanva_reg_b_daily', 'vw_kanva_reg_b_leadstage_b2d_v3',
+        'vw_lead_stage_current_vt', 'vw_leads_daily_b2d', 'vw_meetings_daily_b2d',
+        'vw_meetings_daily_v3', 'vw_meetings_kpi_b2d', 'vw_meetings_kpis_b2d_by_status_b2d',
+        'vw_meetings_status_window_b2d', 'vw_meetings_upcoming',
+        
+        // Generic views and common suffixes
+        'c_funilpp_logs', 'c_table_overview', 'cupi_sync_state',
       ];
 
       // Remove duplicates
