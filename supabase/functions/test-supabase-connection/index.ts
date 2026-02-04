@@ -11,14 +11,16 @@ interface RequestBody {
   anonKey: string;
 }
 
+interface ColumnInfo {
+  name: string;
+  type: string;
+  nullable: boolean;
+  sampleValues: unknown[];
+}
+
 interface TableInfo {
   name: string;
-  columns: {
-    name: string;
-    type: string;
-    nullable: boolean;
-    sampleValues: unknown[];
-  }[];
+  columns: ColumnInfo[];
   rowCount: number;
   sampleData: Record<string, unknown>[];
 }
@@ -50,64 +52,132 @@ serve(async (req) => {
     // Create client to external Supabase
     const externalSupabase = createClient(projectUrl, anonKey);
 
-    // Test connection by fetching schema info
-    // We'll query the public schema tables
-    const { data: tablesData, error: tablesError } = await externalSupabase
-      .rpc('get_schema_info')
-      .select('*');
+    // Try to get all tables by querying PostgreSQL information schema via RPC
+    // First, check if the database has a custom function to list tables
+    let tableNames: string[] = [];
+    
+    try {
+      // Try using a custom RPC function if available
+      const { data: schemaData, error: schemaError } = await externalSupabase
+        .rpc('get_public_tables');
+      
+      if (!schemaError && schemaData) {
+        tableNames = schemaData.map((t: { table_name: string }) => t.table_name);
+      }
+    } catch {
+      // RPC doesn't exist, will use fallback
+    }
 
-    // If RPC doesn't exist, try alternative approach
-    let tables: TableInfo[] = [];
-
-    if (tablesError) {
-      // Try to list common table names and check which ones exist
+    // If no custom function, try to discover tables by testing common ones
+    // and also try to query information_schema if accessible
+    if (tableNames.length === 0) {
+      // Extended list of common table names to check
       const commonTables = [
-        'users', 'profiles', 'leads', 'customers', 'orders', 'products',
-        'transactions', 'contacts', 'accounts', 'events', 'logs',
-        'messages', 'notifications', 'settings', 'categories', 'items'
+        // Core business tables
+        'users', 'profiles', 'accounts', 'organizations', 'companies', 'teams',
+        // Sales/CRM
+        'leads', 'contacts', 'customers', 'clients', 'opportunities', 'deals', 'sales',
+        // E-commerce
+        'orders', 'order_items', 'products', 'categories', 'carts', 'cart_items', 'inventory',
+        // Financial
+        'transactions', 'payments', 'invoices', 'subscriptions', 'plans', 'prices',
+        // Communication
+        'messages', 'notifications', 'emails', 'comments', 'reviews',
+        // Content
+        'posts', 'articles', 'pages', 'media', 'files', 'documents',
+        // Analytics/Logs
+        'events', 'logs', 'activity_logs', 'analytics', 'sessions', 'page_views',
+        // Settings
+        'settings', 'configurations', 'preferences',
+        // Misc
+        'items', 'entries', 'records', 'data', 'tags', 'labels',
+        // Dashboards
+        'dashboards', 'widgets', 'dashboard_widgets', 'metrics', 'reports',
+        // Integrations
+        'integrations', 'connections', 'webhooks', 'api_keys',
+        // Tasks/Projects
+        'tasks', 'projects', 'milestones', 'tickets', 'issues',
+        // HR
+        'employees', 'departments', 'roles', 'user_roles', 'permissions',
+        // Mappings
+        'data_mappings', 'field_mappings', 'selected_tables',
       ];
 
-      for (const tableName of commonTables) {
-        try {
-          const { data, error, count } = await externalSupabase
-            .from(tableName)
-            .select('*', { count: 'exact', head: false })
-            .limit(5);
-
-          if (!error && data) {
-            // Extract column info from sample data
-            const columns: TableInfo['columns'] = [];
-            if (data.length > 0) {
-              const sampleRow = data[0];
-              for (const [colName, value] of Object.entries(sampleRow)) {
-                const sampleValues = data
-                  .map(row => (row as Record<string, unknown>)[colName])
-                  .filter(v => v !== null && v !== undefined)
-                  .slice(0, 3);
-
-                columns.push({
-                  name: colName,
-                  type: detectType(value),
-                  nullable: data.some(row => (row as Record<string, unknown>)[colName] === null),
-                  sampleValues,
-                });
-              }
+      // Test each table to see if it's accessible
+      const accessibleTables: string[] = [];
+      
+      // Process tables in parallel batches for speed
+      const batchSize = 10;
+      for (let i = 0; i < commonTables.length; i += batchSize) {
+        const batch = commonTables.slice(i, i + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(async (tableName) => {
+            const { error } = await externalSupabase
+              .from(tableName)
+              .select('*', { count: 'exact', head: true })
+              .limit(1);
+            
+            if (!error) {
+              return tableName;
             }
+            throw new Error('Not accessible');
+          })
+        );
 
-            tables.push({
-              name: tableName,
-              columns,
-              rowCount: count || data.length,
-              sampleData: data as Record<string, unknown>[],
-            });
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            accessibleTables.push(result.value);
           }
-        } catch {
-          // Table doesn't exist or no access, skip
         }
       }
-    } else {
-      tables = tablesData || [];
+
+      tableNames = accessibleTables;
     }
+
+    // Now fetch detailed info for each accessible table
+    const tables: TableInfo[] = [];
+
+    for (const tableName of tableNames) {
+      try {
+        const { data, error, count } = await externalSupabase
+          .from(tableName)
+          .select('*', { count: 'exact', head: false })
+          .limit(5);
+
+        if (!error && data) {
+          // Extract column info from sample data
+          const columns: ColumnInfo[] = [];
+          if (data.length > 0) {
+            const sampleRow = data[0];
+            for (const [colName, value] of Object.entries(sampleRow)) {
+              const sampleValues = data
+                .map(row => (row as Record<string, unknown>)[colName])
+                .filter(v => v !== null && v !== undefined)
+                .slice(0, 3);
+
+              columns.push({
+                name: colName,
+                type: detectType(value),
+                nullable: data.some(row => (row as Record<string, unknown>)[colName] === null),
+                sampleValues,
+              });
+            }
+          }
+
+          tables.push({
+            name: tableName,
+            columns,
+            rowCount: count || data.length,
+            sampleData: data as Record<string, unknown>[],
+          });
+        }
+      } catch {
+        // Table not accessible, skip
+      }
+    }
+
+    // Sort tables alphabetically for better UX
+    tables.sort((a, b) => a.name.localeCompare(b.name));
 
     if (tables.length === 0) {
       // Connection works but no accessible tables
