@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Table,
   TableBody,
@@ -31,8 +32,12 @@ import {
   Type,
   Calendar,
   ToggleLeft,
+  AlertCircle,
+  Info,
+  Copy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import type { DetectedTable, DetectedColumn } from '@/lib/types';
 
 export interface SelectedTableConfig {
@@ -50,6 +55,8 @@ interface TableSelectionProps {
   onSelectionChange: (selected: SelectedTableConfig[]) => void;
   minTables?: number;
   maxTables?: number;
+  isLoading?: boolean;
+  discoveryMethod?: string;
 }
 
 const getTypeIcon = (type: DetectedColumn['type']) => {
@@ -87,10 +94,38 @@ const TableSelection = ({
   onSelectionChange,
   minTables = 1,
   maxTables = 10,
+  isLoading = false,
+  discoveryMethod,
 }: TableSelectionProps) => {
+  const { toast } = useToast();
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [previewTable, setPreviewTable] = useState<string | null>(null);
+
+  const rpcHelperSql = `CREATE OR REPLACE FUNCTION get_public_tables()
+RETURNS TABLE(table_name text)
+LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT table_name::text 
+  FROM information_schema.tables 
+  WHERE table_schema = 'public' 
+    AND table_type = 'BASE TABLE';
+$$;`;
+
+  const handleCopyRpcHelper = async () => {
+    try {
+      await navigator.clipboard.writeText(rpcHelperSql);
+      toast({
+        title: 'SQL copiado!',
+        description: 'Execute este SQL no seu banco Supabase para habilitar a descoberta completa de tabelas.',
+      });
+    } catch {
+      toast({
+        title: 'Erro ao copiar',
+        description: 'Não foi possível copiar o SQL.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const filteredTables = useMemo(() => {
     if (!searchQuery) return tables;
@@ -217,18 +252,69 @@ const TableSelection = ({
         </Badge>
       </div>
 
+      {/* Discovery Method Info */}
+      {discoveryMethod === 'pattern_discovery' && tables.length > 0 && (
+        <Alert className="bg-accent/5 border-accent/20">
+          <Info className="h-4 w-4 text-accent" />
+          <AlertTitle className="text-accent">Descoberta por padrões</AlertTitle>
+          <AlertDescription className="text-muted-foreground">
+            Encontramos {tables.length} tabelas testando nomes comuns. Para listar TODAS as tabelas do seu banco, 
+            crie a função auxiliar abaixo no SQL Editor do Supabase:
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2 gap-1"
+              onClick={handleCopyRpcHelper}
+            >
+              <Copy className="h-3 w-3" />
+              Copiar SQL da função helper
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && tables.length === 0 && (
+        <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Nenhuma tabela encontrada</AlertTitle>
+          <AlertDescription>
+            Não foi possível acessar tabelas no banco conectado. Verifique:
+            <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+              <li>As políticas RLS permitem leitura com a anon key</li>
+              <li>As tabelas existem no schema public</li>
+            </ul>
+            <p className="mt-3 text-sm">
+              Para garantir que TODAS as tabelas sejam listadas, crie esta função no seu banco:
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2 gap-1"
+              onClick={handleCopyRpcHelper}
+            >
+              <Copy className="h-3 w-3" />
+              Copiar SQL da função helper
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar tabelas ou colunas..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {tables.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar tabelas ou colunas..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      )}
 
       {/* Tables List */}
+      {tables.length > 0 && (
       <ScrollArea className="h-[400px] pr-4">
         <div className="space-y-3">
           {filteredTables.map((table) => {
@@ -420,6 +506,7 @@ const TableSelection = ({
           })}
         </div>
       </ScrollArea>
+      )}
 
       {/* Preview Modal */}
       {previewTableData && (
