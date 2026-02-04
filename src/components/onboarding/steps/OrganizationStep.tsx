@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card } from '@/components/ui/card';
-import { Building2, Users, Zap, Crown } from 'lucide-react';
+import { Building2, Users, Zap, Crown, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { planNames, planLimits } from '@/lib/mock-data';
 
@@ -11,6 +12,7 @@ interface OrganizationStepProps {
     name: string;
     adminName: string;
     adminEmail: string;
+    adminPassword: string;
     plan: 1 | 2 | 3 | 4;
   };
   onUpdate: (data: Partial<OrganizationStepProps['data']>) => void;
@@ -24,6 +26,8 @@ const planIcons = {
 };
 
 const OrganizationStep = ({ data, onUpdate }: OrganizationStepProps) => {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <div className="space-y-8">
       <div>
@@ -68,6 +72,30 @@ const OrganizationStep = ({ data, onUpdate }: OrganizationStepProps) => {
               onChange={(e) => onUpdate({ adminEmail: e.target.value })}
             />
           </div>
+        </div>
+
+        <div className="space-y-2 max-w-md">
+          <Label htmlFor="admin-password">Senha do Administrador *</Label>
+          <div className="relative">
+            <Input
+              id="admin-password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Mínimo 8 caracteres"
+              value={data.adminPassword}
+              onChange={(e) => onUpdate({ adminPassword: e.target.value })}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            O administrador usará este email e senha para acessar o dashboard
+          </p>
         </div>
       </div>
 
