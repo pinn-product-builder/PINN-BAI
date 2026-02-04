@@ -117,22 +117,22 @@ serve(async (req) => {
 
     const userId = authData.user.id;
 
-    // Create profile linked to org
+    // Update profile with org_id (trigger already created base profile)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .insert({
-        user_id: userId,
+      .update({
         org_id: orgId,
         full_name: fullName,
         email: email,
-      });
+      })
+      .eq("user_id", userId);
 
     if (profileError) {
       console.error("Profile error:", profileError);
       // Cleanup: delete the created user
       await supabaseAdmin.auth.admin.deleteUser(userId);
       return new Response(
-        JSON.stringify({ error: "Failed to create profile: " + profileError.message }),
+        JSON.stringify({ error: "Failed to update profile: " + profileError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
