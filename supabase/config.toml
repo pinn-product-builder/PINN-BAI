@@ -1,1 +1,19 @@
 project_id = "bkgwzxrutzmmxmxzfhmw"
+
+[functions.ai-data-chat]
+verify_jwt = false
+
+[functions.test-supabase-connection]
+verify_jwt = false
+
+[functions.calculate-dashboard-metrics]
+verify_jwt = false
+
+[functions.fetch-google-sheets]
+verify_jwt = false
+
+[functions.recommend-widgets]
+verify_jwt = false
+
+[functions.sync-external-api]
+verify_jwt = false
