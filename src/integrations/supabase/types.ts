@@ -58,6 +58,51 @@ export type Database = {
           },
         ]
       }
+      dashboard_templates: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          plan: number
+          preview_image_url: string | null
+          updated_at: string | null
+          usage_count: number | null
+          widgets: Json
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          plan?: number
+          preview_image_url?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+          widgets?: Json
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          plan?: number
+          preview_image_url?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+          widgets?: Json
+        }
+        Relationships: []
+      }
       dashboard_widgets: {
         Row: {
           config: Json

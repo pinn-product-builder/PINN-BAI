@@ -52,64 +52,178 @@ serve(async (req) => {
     // Create client to external Supabase
     const externalSupabase = createClient(projectUrl, anonKey);
 
-    // Try to get all tables by querying PostgreSQL information schema via RPC
-    // First, check if the database has a custom function to list tables
     let tableNames: string[] = [];
+    let discoveryMethod = 'unknown';
     
+    // STRATEGY 1: Try RPC function get_public_tables (if user created it)
     try {
-      // Try using a custom RPC function if available
       const { data: schemaData, error: schemaError } = await externalSupabase
         .rpc('get_public_tables');
       
-      if (!schemaError && schemaData) {
+      if (!schemaError && schemaData && Array.isArray(schemaData) && schemaData.length > 0) {
         tableNames = schemaData.map((t: { table_name: string }) => t.table_name);
+        discoveryMethod = 'rpc_function';
+        console.log(`Found ${tableNames.length} tables via RPC function`);
       }
-    } catch {
-      // RPC doesn't exist, will use fallback
+    } catch (e) {
+      console.log('RPC get_public_tables not available:', e);
     }
 
-    // If no custom function, try to discover tables by testing common ones
-    // and also try to query information_schema if accessible
+    // STRATEGY 2: Try RPC function list_tables (alternative name)
     if (tableNames.length === 0) {
-      // Extended list of common table names to check
+      try {
+        const { data: schemaData, error: schemaError } = await externalSupabase
+          .rpc('list_tables');
+        
+        if (!schemaError && schemaData && Array.isArray(schemaData) && schemaData.length > 0) {
+          tableNames = schemaData.map((t: { table_name?: string; name?: string }) => 
+            t.table_name || t.name || ''
+          ).filter(Boolean);
+          discoveryMethod = 'rpc_list_tables';
+          console.log(`Found ${tableNames.length} tables via list_tables RPC`);
+        }
+      } catch (e) {
+        console.log('RPC list_tables not available:', e);
+      }
+    }
+
+    // STRATEGY 3: Comprehensive table discovery by testing known patterns
+    if (tableNames.length === 0) {
+      // Massive list of common table names (300+)
       const commonTables = [
-        // Core business tables
-        'users', 'profiles', 'accounts', 'organizations', 'companies', 'teams',
-        // Sales/CRM
-        'leads', 'contacts', 'customers', 'clients', 'opportunities', 'deals', 'sales',
+        // Core/Auth
+        'users', 'profiles', 'accounts', 'sessions', 'tokens', 'auth_tokens', 'refresh_tokens',
+        'user_sessions', 'user_tokens', 'user_settings', 'user_preferences', 'user_profiles',
+        
+        // Organizations/Teams
+        'organizations', 'orgs', 'companies', 'teams', 'workspaces', 'tenants', 'clients',
+        'org_members', 'team_members', 'workspace_members', 'organization_users',
+        
+        // Contacts/CRM
+        'leads', 'contacts', 'customers', 'prospects', 'opportunities', 'deals', 'pipelines',
+        'pipeline_stages', 'sales', 'sales_orders', 'quotes', 'proposals', 'contracts',
+        'customer_contacts', 'contact_notes', 'lead_sources', 'lead_status', 'conversions',
+        
         // E-commerce
-        'orders', 'order_items', 'products', 'categories', 'carts', 'cart_items', 'inventory',
-        // Financial
-        'transactions', 'payments', 'invoices', 'subscriptions', 'plans', 'prices',
+        'products', 'categories', 'product_categories', 'subcategories', 'brands', 'suppliers',
+        'inventory', 'stock', 'warehouses', 'locations', 'variants', 'product_variants',
+        'skus', 'product_images', 'product_attributes', 'attributes', 'attribute_values',
+        'orders', 'order_items', 'order_history', 'order_status', 'shipments', 'shipping',
+        'carts', 'cart_items', 'shopping_carts', 'wishlists', 'wishlist_items',
+        'discounts', 'coupons', 'promotions', 'promo_codes', 'gift_cards',
+        
+        // Payments/Finance
+        'transactions', 'payments', 'payment_methods', 'invoices', 'invoice_items',
+        'billing', 'billing_history', 'subscriptions', 'subscription_plans', 'plans',
+        'prices', 'pricing', 'charges', 'refunds', 'credits', 'wallets', 'balances',
+        'bank_accounts', 'payouts', 'transfers', 'fees', 'taxes', 'tax_rates',
+        'expenses', 'expense_categories', 'budgets', 'financial_reports', 'accounts_payable',
+        'accounts_receivable', 'ledger', 'ledger_entries', 'journal_entries',
+        
         // Communication
-        'messages', 'notifications', 'emails', 'comments', 'reviews',
-        // Content
-        'posts', 'articles', 'pages', 'media', 'files', 'documents',
+        'messages', 'chats', 'chat_rooms', 'conversations', 'threads', 'comments',
+        'replies', 'mentions', 'notifications', 'alerts', 'announcements',
+        'emails', 'email_templates', 'email_logs', 'sms', 'sms_logs',
+        'push_notifications', 'in_app_notifications',
+        
+        // Content/CMS
+        'posts', 'articles', 'blogs', 'blog_posts', 'pages', 'sections', 'blocks',
+        'media', 'files', 'uploads', 'documents', 'attachments', 'assets', 'images',
+        'videos', 'galleries', 'albums', 'folders', 'tags', 'tag_relations',
+        'labels', 'categories', 'menus', 'menu_items', 'navigation', 'widgets',
+        'templates', 'layouts', 'themes', 'translations', 'locales', 'languages',
+        
+        // Reviews/Feedback
+        'reviews', 'ratings', 'testimonials', 'feedback', 'surveys', 'survey_responses',
+        'questions', 'answers', 'faqs', 'help_articles', 'support_tickets', 'tickets',
+        
         // Analytics/Logs
-        'events', 'logs', 'activity_logs', 'analytics', 'sessions', 'page_views',
-        // Settings
-        'settings', 'configurations', 'preferences',
-        // Misc
-        'items', 'entries', 'records', 'data', 'tags', 'labels',
-        // Dashboards
-        'dashboards', 'widgets', 'dashboard_widgets', 'metrics', 'reports',
-        // Integrations
-        'integrations', 'connections', 'webhooks', 'api_keys',
+        'events', 'event_logs', 'activity', 'activity_logs', 'audit_logs', 'logs',
+        'analytics', 'metrics', 'stats', 'statistics', 'page_views', 'visits',
+        'sessions', 'user_activity', 'tracking', 'conversions', 'goals',
+        'reports', 'report_data', 'insights', 'dashboards', 'dashboard_widgets',
+        
+        // Settings/Config
+        'settings', 'configurations', 'config', 'options', 'preferences', 'features',
+        'feature_flags', 'flags', 'toggles', 'system_settings', 'app_settings',
+        'metadata', 'meta', 'parameters', 'variables', 'constants',
+        
         // Tasks/Projects
-        'tasks', 'projects', 'milestones', 'tickets', 'issues',
-        // HR
-        'employees', 'departments', 'roles', 'user_roles', 'permissions',
-        // Mappings
-        'data_mappings', 'field_mappings', 'selected_tables',
+        'tasks', 'task_lists', 'todos', 'to_dos', 'checklists', 'checklist_items',
+        'projects', 'project_members', 'milestones', 'sprints', 'epics', 'stories',
+        'issues', 'bugs', 'tickets', 'boards', 'columns', 'cards', 'lanes',
+        'time_entries', 'time_tracking', 'timesheets', 'work_logs',
+        
+        // HR/People
+        'employees', 'staff', 'personnel', 'departments', 'divisions', 'branches',
+        'positions', 'job_titles', 'salaries', 'payroll', 'benefits', 'leave',
+        'leave_requests', 'attendance', 'schedules', 'shifts', 'holidays',
+        'performance_reviews', 'goals', 'objectives', 'kpis', 'okrs',
+        
+        // Roles/Permissions
+        'roles', 'permissions', 'role_permissions', 'user_roles', 'capabilities',
+        'access_control', 'acl', 'groups', 'user_groups', 'group_members',
+        'policies', 'rules', 'restrictions', 'scopes',
+        
+        // Integrations
+        'integrations', 'connections', 'connectors', 'webhooks', 'webhook_logs',
+        'api_keys', 'api_tokens', 'oauth_tokens', 'oauth_clients', 'apps',
+        'external_accounts', 'linked_accounts', 'sync_logs', 'sync_status',
+        
+        // Data/Mappings
+        'data_mappings', 'field_mappings', 'mappings', 'transformations', 'rules',
+        'selected_tables', 'data_sources', 'sources', 'imports', 'exports',
+        'migrations', 'migration_logs', 'seeds', 'fixtures',
+        
+        // Addresses/Locations
+        'addresses', 'locations', 'places', 'countries', 'states', 'cities',
+        'regions', 'districts', 'zip_codes', 'postal_codes', 'geo_locations',
+        'coordinates', 'maps', 'routes', 'directions',
+        
+        // Scheduling/Calendar
+        'events', 'calendar_events', 'appointments', 'bookings', 'reservations',
+        'availability', 'slots', 'time_slots', 'schedules', 'recurring_events',
+        'reminders', 'alarms', 'deadlines',
+        
+        // Education/Learning
+        'courses', 'lessons', 'modules', 'chapters', 'quizzes', 'exams',
+        'questions', 'answers', 'grades', 'scores', 'certificates', 'enrollments',
+        'students', 'instructors', 'teachers', 'classes', 'classrooms',
+        
+        // Healthcare
+        'patients', 'doctors', 'appointments', 'medical_records', 'prescriptions',
+        'diagnoses', 'treatments', 'medications', 'lab_results', 'vitals',
+        
+        // Real Estate
+        'properties', 'listings', 'real_estate', 'rentals', 'leases', 'units',
+        'buildings', 'floors', 'rooms', 'amenities', 'inspections',
+        
+        // Inventory specific
+        'items', 'item_categories', 'stock_movements', 'purchase_orders', 'suppliers',
+        'vendor', 'vendors', 'manufacturer', 'manufacturers', 'batches', 'serial_numbers',
+        
+        // Social
+        'friends', 'followers', 'following', 'connections', 'relationships',
+        'likes', 'shares', 'reposts', 'bookmarks', 'saves', 'favorites',
+        'groups', 'communities', 'forums', 'topics', 'discussions',
+        
+        // Misc common
+        'items', 'entries', 'records', 'data', 'rows', 'objects', 'entities',
+        'history', 'versions', 'revisions', 'backups', 'archives', 'trash',
+        'queue', 'jobs', 'background_jobs', 'scheduled_tasks', 'cron_jobs',
+        'cache', 'temp', 'temporary', 'staging', 'draft', 'drafts',
+        'ai_anomalies', 'alert_triggers', 'dashboard_templates', 'data_joins',
       ];
 
-      // Test each table to see if it's accessible
+      // Remove duplicates
+      const uniqueTables = [...new Set(commonTables)];
+
+      // Test each table to see if it's accessible (parallel batches for speed)
       const accessibleTables: string[] = [];
+      const batchSize = 20;
       
-      // Process tables in parallel batches for speed
-      const batchSize = 10;
-      for (let i = 0; i < commonTables.length; i += batchSize) {
-        const batch = commonTables.slice(i, i + batchSize);
+      for (let i = 0; i < uniqueTables.length; i += batchSize) {
+        const batch = uniqueTables.slice(i, i + batchSize);
         const results = await Promise.allSettled(
           batch.map(async (tableName) => {
             const { error } = await externalSupabase
@@ -132,6 +246,8 @@ serve(async (req) => {
       }
 
       tableNames = accessibleTables;
+      discoveryMethod = 'pattern_discovery';
+      console.log(`Found ${tableNames.length} tables via pattern discovery`);
     }
 
     // Now fetch detailed info for each accessible table
@@ -185,7 +301,18 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           tables: [],
-          message: 'Conexão bem-sucedida, mas nenhuma tabela acessível foi encontrada. Verifique as políticas RLS.',
+          discoveryMethod,
+          message: 'Conexão bem-sucedida, mas nenhuma tabela acessível foi encontrada. Verifique as políticas RLS ou crie a função get_public_tables() no banco.',
+          hint: `Para listar TODAS as tabelas, crie esta função no seu banco Supabase:
+          
+CREATE OR REPLACE FUNCTION get_public_tables()
+RETURNS TABLE(table_name text)
+LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT table_name::text 
+  FROM information_schema.tables 
+  WHERE table_schema = 'public' 
+    AND table_type = 'BASE TABLE';
+$$;`,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -195,6 +322,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         tables,
+        discoveryMethod,
         message: `Encontradas ${tables.length} tabela(s) acessível(is)`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -218,6 +346,12 @@ function detectType(value: unknown): string {
   if (typeof value === 'string') {
     // Check if it's a date
     if (/^\d{4}-\d{2}-\d{2}/.test(value)) return 'date';
+    // Check if it's a UUID
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return 'uuid';
+    // Check if it's an email
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'email';
+    // Check if it's a URL
+    if (/^https?:\/\//.test(value)) return 'url';
     return 'string';
   }
   if (Array.isArray(value)) return 'array';
