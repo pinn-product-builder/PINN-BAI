@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Sparkles, X, BarChart2, TrendingUp, Bot } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface Message {
@@ -17,7 +16,6 @@ interface Message {
 }
 
 const AIChat = ({ onClose }: { onClose: () => void }) => {
-    const { theme } = useTheme();
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',

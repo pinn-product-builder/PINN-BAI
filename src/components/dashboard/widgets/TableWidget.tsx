@@ -202,7 +202,7 @@ const TableWidget = ({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
-                      {formatDistanceToNow(new Date(lead.createdAt), { 
+                      {formatDistanceToNow(new Date(lead.created_at), { 
                         addSuffix: true, 
                         locale: ptBR 
                       })}

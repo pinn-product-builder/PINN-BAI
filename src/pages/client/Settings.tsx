@@ -28,7 +28,7 @@ const ClientSettings = () => {
   const [settings, setSettings] = useState({
     orgName: currentOrg?.name || '',
     slug: currentOrg?.slug || '',
-    adminEmail: currentOrg?.adminEmail || '',
+    adminEmail: currentOrg?.admin_email || '',
     enableEmailNotifications: true,
     enableInsightAlerts: true,
     dashboardRefreshInterval: '5',
@@ -145,7 +145,7 @@ const ClientSettings = () => {
                   <div>
                     <p className="font-medium text-foreground">Plano Atual</p>
                     <p className="text-sm text-muted-foreground">
-                      {planNames[currentOrg.plan]} - {currentOrg.totalUsers} usuários ativos
+                      {planNames[currentOrg.plan]}
                     </p>
                   </div>
                   <Button variant="outline">Alterar Plano</Button>

@@ -140,7 +140,7 @@ export class DataProfiler {
                 type: 'insight_card',
                 title: 'Análise de Inteligência',
                 description: 'Insights automáticos gerados pelo cérebro da plataforma.',
-                config: { model: 'gpt-4-turbo' },
+                config: {},
                 width: 12,
                 height: 2
             });

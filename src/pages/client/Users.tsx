@@ -39,8 +39,8 @@ const getMockOrgUsers = (orgId: string): OrgUser[] => {
   return [
     {
       id: '1',
-      name: org.adminName,
-      email: org.adminEmail,
+      name: org.admin_name || 'Admin',
+      email: org.admin_email || 'admin@empresa.com',
       role: 'client_admin',
       status: 'active',
       lastLogin: '2024-03-15T10:30:00Z',
