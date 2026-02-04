@@ -97,25 +97,53 @@ serve(async (req) => {
       );
     }
 
-    // Create the user with admin API
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Auto-confirm the email
-      user_metadata: {
-        full_name: fullName,
-      },
-    });
+    // Check if user already exists
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === email);
+    
+    let userId: string;
+    let isNewUser = false;
+    
+    if (existingUser) {
+      // User exists - check if already assigned to an org
+      const { data: existingProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("org_id")
+        .eq("user_id", existingUser.id)
+        .single();
+      
+      if (existingProfile?.org_id) {
+        return new Response(
+          JSON.stringify({ error: "Este email já está associado a outra organização. Use um email diferente." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // User exists but has no org - we can use them
+      userId = existingUser.id;
+      console.log(`Using existing user ${email} for org ${orgId}`);
+    } else {
+      // Create new user
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+        },
+      });
 
-    if (authError) {
-      console.error("Auth error:", authError);
-      return new Response(
-        JSON.stringify({ error: authError.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (authError) {
+        console.error("Auth error:", authError);
+        return new Response(
+          JSON.stringify({ error: authError.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      userId = authData.user.id;
+      isNewUser = true;
     }
-
-    const userId = authData.user.id;
 
     // Update profile with org_id (trigger already created base profile)
     const { error: profileError } = await supabaseAdmin
@@ -129,31 +157,45 @@ serve(async (req) => {
 
     if (profileError) {
       console.error("Profile error:", profileError);
-      // Cleanup: delete the created user
-      await supabaseAdmin.auth.admin.deleteUser(userId);
+      // Cleanup: delete the created user only if we created it
+      if (isNewUser) {
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+      }
       return new Response(
         JSON.stringify({ error: "Failed to update profile: " + profileError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Assign client_admin role
-    const { error: roleError } = await supabaseAdmin
+    // Check if user already has client_admin role
+    const { data: existingRole } = await supabaseAdmin
       .from("user_roles")
-      .insert({
-        user_id: userId,
-        role: "client_admin",
-      });
+      .select("id")
+      .eq("user_id", userId)
+      .eq("role", "client_admin")
+      .maybeSingle();
 
-    if (roleError) {
-      console.error("Role error:", roleError);
-      // Cleanup
-      await supabaseAdmin.from("profiles").delete().eq("user_id", userId);
-      await supabaseAdmin.auth.admin.deleteUser(userId);
-      return new Response(
-        JSON.stringify({ error: "Failed to assign role: " + roleError.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Only insert role if it doesn't exist
+    if (!existingRole) {
+      const { error: roleError } = await supabaseAdmin
+        .from("user_roles")
+        .insert({
+          user_id: userId,
+          role: "client_admin",
+        });
+
+      if (roleError) {
+        console.error("Role error:", roleError);
+        // Cleanup only if we created the user
+        if (isNewUser) {
+          await supabaseAdmin.from("profiles").update({ org_id: null }).eq("user_id", userId);
+          await supabaseAdmin.auth.admin.deleteUser(userId);
+        }
+        return new Response(
+          JSON.stringify({ error: "Failed to assign role: " + roleError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     console.log(`Created admin user ${email} for org ${orgId}`);
