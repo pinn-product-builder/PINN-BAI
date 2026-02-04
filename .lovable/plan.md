@@ -1,271 +1,267 @@
 
-# Plano: Pinn Insights Hub - Evolução Enterprise Ready
+# Plano: Templates Persistidos no Banco + Listagem Completa de Tabelas
 
 ## Visão Geral
 
-Este plano detalha a implementação das 5 áreas de funcionalidades avançadas que transformarão o Pinn em uma plataforma de BI de nível Enterprise: Inteligência Preditiva, Automação, White-label, Gestão de Dados Profissional, e UX Premium.
+Este plano aborda duas necessidades críticas:
+1. **Templates de Dashboard**: Transformar de dados mock para persistência real no banco de dados
+2. **Listagem de Tabelas**: Usar `information_schema` para listar TODAS as tabelas do banco conectado, não apenas uma lista pré-definida
 
 ---
 
-## Fase 1: Inteligência Preditiva (IA Avançada)
+## Parte 1: Templates de Dashboard Persistidos
 
-### 1.1 Forecast de Métricas (30-60 dias)
+### 1.1 Nova Tabela `dashboard_templates`
 
-**Objetivo:** Prever tendências de faturamento, leads e conversões usando análise de séries temporais.
+Criar tabela para armazenar templates reutilizáveis:
 
-**Implementação:**
-- Criar Edge Function `predict-metrics` que utiliza regressão linear simples e médias móveis
-- Calcular tendências baseadas nos últimos 90 dias de dados históricos
-- Gerar projeções para 30 e 60 dias com intervalos de confiança
-- Criar widget `ForecastWidget.tsx` com gráfico de linha que mostra histórico + projeção
-
-**Componentes:**
-- `supabase/functions/predict-metrics/index.ts` - Lógica de previsão
-- `src/components/dashboard/widgets/ForecastWidget.tsx` - Visualização
-- Adicionar tipo `forecast` no enum `widget_type`
-
-### 1.2 Detecção de Anomalias (Watchdog IA)
-
-**Objetivo:** Alertar automaticamente sobre variações anormais em métricas.
-
-**Implementação:**
-- Criar Edge Function `anomaly-detector` que roda via pg_cron a cada hora
-- Calcular desvio padrão e z-scores das últimas 24h vs média histórica
-- Gerar alertas quando z-score > 2 (anomalia significativa)
-- Persistir alertas na nova tabela `ai_anomalies`
-- Mostrar alertas no dashboard com explicação contextual
-
-**Nova Tabela:**
 ```sql
-CREATE TABLE ai_anomalies (
+CREATE TABLE dashboard_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id UUID REFERENCES organizations(id),
-  metric_name TEXT NOT NULL,
-  detected_value NUMERIC,
-  expected_value NUMERIC,
-  deviation_percent NUMERIC,
-  severity TEXT CHECK (severity IN ('warning', 'critical')),
-  explanation TEXT,
-  is_dismissed BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
----
-
-## Fase 2: Automação e Notificações
-
-### 2.1 Sistema de Alertas Inteligentes
-
-**Objetivo:** Permitir configuração de alertas por email e webhook baseados em regras.
-
-**Implementação:**
-- Evoluir a página `DataTriggers.tsx` para persistir triggers no banco
-- Criar tabela `alert_triggers` para armazenar configurações
-- Criar Edge Function `execute-triggers` que avalia triggers a cada sync
-- Integrar com serviço de email (Resend) e suporte a webhooks genéricos
-
-**Nova Tabela:**
-```sql
-CREATE TABLE alert_triggers (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id UUID REFERENCES organizations(id),
   name TEXT NOT NULL,
-  metric TEXT NOT NULL,
-  condition TEXT CHECK (condition IN ('gt', 'lt', 'eq', 'change_percent')),
-  threshold NUMERIC NOT NULL,
-  action TEXT CHECK (action IN ('email', 'webhook', 'slack')),
-  destination TEXT NOT NULL,
-  cooldown_minutes INTEGER DEFAULT 60,
+  description TEXT,
+  plan INTEGER NOT NULL DEFAULT 1,
+  category TEXT DEFAULT 'sales',
+  widgets JSONB NOT NULL DEFAULT '[]',
+  preview_image_url TEXT,
   is_active BOOLEAN DEFAULT TRUE,
-  last_triggered_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT now()
+  usage_count INTEGER DEFAULT 0,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 ```
 
-### 2.2 Relatórios Semanais Automáticos
-
-**Objetivo:** Enviar resumo executivo semanal por email com Top 3 Insights.
-
-**Implementação:**
-- Criar Edge Function `weekly-report` agendada via pg_cron (domingos 08:00)
-- Utilizar Lovable AI para gerar narrativa executiva dos insights
-- Gerar PDF usando `ReportGenerator` existente
-- Enviar via serviço de email (Resend)
-
----
-
-## Fase 3: White-label e Personalização
-
-### 3.1 Branding Completo por Organização
-
-**Objetivo:** Cada cliente pode ter logo, cores e subdomínio próprio.
-
-**Implementação:**
-- Expandir tabela `organizations` com novos campos de branding
-- Criar Storage Bucket `org-assets` para logos
-- Evoluir `ThemeContext.tsx` para aplicar tema completo
-- Adicionar página de configuração de branding em Settings
-
-**Alterações no Schema:**
-```sql
-ALTER TABLE organizations ADD COLUMN IF NOT EXISTS secondary_color TEXT;
-ALTER TABLE organizations ADD COLUMN IF NOT EXISTS font_family TEXT;
-ALTER TABLE organizations ADD COLUMN IF NOT EXISTS custom_domain TEXT;
-ALTER TABLE organizations ADD COLUMN IF NOT EXISTS favicon_url TEXT;
+**Widgets JSONB Structure:**
+```json
+[
+  {
+    "type": "metric_card",
+    "title": "Total de Leads",
+    "size": "small",
+    "config": { "metric": "total_leads", "showTrend": true }
+  },
+  {
+    "type": "funnel",
+    "title": "Funil de Vendas",
+    "size": "large",
+    "config": { "stages": ["new", "qualified", "proposal", "converted"] }
+  }
+]
 ```
 
-### 3.2 Editor de Dashboard Drag & Drop
+### 1.2 Seed de Templates Padrão
 
-**Objetivo:** Permitir reorganização visual dos widgets pelo usuário.
+Inserir os 4 templates base na migração:
 
-**Implementação:**
-- Integrar biblioteca `react-grid-layout` (ou usar `react-resizable-panels` existente)
-- Salvar layout customizado no campo `layout` da tabela `dashboards`
-- Permitir resize de widgets com tamanhos predefinidos
-- Adicionar botão "Modo Edição" que habilita drag handles
+- **Dashboard Starter** (Plan 1): 3 widgets básicos
+- **Dashboard Professional** (Plan 2): 6 widgets com gráficos
+- **Dashboard Business** (Plan 3): 9 widgets completos
+- **Dashboard Enterprise** (Plan 4): 14 widgets premium
 
-**Componentes:**
-- `src/components/dashboard/DashboardGridEditor.tsx` - Grid editável
-- Atualizar `DashboardEngine.tsx` para suportar modo edição
+### 1.3 Hook `useTemplates`
 
----
+Criar hook para CRUD de templates:
 
-## Fase 4: Gestão de Dados Profissional
+**Arquivo:** `src/hooks/useTemplates.ts`
 
-### 4.1 Multi-Source Join (Cruzamento de Dados)
+```typescript
+export const useTemplates = () => {
+  return useQuery({
+    queryKey: ['templates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dashboard_templates')
+        .select('*')
+        .eq('is_active', true)
+        .order('plan', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+};
 
-**Objetivo:** Unir dados de diferentes integrações em visualizações únicas.
-
-**Implementação:**
-- Criar tabela `data_joins` para armazenar regras de join
-- Edge Function `execute-join` que processa queries cross-integration
-- Interface no wizard de mapeamento para definir relacionamentos
-- Suporte inicial: Supabase + Google Sheets
-
-**Nova Tabela:**
-```sql
-CREATE TABLE data_joins (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id UUID REFERENCES organizations(id),
-  name TEXT NOT NULL,
-  source_a_integration_id UUID REFERENCES integrations(id),
-  source_a_table TEXT NOT NULL,
-  source_a_key TEXT NOT NULL,
-  source_b_integration_id UUID REFERENCES integrations(id),
-  source_b_table TEXT NOT NULL,
-  source_b_key TEXT NOT NULL,
-  join_type TEXT DEFAULT 'left',
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+export const useCreateTemplate = () => { ... };
+export const useUpdateTemplate = () => { ... };
+export const useDeleteTemplate = () => { ... };
+export const useApplyTemplate = () => { ... };
 ```
 
-### 4.2 Logs de Auditoria Reais
+### 1.4 Atualizar Página de Templates
 
-**Objetivo:** Registrar todas alterações importantes no sistema.
+Modificar `src/pages/admin/Templates.tsx` para:
 
-**Implementação:**
-- Evoluir `activity_logs` para capturar eventos reais (não mock)
-- Criar hook `useAuditLog` para registrar ações do usuário
-- Implementar triggers no banco para capturar alterações em tabelas críticas
-- Atualizar página `AuditLogs.tsx` para buscar dados reais
+- Buscar templates reais do banco via `useTemplates()`
+- Implementar botões de Editar, Duplicar, Deletar
+- Modal para criar novo template
+- Contador de uso real (quantas orgs usam cada template)
+- Preview visual do template
 
-### 4.3 Exportação Avançada de Dados
+### 1.5 Integração com Onboarding
 
-**Objetivo:** Exportar widgets para Excel, CSV ou PDF de alta qualidade.
+Adicionar step de seleção de template no wizard:
 
-**Implementação:**
-- Adicionar biblioteca `xlsx` para geração de Excel
-- Evoluir `ReportGenerator` para suportar exportação de widgets individuais
-- Adicionar menu de exportação em cada widget
-- Suporte a exportação em lote (dashboard completo)
+- Mostrar templates disponíveis para o plano selecionado
+- Preview dos widgets incluídos
+- Botão "Usar este template" que pré-popula o dashboard
 
 ---
 
-## Fase 5: Experiência do Cliente (UX Premium)
+## Parte 2: Listagem Completa de Tabelas via Information Schema
 
-### 5.1 Drill-down em Gráficos
+### 2.1 Atualizar Edge Function `test-supabase-connection`
 
-**Objetivo:** Clicar em segmentos de gráficos para ver dados detalhados.
+**Problema atual:** Lista pré-definida de ~60 nomes comuns
 
-**Implementação:**
-- Adicionar evento `onClick` nos componentes Recharts
-- Criar modal `DrillDownModal.tsx` que mostra registros filtrados
-- Passar contexto do clique (ex: "Leads do Google Ads") para filtrar dados
-- Reutilizar `TableWidget` para exibir resultados
+**Solução:** Criar RPC function no banco externo OU tentar acessar via PostgREST
 
-**Componentes:**
-- `src/components/dashboard/DrillDownModal.tsx` - Modal de detalhamento
-- Atualizar `PieChartWidget.tsx`, `BarChartWidget.tsx` com handlers de clique
+**Nova Estratégia:**
 
-### 5.2 Chat IA Contextual (Evolução do AIChat)
+```typescript
+// Tentar consultar information_schema diretamente
+// Se falhar, tentar RPC customizado
+// Se falhar, usar abordagem de descoberta inteligente
 
-**Objetivo:** Responder perguntas sobre os dados reais do cliente.
+const tableListing = [
+  // 1. Tentar RPC get_public_tables (se existir)
+  // 2. Tentar query em pg_catalog via RPC
+  // 3. Descoberta automática expandida
+];
+```
 
-**Implementação:**
-- Conectar `AIChat.tsx` ao Lovable AI Gateway
-- Criar Edge Function `ai-data-chat` que:
-  1. Recebe pergunta do usuário
-  2. Busca dados relevantes do org_id no Supabase
-  3. Envia contexto + pergunta para Lovable AI
-  4. Retorna resposta com possíveis gráficos inline
-- Adicionar histórico de conversas persistido
+### 2.2 RPC Helper Function (Opcional)
+
+Sugerir ao usuário criar esta função no banco externo:
+
+```sql
+CREATE OR REPLACE FUNCTION get_public_tables()
+RETURNS TABLE(table_name text, column_count integer, row_count bigint)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    t.table_name::text,
+    (SELECT count(*)::integer FROM information_schema.columns c 
+     WHERE c.table_name = t.table_name AND c.table_schema = 'public'),
+    (SELECT reltuples::bigint FROM pg_class 
+     WHERE relname = t.table_name)
+  FROM information_schema.tables t
+  WHERE t.table_schema = 'public' 
+    AND t.table_type = 'BASE TABLE';
+END;
+$$;
+```
+
+### 2.3 Descoberta Automática Melhorada
+
+Se RPC não existir, usar descoberta inteligente:
+
+1. **Testar tabelas conhecidas** (lista expandida para 150+)
+2. **Descoberta por padrões comuns** (plural, singular, prefixos)
+3. **Feedback ao usuário** sobre limitações
+
+### 2.4 UI de Seleção de Tabelas Melhorada
+
+Atualizar `TableSelection.tsx`:
+
+- Indicador de carregamento durante descoberta
+- Mensagem explicativa se poucas tabelas encontradas
+- Botão "Adicionar tabela manualmente" para casos edge
+- Filtros por tipo de dado detectado
 
 ---
 
-## Ordem de Implementação Recomendada
+## Arquivos a Modificar/Criar
 
-| Prioridade | Funcionalidade | Complexidade | Impacto |
-|------------|----------------|--------------|---------|
-| 1 | Chat IA Contextual | Média | Alto |
-| 2 | Alertas Inteligentes (persistência) | Média | Alto |
-| 3 | Drill-down em Gráficos | Baixa | Alto |
-| 4 | Exportação Avançada | Baixa | Médio |
-| 5 | Logs de Auditoria Reais | Baixa | Médio |
-| 6 | Branding White-label | Média | Alto |
-| 7 | Detecção de Anomalias | Alta | Alto |
-| 8 | Forecast de Métricas | Alta | Médio |
-| 9 | Drag & Drop Dashboard | Alta | Médio |
-| 10 | Multi-Source Join | Muito Alta | Alto |
-| 11 | Relatórios Automáticos | Média | Médio |
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `migration_XXXXXX.sql` | Criar | Tabela `dashboard_templates` + seed data |
+| `src/hooks/useTemplates.ts` | Criar | Hook CRUD para templates |
+| `src/pages/admin/Templates.tsx` | Modificar | Usar dados reais do banco |
+| `supabase/functions/test-supabase-connection/index.ts` | Modificar | Listar TODAS tabelas |
+| `src/components/onboarding/TableSelection.tsx` | Modificar | UI melhorada |
+| `src/components/admin/TemplateEditor.tsx` | Criar | Modal de criação/edição |
+
+---
+
+## Políticas RLS para Templates
+
+```sql
+-- Platform admins podem fazer CRUD
+CREATE POLICY "Platform admins can manage templates"
+ON dashboard_templates FOR ALL
+USING (is_platform_admin(auth.uid()));
+
+-- Todos autenticados podem visualizar templates ativos
+CREATE POLICY "Authenticated users can view active templates"
+ON dashboard_templates FOR SELECT
+USING (is_active = true AND auth.uid() IS NOT NULL);
+```
 
 ---
 
 ## Seção Técnica
 
-### Novas Dependências Necessárias
-```json
-{
-  "react-grid-layout": "^1.4.4",
-  "xlsx": "^0.18.5",
-  "resend": "^3.2.0"
+### Estrutura de Widgets no Template
+
+```typescript
+interface TemplateWidget {
+  type: WidgetType;
+  title: string;
+  description?: string;
+  size: 'small' | 'medium' | 'large' | 'full';
+  position: number;
+  config: {
+    metric?: string;
+    aggregation?: string;
+    chartType?: string;
+    showTrend?: boolean;
+    [key: string]: unknown;
+  };
 }
 ```
 
-### Novas Edge Functions
-1. `predict-metrics` - Previsão de métricas
-2. `anomaly-detector` - Detecção de anomalias (cron)
-3. `execute-triggers` - Execução de alertas
-4. `weekly-report` - Relatório semanal (cron)
-5. `execute-join` - Cruzamento multi-source
-6. `ai-data-chat` - Chat IA contextual
+### Fluxo de Aplicação de Template
 
-### Migrações de Banco de Dados
-- Adicionar campos de branding em `organizations`
-- Criar tabela `ai_anomalies`
-- Criar tabela `alert_triggers`
-- Criar tabela `data_joins`
-- Criar Storage Bucket `org-assets`
+```text
+1. Usuário seleciona template no wizard
+2. Sistema copia widgets do template
+3. Widgets são mapeados para as tabelas selecionadas
+4. Dashboard é criado com os widgets configurados
+5. Contador de uso do template incrementa
+```
 
-### Secrets Necessários
-- `RESEND_API_KEY` - Para envio de emails
+### Descoberta de Tabelas via PostgREST
+
+```typescript
+// Abordagem 1: RPC customizado (melhor)
+const { data } = await client.rpc('get_public_tables');
+
+// Abordagem 2: Testar tabelas conhecidas (fallback)
+const commonTables = [...150 nomes...];
+const results = await Promise.allSettled(
+  commonTables.map(t => client.from(t).select('*', { head: true }))
+);
+```
 
 ---
 
-## Próximos Passos
+## Ordem de Implementação
 
-Após aprovação, começaremos pela **Fase 5.2 (Chat IA Contextual)** pois:
-1. Já existe estrutura base em `AIChat.tsx`
-2. Lovable AI Gateway está configurado
-3. Alto impacto na experiência do usuário
-4. Demonstra capacidade de IA avançada da plataforma
+1. **Criar tabela `dashboard_templates`** com seed data
+2. **Criar hook `useTemplates`** com operações CRUD
+3. **Atualizar `Templates.tsx`** para buscar dados reais
+4. **Criar modal de edição** de templates
+5. **Atualizar Edge Function** para descoberta completa de tabelas
+6. **Melhorar UI de seleção** de tabelas
+
+---
+
+## Resultado Esperado
+
+- Templates reais persistidos no banco de dados
+- CRUD completo para gerenciamento de templates
+- Descoberta de TODAS as tabelas acessíveis no banco externo
+- Interface intuitiva para seleção de dados
+- Templates pré-configurados prontos para uso imediato
