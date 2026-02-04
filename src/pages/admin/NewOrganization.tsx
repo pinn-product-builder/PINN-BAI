@@ -33,7 +33,7 @@ const NewOrganization = () => {
 
     try {
       const baseSlug = formData.name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
-      const uniqueSuffix = Math.random().toString(36).substring(2, 6);
+      const uniqueSuffix = crypto.randomUUID().substring(0, 8);
       const slug = `${baseSlug}-${uniqueSuffix}`;
 
       const { data: org, error: orgError } = await supabase
