@@ -70,31 +70,22 @@ const NewOrganization = () => {
           dashboard_id: dash.id,
           title: 'MRR Consolidado',
           type: 'metric_card' as const,
-          width: 4,
-          height: 2,
-          position_x: 0,
-          position_y: 0,
-          config: { showTrend: true, format: 'currency' }
+          position: 0,
+          config: { showTrend: true, format: 'currency', width: 4, height: 2, position_x: 0, position_y: 0 }
         },
         {
           dashboard_id: dash.id,
           title: 'Total de Leads',
           type: 'metric_card' as const,
-          width: 4,
-          height: 2,
-          position_x: 4,
-          position_y: 0,
-          config: { showTrend: true }
+          position: 1,
+          config: { showTrend: true, width: 4, height: 2, position_x: 4, position_y: 0 }
         },
         {
           dashboard_id: dash.id,
           title: 'Funil de Vendas',
           type: 'bar_chart' as const,
-          width: 8,
-          height: 4,
-          position_x: 0,
-          position_y: 2,
-          config: { showLegend: true }
+          position: 2,
+          config: { showLegend: true, width: 8, height: 4, position_x: 0, position_y: 2 }
         }
       ];
 

@@ -104,8 +104,7 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
                 .select('*')
                 .eq('dashboard_id', dashboardId)
                 .eq('is_visible', true)
-                .order('position_y', { ascending: true })
-                .order('position_x', { ascending: true });
+                .order('position', { ascending: true });
 
             if (error) throw error;
             return (data as any) as DashboardWidget[];
@@ -153,14 +152,14 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
     return (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-20">
             {widgets.map((widget) => {
-                const span = getSizeSpan(widget.size);
+                const span = getSizeSpan((widget as any).size);
                 return (
                     <div
                         key={widget.id}
                         className="col-span-1"
                         style={{
-                            gridColumn: `span ${span.col}`,
-                            gridRow: `span ${span.row}`
+                            gridColumn: `span ${(widget as any).width || (widget.config as any)?.width || span.col}`,
+                            gridRow: `span ${(widget as any).height || (widget.config as any)?.height || span.row}`
                         }}
                     >
                         <WidgetRenderer
