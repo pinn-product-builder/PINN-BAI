@@ -13,6 +13,7 @@ export type LeadStatus = 'new' | 'qualified' | 'in_analysis' | 'proposal' | 'con
 export type WidgetType = 'metric_card' | 'area_chart' | 'bar_chart' | 'line_chart' | 'pie_chart' | 'funnel' | 'table' | 'insight_card';
 
 // ============= Organization =============
+// Aligned with Supabase schema (organizations table)
 
 export interface Organization {
   id: string;
@@ -22,12 +23,9 @@ export interface Organization {
   status: OrgStatus;
   logo_url: string | null;
   primary_color: string | null;
-  secondary_color: string | null;
-  font_family: string | null;
-  custom_domain: string | null;
   admin_name: string | null;
   admin_email: string | null;
-  settings: Json;
+  settings: Json | null;
   created_at: string;
   updated_at: string;
 }
@@ -144,6 +142,7 @@ export interface Dashboard {
 
 // ============= Dashboard Widget =============
 
+// Aligned with Supabase schema (dashboard_widgets table)
 export interface DashboardWidget {
   id: string;
   dashboard_id: string;
@@ -151,11 +150,9 @@ export interface DashboardWidget {
   title: string;
   description: string | null;
   config: Json;
-  position_x: number;
-  position_y: number;
-  width: number;
-  height: number;
-  is_visible: boolean;
+  position: number;
+  size: string | null;
+  is_visible: boolean | null;
   created_at: string;
   updated_at: string;
 }

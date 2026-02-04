@@ -259,6 +259,29 @@ export const planNames: Record<number, string> = {
   5: 'MicroSaaS Studio',
 };
 
+export const planLimits: Record<number, { users: number; features: string[] }> = {
+  1: {
+    users: 3,
+    features: ['Dashboard básico', 'Até 1.000 leads', 'Relatórios mensais'],
+  },
+  2: {
+    users: 10,
+    features: ['Dashboard avançado', 'Até 10.000 leads', 'Relatórios semanais', 'Integrações básicas'],
+  },
+  3: {
+    users: 25,
+    features: ['Dashboard customizado', 'Leads ilimitados', 'Relatórios diários', 'Integrações avançadas', 'IA básica'],
+  },
+  4: {
+    users: -1,
+    features: ['Tudo do Growth', 'Automações', 'IA avançada', 'API completa', 'Suporte prioritário'],
+  },
+  5: {
+    users: -1,
+    features: ['White-label', 'Multi-tenant', 'Customização total', 'SLA dedicado'],
+  },
+};
+
 export const mockPlatformSettings: PlatformSettings = {
   platformName: 'Pinn BAI',
   supportEmail: 'suporte@pinn.com.br',

@@ -33,116 +33,66 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Building2, Plus, Settings, Database, Trash2, Edit, ExternalLink, Loader2, Wand2 } from 'lucide-react';
+import { Building2, Plus, Database, Trash2, ExternalLink, Loader2, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { mockOrganizations, planNames, type Organization } from '@/lib/mock-data';
+import { useOrganizations, useCreateOrganization, useDeleteOrganization } from '@/hooks/useOrganizations';
+import { planNames } from '@/lib/mock-data';
 
 const OrganizationsSettingsCard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [organizations, setOrganizations] = useState<Organization[]>(mockOrganizations);
-  const [isCreating, setIsCreating] = useState(false);
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const { data: organizations = [], isLoading: isLoadingOrgs } = useOrganizations();
+  const createOrganization = useCreateOrganization();
+  const deleteOrganization = useDeleteOrganization();
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSupabaseDialogOpen, setIsSupabaseDialogOpen] = useState(false);
   const [newOrgData, setNewOrgData] = useState({
     name: '',
     adminName: '',
     adminEmail: '',
     plan: '1' as string,
   });
-  const [supabaseConfig, setSupabaseConfig] = useState({
-    projectUrl: '',
-    anonKey: '',
-  });
 
   const handleCreateOrg = async () => {
-    setIsCreating(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      await createOrganization.mutateAsync({
+        name: newOrgData.name,
+        plan: parseInt(newOrgData.plan),
+        admin_name: newOrgData.adminName,
+        admin_email: newOrgData.adminEmail,
+      });
 
-    const newOrg: Organization = {
-      id: `org-${Date.now()}`,
-      name: newOrgData.name,
-      slug: newOrgData.name.toLowerCase().replace(/\s+/g, '-'),
-      plan: parseInt(newOrgData.plan) as 1 | 2 | 3 | 4,
-      status: 'trial',
-      createdAt: new Date().toISOString(),
-      adminEmail: newOrgData.adminEmail,
-      adminName: newOrgData.adminName,
-      totalUsers: 1,
-      totalLeads: 0,
-      settings: {
-        theme: 'light',
-        timezone: 'America/Sao_Paulo',
-        language: 'pt-BR',
-        dataRefreshInterval: 10,
-        allowUserUploads: true,
-        maxFileSize: 25,
-        retentionDays: 60,
-      },
-    };
+      setNewOrgData({ name: '', adminName: '', adminEmail: '', plan: '1' });
+      setIsDialogOpen(false);
 
-    setOrganizations([...organizations, newOrg]);
-    setNewOrgData({ name: '', adminName: '', adminEmail: '', plan: '1' });
-    setIsDialogOpen(false);
-    setIsCreating(false);
-
-    toast({
-      title: 'Organização criada com sucesso',
-      description: `${newOrg.name} foi provisionada com o plano ${planNames[newOrg.plan]}.`,
-    });
+      toast({
+        title: 'Organização criada com sucesso',
+        description: `${newOrgData.name} foi provisionada.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao criar organização',
+        description: 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleConnectSupabase = async () => {
-    if (!selectedOrg) return;
-
-    setIsCreating(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const updatedOrgs = organizations.map((org) =>
-      org.id === selectedOrg.id
-        ? {
-            ...org,
-            supabaseConfig: {
-              projectUrl: supabaseConfig.projectUrl,
-              anonKey: supabaseConfig.anonKey,
-              isConnected: true,
-              lastSync: new Date().toISOString(),
-            },
-          }
-        : org
-    );
-
-    setOrganizations(updatedOrgs);
-    setSupabaseConfig({ projectUrl: '', anonKey: '' });
-    setIsSupabaseDialogOpen(false);
-    setSelectedOrg(null);
-    setIsCreating(false);
-
-    toast({
-      title: 'Supabase conectado',
-      description: `Integração configurada para ${selectedOrg.name}.`,
-    });
-  };
-
-  const handleDeleteOrg = (orgId: string) => {
-    const org = organizations.find((o) => o.id === orgId);
-    setOrganizations(organizations.filter((o) => o.id !== orgId));
-    toast({
-      title: 'Organização removida',
-      description: `${org?.name} foi removida permanentemente.`,
-      variant: 'destructive',
-    });
-  };
-
-  const handleStatusChange = (orgId: string, status: 'active' | 'suspended' | 'trial') => {
-    setOrganizations(organizations.map((org) =>
-      org.id === orgId ? { ...org, status } : org
-    ));
-    toast({
-      title: 'Status atualizado',
-      description: `Status alterado para ${status}.`,
-    });
+  const handleDeleteOrg = async (orgId: string, orgName: string) => {
+    try {
+      await deleteOrganization.mutateAsync(orgId);
+      toast({
+        title: 'Organização removida',
+        description: `${orgName} foi removida permanentemente.`,
+        variant: 'destructive',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao remover organização',
+        description: 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -248,10 +198,10 @@ const OrganizationsSettingsCard = () => {
                 </Button>
                 <Button
                   onClick={handleCreateOrg}
-                  disabled={isCreating || !newOrgData.name || !newOrgData.adminEmail}
+                  disabled={createOrganization.isPending || !newOrgData.name || !newOrgData.adminEmail}
                   className="bg-accent hover:bg-accent/90 text-accent-foreground"
                 >
-                  {isCreating ? (
+                  {createOrganization.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Criando...
@@ -267,158 +217,69 @@ const OrganizationsSettingsCard = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {organizations.map((org, index) => (
-          <div key={org.id}>
-            {index > 0 && <Separator className="my-4" />}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-foreground">{org.name}</p>
-                    {getStatusBadge(org.status)}
-                    <Badge variant="outline">{planNames[org.plan]}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {org.adminEmail} • {org.totalUsers} usuários • {org.totalLeads.toLocaleString()} leads
-                  </p>
-                  {org.supabaseConfig?.isConnected && (
-                    <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
-                      <Database className="w-3 h-3" />
-                      Supabase conectado
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={org.status}
-                  onValueChange={(value) => handleStatusChange(org.id, value as 'active' | 'suspended' | 'trial')}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="trial">Trial</SelectItem>
-                    <SelectItem value="suspended">Suspenso</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    setSelectedOrg(org);
-                    setSupabaseConfig({
-                      projectUrl: org.supabaseConfig?.projectUrl || '',
-                      anonKey: org.supabaseConfig?.anonKey || '',
-                    });
-                    setIsSupabaseDialogOpen(true);
-                  }}
-                >
-                  <Database className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" asChild>
-                  <a href={`/client/${org.id}/dashboard`} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="icon" className="text-destructive hover:text-destructive">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Remover Organização</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tem certeza que deseja remover <strong>{org.name}</strong>? Esta ação é irreversível e todos os dados serão perdidos.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleDeleteOrg(org.id)}
-                        className="bg-destructive hover:bg-destructive/90"
-                      >
-                        Remover
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
+        {isLoadingOrgs ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ))}
-
-        {/* Supabase Integration Dialog */}
-        <Dialog open={isSupabaseDialogOpen} onOpenChange={setIsSupabaseDialogOpen}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Integração Supabase</DialogTitle>
-              <DialogDescription>
-                Configure a conexão com o Supabase de {selectedOrg?.name}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="supabase-url">URL do Projeto</Label>
-                <Input
-                  id="supabase-url"
-                  placeholder="https://xxxxx.supabase.co"
-                  value={supabaseConfig.projectUrl}
-                  onChange={(e) => setSupabaseConfig({ ...supabaseConfig, projectUrl: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Encontre em: Project Settings → API → Project URL
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="supabase-key">Anon Key</Label>
-                <Input
-                  id="supabase-key"
-                  type="password"
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  value={supabaseConfig.anonKey}
-                  onChange={(e) => setSupabaseConfig({ ...supabaseConfig, anonKey: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Encontre em: Project Settings → API → anon public key
-                </p>
-              </div>
-              {selectedOrg?.supabaseConfig?.isConnected && (
-                <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                  <p className="text-sm text-emerald-600 font-medium">✓ Conectado</p>
-                  <p className="text-xs text-muted-foreground">
-                    Última sincronização: {new Date(selectedOrg.supabaseConfig.lastSync || '').toLocaleString('pt-BR')}
-                  </p>
+        ) : organizations.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            Nenhuma organização cadastrada. Crie uma nova para começar.
+          </div>
+        ) : (
+          organizations.map((org, index) => (
+            <div key={org.id}>
+              {index > 0 && <Separator className="my-4" />}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground">{org.name}</p>
+                      {getStatusBadge(org.status)}
+                      <Badge variant="outline">{planNames[org.plan]}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {org.admin_email || 'Sem email'}
+                    </p>
+                  </div>
                 </div>
-              )}
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" asChild>
+                    <a href={`/client/${org.id}/dashboard`} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="icon" className="text-destructive hover:text-destructive">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remover Organização</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja remover <strong>{org.name}</strong>? Esta ação é irreversível e todos os dados serão perdidos.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteOrg(org.id, org.name)}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          Remover
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsSupabaseDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleConnectSupabase}
-                disabled={isCreating || !supabaseConfig.projectUrl || !supabaseConfig.anonKey}
-                className="bg-accent hover:bg-accent/90 text-accent-foreground"
-              >
-                {isCreating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Conectando...
-                  </>
-                ) : (
-                  'Salvar Conexão'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          ))
+        )}
       </CardContent>
     </Card>
   );

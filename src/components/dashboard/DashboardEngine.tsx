@@ -139,24 +139,38 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         );
     }
 
+    // Helper to calculate grid span from size
+    const getSizeSpan = (size: string | null) => {
+        switch (size) {
+            case 'small': return { col: 3, row: 1 };
+            case 'medium': return { col: 4, row: 2 };
+            case 'large': return { col: 6, row: 2 };
+            case 'full': return { col: 12, row: 2 };
+            default: return { col: 4, row: 2 };
+        }
+    };
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-20">
-            {widgets.map((widget) => (
-                <div
-                    key={widget.id}
-                    className="col-span-1"
-                    style={{
-                        gridColumn: `span ${widget.width || 4}`,
-                        gridRow: `span ${widget.height || 2}`
-                    }}
-                >
-                    <WidgetRenderer
-                        widget={widget}
-                        activeFilter={activeFilter}
-                        onFilter={handleFilter}
-                    />
-                </div>
-            ))}
+            {widgets.map((widget) => {
+                const span = getSizeSpan(widget.size);
+                return (
+                    <div
+                        key={widget.id}
+                        className="col-span-1"
+                        style={{
+                            gridColumn: `span ${span.col}`,
+                            gridRow: `span ${span.row}`
+                        }}
+                    >
+                        <WidgetRenderer
+                            widget={widget}
+                            activeFilter={activeFilter}
+                            onFilter={handleFilter}
+                        />
+                    </div>
+                );
+            })}
         </div>
     );
 };
