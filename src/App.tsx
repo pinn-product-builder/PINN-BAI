@@ -20,6 +20,7 @@ import AdminUsers from "./pages/admin/Users";
 import Activity from "./pages/admin/Activity";
 import AdminSettings from "./pages/admin/Settings";
 import GlobalHQ from "./pages/admin/GlobalHQ";
+import OrganizationDetail from "./pages/admin/OrganizationDetail";
 
 // Onboarding Wizard
 import OnboardingWizard from "./components/onboarding/OnboardingWizard";
@@ -61,6 +62,7 @@ const App = () => (
                 <Route index element={<Navigate to="/admin/hq" replace />} />
                 <Route path="hq" element={<GlobalHQ />} />
                 <Route path="organizations" element={<Organizations />} />
+                <Route path="organizations/:orgId" element={<OrganizationDetail />} />
                 <Route path="organizations/new" element={<NewOrganization />} />
                 <Route path="organizations/onboarding" element={<OnboardingWizard />} />
                 <Route path="templates" element={<Templates />} />
