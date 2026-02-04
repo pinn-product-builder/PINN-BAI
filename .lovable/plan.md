@@ -1,13 +1,17 @@
 
 # Plano: Templates com Preview Visual + Seleção no Onboarding + Aplicação Automática
 
+## Status: ✅ CONCLUÍDO
+
+---
+
 ## Visão Geral
 
 Este plano implementa três funcionalidades integradas para melhorar a experiência de provisionamento de organizações:
 
-1. **Preview visual de templates** com miniatura mostrando layout dos widgets
-2. **Step de seleção de template** no wizard de onboarding
-3. **Aplicação automática do template** ao criar a organização (copiar widgets para o dashboard)
+1. **Preview visual de templates** com miniatura mostrando layout dos widgets ✅
+2. **Step de seleção de template** no wizard de onboarding ✅
+3. **Aplicação automática do template** ao criar a organização (copiar widgets para o dashboard) ✅
 
 ---
 

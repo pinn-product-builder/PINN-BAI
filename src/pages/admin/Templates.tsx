@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -16,18 +14,7 @@ import {
 import {
   LayoutTemplate,
   Plus,
-  Edit2,
-  Copy,
-  Trash2,
-  BarChart,
-  PieChart,
-  TrendingUp,
-  Table,
-  Lightbulb,
-  LineChart,
-  AreaChart,
 } from 'lucide-react';
-import { planNames } from '@/lib/mock-data';
 import {
   useAllTemplates,
   useCreateTemplate,
@@ -37,17 +24,7 @@ import {
   DashboardTemplate,
 } from '@/hooks/useTemplates';
 import TemplateEditor from '@/components/admin/TemplateEditor';
-
-const widgetIcons: Record<string, React.ReactNode> = {
-  metric_card: <TrendingUp className="w-3 h-3" />,
-  line_chart: <LineChart className="w-3 h-3" />,
-  area_chart: <AreaChart className="w-3 h-3" />,
-  bar_chart: <BarChart className="w-3 h-3" />,
-  pie_chart: <PieChart className="w-3 h-3" />,
-  funnel: <PieChart className="w-3 h-3" />,
-  table: <Table className="w-3 h-3" />,
-  insight_card: <Lightbulb className="w-3 h-3" />,
-};
+import TemplatePreviewCard from '@/components/admin/TemplatePreviewCard';
 
 const Templates = () => {
   const { data: templates, isLoading, error } = useAllTemplates();
@@ -131,12 +108,12 @@ const Templates = () => {
       </div>
 
       {/* Templates Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {isLoading ? (
           // Loading skeletons
           Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <CardHeader className="pb-3">
+            <div key={i} className="overflow-hidden rounded-lg border bg-card">
+              <div className="p-4 border-b">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <Skeleton className="w-10 h-10 rounded-lg" />
@@ -146,94 +123,25 @@ const Templates = () => {
                     </div>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-4 w-full mb-4" />
-                <Skeleton className="h-6 w-3/4" />
-              </CardContent>
-            </Card>
+              </div>
+              <div className="p-4">
+                <Skeleton className="h-16 w-full" />
+              </div>
+            </div>
           ))
         ) : templates && templates.length > 0 ? (
           templates.map((template) => (
-            <Card key={template.id} className="overflow-hidden">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <LayoutTemplate className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{template.name}</CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline">
-                          {planNames[template.plan as keyof typeof planNames]}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {template.usage_count} org. usando
-                        </span>
-                        {!template.is_active && (
-                          <Badge variant="secondary" className="text-xs">
-                            Inativo
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleEdit(template)}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleDuplicate(template.id)}
-                      disabled={duplicateTemplate.isPending}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleDeleteClick(template.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="mb-4">
-                  {template.description}
-                </CardDescription>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">
-                    {template.widgets?.length || 0} widgets incluídos:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {template.widgets?.map((widget, idx) => (
-                      <Badge
-                        key={idx}
-                        variant="secondary"
-                        className="text-xs font-normal flex items-center gap-1"
-                      >
-                        {widgetIcons[widget.type] || <LayoutTemplate className="w-3 h-3" />}
-                        {widget.title}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <TemplatePreviewCard
+              key={template.id}
+              template={template}
+              showActions
+              onEdit={() => handleEdit(template)}
+              onDuplicate={() => handleDuplicate(template.id)}
+              onDelete={() => handleDeleteClick(template.id)}
+            />
           ))
         ) : (
-          <div className="col-span-2 text-center py-12">
+          <div className="col-span-full text-center py-12">
             <LayoutTemplate className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">
               Nenhum template encontrado

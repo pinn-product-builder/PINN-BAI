@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
+
+type WidgetType = Database['public']['Enums']['widget_type'];
 
 export interface TemplateWidget {
   type: string;
@@ -16,14 +19,14 @@ export interface DashboardTemplate {
   name: string;
   description: string | null;
   plan: number;
-  category: string;
+  category: string | null;
   widgets: TemplateWidget[];
   preview_image_url: string | null;
-  is_active: boolean;
-  usage_count: number;
+  is_active: boolean | null;
+  usage_count: number | null;
   created_by: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export const useTemplates = (planFilter?: number) => {
@@ -259,6 +262,72 @@ export const useIncrementTemplateUsage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-templates'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-templates-all'] });
+    },
+  });
+};
+
+// Apply a template to a dashboard - creates widgets based on template
+export const useApplyTemplate = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const incrementUsage = useIncrementTemplateUsage();
+
+  return useMutation({
+    mutationFn: async ({ 
+      templateId, 
+      dashboardId 
+    }: { 
+      templateId: string; 
+      dashboardId: string;
+    }) => {
+      // Fetch template
+      const { data: template, error: fetchError } = await supabase
+        .from('dashboard_templates')
+        .select('*')
+        .eq('id', templateId)
+        .single();
+
+      if (fetchError || !template) {
+        throw new Error('Template não encontrado');
+      }
+
+      const templateWidgets = template.widgets as unknown as TemplateWidget[];
+
+      // Create widgets based on template
+      const widgetsToCreate = templateWidgets.map((tw, index) => ({
+        dashboard_id: dashboardId,
+        title: tw.title,
+        type: tw.type as WidgetType,
+        position: index,
+        size: tw.size,
+        config: tw.config,
+        description: tw.description || null,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('dashboard_widgets')
+        .insert(widgetsToCreate as never[]);
+
+      if (insertError) throw insertError;
+
+      // Increment usage count
+      await incrementUsage.mutateAsync(templateId);
+
+      return template;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-widgets'] });
+      toast({
+        title: 'Template aplicado',
+        description: 'Os widgets do template foram criados no dashboard.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro ao aplicar template',
+        description: error.message,
+        variant: 'destructive',
+      });
     },
   });
 };
