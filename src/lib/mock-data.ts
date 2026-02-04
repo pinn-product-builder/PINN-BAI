@@ -217,10 +217,10 @@ export interface ActivityLog {
   org_id?: string;
   user_id?: string;
   action: string;
-  entity_type?: string;
-  entity_id?: string;
-  details?: any;
-  created_at: string;
+  userName: string;
+  entityType: string;
+  details: string;
+  createdAt: string;
 }
 
 export interface Lead {
@@ -235,6 +235,21 @@ export interface Lead {
   created_at: string;
 }
 
+export interface PlatformSettings {
+  platformName: string;
+  supportEmail: string;
+  defaultPlan: number;
+  trialDays: number;
+  maintenanceMode: boolean;
+  allowNewRegistrations: boolean;
+  enableRLS: boolean;
+  maxFileSize: number;
+  logRetention: number;
+  enableNotifications: boolean;
+  enableAutoInsights: boolean;
+  insightsInterval: number;
+}
+
 // EMPTY MOCK ARRAYS (For real data transition)
 export const planNames: Record<number, string> = {
   1: 'Agent Sales',
@@ -242,6 +257,21 @@ export const planNames: Record<number, string> = {
   3: 'Growth Engine',
   4: 'Automation Hub',
   5: 'MicroSaaS Studio',
+};
+
+export const mockPlatformSettings: PlatformSettings = {
+  platformName: 'Pinn BAI',
+  supportEmail: 'suporte@pinn.com.br',
+  defaultPlan: 2,
+  trialDays: 14,
+  maintenanceMode: false,
+  allowNewRegistrations: true,
+  enableRLS: true,
+  maxFileSize: 50,
+  logRetention: 90,
+  enableNotifications: true,
+  enableAutoInsights: true,
+  insightsInterval: 24,
 };
 
 export const mockOrganizations: Organization[] = [];
