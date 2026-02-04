@@ -266,6 +266,12 @@ export const useIncrementTemplateUsage = () => {
   });
 };
 
+// Metric mapping type for applying templates with external data
+export interface MetricMapping {
+  field: string;
+  aggregation: string;
+}
+
 // Apply a template to a dashboard - creates widgets based on template
 export const useApplyTemplate = () => {
   const queryClient = useQueryClient();
@@ -275,10 +281,14 @@ export const useApplyTemplate = () => {
   return useMutation({
     mutationFn: async ({ 
       templateId, 
-      dashboardId 
+      dashboardId,
+      dataSource,
+      metricMappings,
     }: { 
       templateId: string; 
       dashboardId: string;
+      dataSource?: string;
+      metricMappings?: Record<string, MetricMapping>;
     }) => {
       // Fetch template
       const { data: template, error: fetchError } = await supabase
@@ -293,16 +303,30 @@ export const useApplyTemplate = () => {
 
       const templateWidgets = template.widgets as unknown as TemplateWidget[];
 
-      // Create widgets based on template
-      const widgetsToCreate = templateWidgets.map((tw, index) => ({
-        dashboard_id: dashboardId,
-        title: tw.title,
-        type: tw.type as WidgetType,
-        position: index,
-        size: tw.size,
-        config: tw.config,
-        description: tw.description || null,
-      }));
+      // Create widgets based on template with injected dataSource
+      const widgetsToCreate = templateWidgets.map((tw, index) => {
+        const templateMetric = (tw.config as Record<string, unknown>)?.metric as string | undefined;
+        const mapping = templateMetric && metricMappings ? metricMappings[templateMetric] : null;
+
+        return {
+          dashboard_id: dashboardId,
+          title: tw.title,
+          type: tw.type as WidgetType,
+          position: index,
+          size: tw.size,
+          config: {
+            ...tw.config,
+            // Inject dataSource if available (required for external data fetch)
+            dataSource: dataSource || null,
+            // Apply metric mapping if available
+            ...(mapping && {
+              metric: mapping.field,
+              aggregation: mapping.aggregation,
+            }),
+          },
+          description: tw.description || null,
+        };
+      });
 
       const { error: insertError } = await supabase
         .from('dashboard_widgets')

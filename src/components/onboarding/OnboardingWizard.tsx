@@ -39,6 +39,7 @@ export interface OnboardingWizardState {
   integration: DataIntegration | null;
   mappings: DataMapping[];
   selectedWidgets: DashboardWidgetConfig[];
+  primaryTable: string | null; // Primary table for external data source
   isComplete: boolean;
 }
 
@@ -80,6 +81,7 @@ const OnboardingWizard = () => {
     integration: null,
     mappings: [],
     selectedWidgets: [],
+    primaryTable: null,
     isComplete: false,
   });
 
@@ -143,9 +145,25 @@ const OnboardingWizard = () => {
 
       // 2. Apply template if selected
       if (state.selectedTemplateId && state.selectedTemplate) {
+        // Get primary table from state or first selected table
+        const dataSource = state.primaryTable 
+          || state.integration?.tables?.[0]?.name 
+          || null;
+
+        // Build metric mappings from the mapping step
+        const metricMappings = state.mappings.reduce((acc, m) => ({
+          ...acc,
+          [m.targetMetric]: {
+            field: m.sourceField,
+            aggregation: m.aggregation || 'count',
+          },
+        }), {} as Record<string, { field: string; aggregation: string }>);
+
         await applyTemplate.mutateAsync({
           templateId: state.selectedTemplateId,
           dashboardId: dashboard.id,
+          dataSource: dataSource || undefined,
+          metricMappings: Object.keys(metricMappings).length > 0 ? metricMappings : undefined,
         });
       } 
       // Or create widgets from manual selection
@@ -243,6 +261,10 @@ const OnboardingWizard = () => {
     setState(prev => ({ ...prev, mappings }));
   };
 
+  const updatePrimaryTable = (tableName: string) => {
+    setState(prev => ({ ...prev, primaryTable: tableName }));
+  };
+
   const updateWidgets = (widgets: DashboardWidgetConfig[]) => {
     setState(prev => ({ ...prev, selectedWidgets: widgets }));
   };
@@ -278,6 +300,7 @@ const OnboardingWizard = () => {
             integration={state.integration}
             mappings={state.mappings}
             onUpdate={updateMappings}
+            onPrimaryTableChange={updatePrimaryTable}
           />
         );
       case 5:
