@@ -123,26 +123,32 @@ const NewOrganization = () => {
                   <SelectContent>
                     <SelectItem value="1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">Starter</span>
-                        <span className="text-xs text-muted-foreground">- até 3 usuários</span>
+                        <span className="font-medium text-accent">Pinn Agent Sales</span>
+                        <span className="text-xs text-muted-foreground">- Lead tracking & conversion</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="2">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">Professional</span>
-                        <span className="text-xs text-muted-foreground">- até 10 usuários</span>
+                        <span className="font-medium text-accent">Pinn Revenue OS</span>
+                        <span className="text-xs text-muted-foreground">- Revenue forecasting & pipeline</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">Business</span>
-                        <span className="text-xs text-muted-foreground">- até 25 usuários</span>
+                        <span className="font-medium text-accent">Pinn Growth Engine</span>
+                        <span className="text-xs text-muted-foreground">- Attribution & LTV/CAC</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="4">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">Enterprise</span>
-                        <span className="text-xs text-muted-foreground">- ilimitado</span>
+                        <span className="font-medium text-accent">Pinn Process Automation Hub</span>
+                        <span className="text-xs text-muted-foreground">- Bot ROI & throughput</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-accent font-bold">Pinn MicroSaaS Studio</span>
+                        <span className="text-xs text-muted-foreground">- Universal BI & Semantic Layer</span>
                       </div>
                     </SelectItem>
                   </SelectContent>

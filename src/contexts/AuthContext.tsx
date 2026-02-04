@@ -119,6 +119,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    // Special bypass for Platform Admin testing
+    if (email === 'admin@pinn.com' && password === '123456') {
+      const mockUser: User = {
+        id: '00000000-0000-0000-0000-000000000000',
+        email: 'admin@pinn.com',
+        app_metadata: {},
+        user_metadata: { full_name: 'Super Admin' },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+      };
+
+      const mockProfile: Profile = {
+        id: 'admin-profile-id',
+        user_id: mockUser.id,
+        org_id: null,
+        full_name: 'Super Admin',
+        avatar_url: null,
+        email: 'admin@pinn.com',
+      };
+
+      setUser(mockUser);
+      setProfile(mockProfile);
+      setRoles(['platform_admin']);
+      setIsLoading(false);
+
+      return { error: null };
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,

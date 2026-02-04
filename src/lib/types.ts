@@ -22,6 +22,9 @@ export interface Organization {
   status: OrgStatus;
   logo_url: string | null;
   primary_color: string | null;
+  secondary_color: string | null;
+  font_family: string | null;
+  custom_domain: string | null;
   admin_name: string | null;
   admin_email: string | null;
   settings: Json;
@@ -148,8 +151,10 @@ export interface DashboardWidget {
   title: string;
   description: string | null;
   config: Json;
-  position: number;
-  size: string;
+  position_x: number;
+  position_y: number;
+  width: number;
+  height: number;
   is_visible: boolean;
   created_at: string;
   updated_at: string;

@@ -9,21 +9,22 @@
 
 @layer base {
   :root {
-    /* Base colors - Clean white foundation */
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    /* Base colors - Dark Mode Default for this aesthetics */
+    --background: 0 0% 3%;
+    --foreground: 0 0% 100%;
 
-    /* Card surfaces */
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    /* Card surfaces - Darker */
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
 
     /* Popover/Dropdown surfaces */
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary - Deep Navy Blue */
-    --primary: 222 47% 20%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Pinn Luminous Orange */
+    --primary: 25 100% 50%;
+    /* #ff6900 converted to HSL roughly */
+    --primary-foreground: 0 0% 100%;
 
     /* Secondary - Slate Gray */
     --secondary: 215 20% 94%;
@@ -33,8 +34,9 @@
     --muted: 215 20% 96%;
     --muted-foreground: 215 16% 47%;
 
-    /* Accent - Vibrant Blue for CTAs */
-    --accent: 221 83% 53%;
+    /* Accent - Pinn Amber Glow */
+    --accent: 38 100% 50%;
+    --accent-foreground: 0 0% 0%;
     --accent-foreground: 0 0% 100%;
 
     /* Success - Green for positive metrics */
@@ -60,8 +62,8 @@
 
     --radius: 0.5rem;
 
-    /* Sidebar - Darker slate for contrast */
-    --sidebar-background: 222 47% 11%;
+    /* Sidebar - Deep Dark for Contrast (Black) */
+    --sidebar-background: 0 0% 4%;
     --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -79,8 +81,8 @@
   }
 
   .dark {
-    /* Dark mode - Deep navy foundation */
-    --background: 222 47% 7%;
+    /* Dark mode - Deep Pinn Space foundation */
+    --background: 240 95% 5%;
     --foreground: 210 40% 96%;
 
     --card: 222 47% 10%;
@@ -89,8 +91,9 @@
     --popover: 222 47% 10%;
     --popover-foreground: 210 40% 96%;
 
-    --primary: 210 40% 96%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 219 97% 57%;
+    /* Lighter blue for dark mode primary text/elements */
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 222 47% 15%;
     --secondary-foreground: 210 40% 96%;
@@ -98,7 +101,7 @@
     --muted: 222 47% 15%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 221 83% 53%;
+    --accent: 271 70% 60%;
     --accent-foreground: 0 0% 100%;
 
     --success: 142 76% 42%;
@@ -145,7 +148,12 @@
   }
 
   /* Typography defaults */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-semibold tracking-tight;
   }
 }

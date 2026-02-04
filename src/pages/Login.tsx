@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -18,7 +18,7 @@ const Login = () => {
   const { toast } = useToast();
   const { signIn, profile, roles, isPlatformAdmin } = useAuth();
 
-  const from = (location.state as { from?: Location })?.from?.pathname || '/admin/organizations';
+  const from = (location.state as { from?: Location })?.from?.pathname || '/admin/hq';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,8 +28,8 @@ const Login = () => {
 
     if (error) {
       toast({
-        title: 'Erro no login',
-        description: error.message || 'Email ou senha inválidos.',
+        title: 'Acesso Negado',
+        description: error.message || 'Verifique suas credenciais.',
         variant: 'destructive',
       });
       setIsLoading(false);
@@ -37,150 +37,117 @@ const Login = () => {
     }
 
     toast({
-      title: 'Login realizado com sucesso',
-      description: 'Redirecionando...',
+      title: 'Autenticado',
+      description: 'Iniciando ambiente seguro...',
+      className: 'bg-primary text-primary-foreground border-none',
     });
 
-    // Small delay to allow auth state to update
     setTimeout(() => {
-      // Check roles to determine redirect
       if (isPlatformAdmin || roles.includes('platform_admin')) {
-        navigate('/admin/organizations');
+        navigate('/admin/hq');
       } else if (profile?.org_id) {
         navigate(`/client/${profile.org_id}/dashboard`);
       } else {
         navigate(from);
       }
       setIsLoading(false);
-    }, 500);
-  };
-
-  const handleForgotPassword = () => {
-    toast({
-      title: 'Recuperação de senha',
-      description: 'Funcionalidade em desenvolvimento.',
-    });
+    }, 800);
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-sidebar flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-            <BarChart3 className="w-6 h-6 text-accent-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-[#050505] relative overflow-hidden text-white font-sans selection:bg-primary/30">
+
+      {/* Ambient Glow Effects */}
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-accent/10 rounded-full blur-[100px]" />
+
+      <div className="w-full max-w-md z-10 p-6">
+        <div className="text-center mb-10 space-y-4">
+          <div className="flex justify-center mb-6">
+            <img src="/pinn-logo.svg" alt="Pinn Logo" className="h-12 w-auto" />
           </div>
-          <span className="text-2xl font-bold text-sidebar-foreground">Pinn BAI</span>
-        </div>
-        
-        <div className="space-y-6">
-          <h1 className="text-4xl font-bold text-sidebar-foreground leading-tight">
-            Business Intelligence
-            <br />
-            <span className="text-accent">simplificado</span>
+
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70">
+            Construa. <br />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+              Automatize.
+            </span>
           </h1>
-          <p className="text-lg text-sidebar-foreground/70 max-w-md">
-            Transforme seus dados em insights acionáveis. Dashboards personalizáveis, 
-            análises automáticas e recomendações inteligentes por IA.
+          <p className="text-white/40 text-sm md:text-base font-light max-w-xs mx-auto leading-relaxed">
+            O futuro da sua empresa começa aqui. Acesse seu painel de inteligência.
           </p>
         </div>
 
-        <p className="text-sm text-sidebar-foreground/50">
-          © 2024 Pinn BAI. Todos os direitos reservados.
-        </p>
-      </div>
-
-      {/* Right side - Login form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-md space-y-8">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-              <BarChart3 className="w-6 h-6 text-accent-foreground" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">Pinn BAI</span>
-          </div>
-
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="space-y-1 text-center">
-              <CardTitle className="text-2xl font-bold">Bem-vindo de volta</CardTitle>
-              <CardDescription>
-                Entre com suas credenciais para acessar a plataforma
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Senha</Label>
-                    <button
-                      type="button"
-                      className="text-sm text-accent hover:text-accent/80 transition-colors"
-                      onClick={handleForgotPassword}
-                    >
-                      Esqueceu a senha?
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="h-11 pr-10"
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full h-11 bg-accent hover:bg-accent/90 text-accent-foreground"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Entrando...
-                    </>
-                  ) : (
-                    'Entrar'
-                  )}
-                </Button>
-              </form>
-
-              <div className="mt-6 p-4 bg-muted rounded-lg">
-                <p className="text-xs text-muted-foreground text-center">
-                  Crie um usuário no Supabase Auth para acessar. Platform admins devem ter o papel <code className="bg-background px-1 py-0.5 rounded">platform_admin</code> na tabela user_roles.
-                </p>
+        <Card className="border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl shadow-primary/5 rounded-2xl overflow-hidden">
+          <CardContent className="p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-xs uppercase tracking-widest text-white/50 font-semibold ml-1">Email Corporativo</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@empresa.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="h-12 bg-black/40 border-white/10 text-white placeholder:text-white/20 focus:border-primary/50 focus:ring-primary/20 rounded-xl transition-all"
+                />
               </div>
-            </CardContent>
-          </Card>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-xs uppercase tracking-widest text-white/50 font-semibold ml-1">Senha de Acesso</Label>
+                  <button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors">
+                    Recuperar acesso
+                  </button>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-12 bg-black/40 border-white/10 text-white placeholder:text-white/20 focus:border-primary/50 focus:ring-primary/20 rounded-xl pr-10 transition-all"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90 text-black font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Conectando...</span>
+                  </div>
+                ) : (
+                  'Acessar Painel'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="mt-8 text-center space-y-4">
+          <div className="flex justify-center gap-4">
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-white/20" />
+            <div className="w-2 h-2 rounded-full bg-white/20" />
+          </div>
+          <p className="text-[10px] text-white/20 uppercase tracking-[0.2em]">
+            Secured by Pinn Protocol
+          </p>
         </div>
       </div>
     </div>

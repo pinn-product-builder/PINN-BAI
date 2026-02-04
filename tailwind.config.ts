@@ -60,12 +60,12 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
         sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
+          DEFAULT: "#050505", // Pinn Deep Space
           foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          primary: "#FF6900", // Pinn Luminous Orange
+          "primary-foreground": "#FFFFFF",
+          accent: "#FCB900", // Pinn Solar Amber
+          "accent-foreground": "#000000",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
@@ -83,7 +83,8 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["Manrope", "system-ui", "sans-serif"],
+        heading: ["Poppins", "system-ui", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {
@@ -106,6 +107,10 @@ export default {
           from: { transform: "translateX(100%)" },
           to: { transform: "translateX(0)" },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -113,6 +118,8 @@ export default {
         "fade-in": "fade-in 0.3s ease-out",
         "fade-up": "fade-up 0.4s ease-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
+        float: "float 3s ease-in-out infinite",
+        "bounce-slow": "bounce 3s infinite",
       },
     },
   },

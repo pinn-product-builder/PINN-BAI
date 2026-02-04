@@ -10,37 +10,41 @@ import {
   Lightbulb,
   Database,
   ChevronDown,
+  Layout,
 } from 'lucide-react';
-import { mockOrganizations } from '@/lib/mock-data';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import AIChat from '@/components/ai/AIChat';
+import { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 
 const navItems = [
-  { path: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: 'import', label: 'Importar Dados', icon: Upload },
-  { path: 'datasets', label: 'Datasets', icon: Database },
-  { path: 'insights', label: 'Insights IA', icon: Lightbulb },
-  { path: 'users', label: 'Usuários', icon: Users },
-  { path: 'settings', label: 'Configurações', icon: Settings },
+  { path: 'dashboard', label: 'Centro de Comando', icon: LayoutDashboard },
+  { path: 'crm', label: 'Smart CRM', icon: Layout },
+  { path: 'import', label: 'Conector de Dados', icon: Upload },
+  { path: 'insights', label: 'Inteligência IA', icon: Lightbulb },
+  { path: 'datasets', label: 'Fontes de Dados', icon: Database },
+  { path: 'settings', label: 'White Label', icon: Settings },
 ];
 
 const ClientLayout = () => {
   const { orgId } = useParams();
   const location = useLocation();
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const navigate = useNavigate();
-  
-  const currentOrg = mockOrganizations.find((org) => org.id === orgId);
+  const { organization, isLoading } = useTheme();
+  const { profile, signOut } = useAuth();
+
   const currentPath = location.pathname.split('/').pop();
 
-  if (!currentOrg) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Organização não encontrada</p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground animate-pulse">Carregando ambiente premium...</p>
+        </div>
       </div>
     );
   }
@@ -52,50 +56,26 @@ const ClientLayout = () => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex items-center gap-3 p-6 border-b border-sidebar-border">
-            <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-accent-foreground" />
-            </div>
-            <span className="text-xl font-bold text-sidebar-foreground">Pinn BAI</span>
+            {organization?.logo_url ? (
+              <img src={organization.logo_url} alt="Logo" className="w-9 h-9 object-contain" />
+            ) : (
+              <img src="/pinn-logo.svg" alt="Pinn Logo" className="h-8 w-auto object-contain" />
+            )}
+            <span className="text-xl font-bold text-sidebar-foreground truncate">
+              {organization?.name || 'Pinn BAI'}
+            </span>
           </div>
 
-          {/* Organization Selector */}
           <div className="p-4 border-b border-sidebar-border">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between text-sidebar-foreground hover:bg-sidebar-accent"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-primary/20 flex items-center justify-center">
-                      <span className="text-xs font-semibold text-primary">
-                        {currentOrg.name.charAt(0)}
-                      </span>
-                    </div>
-                    <span className="font-medium truncate max-w-[140px]">{currentOrg.name}</span>
-                  </div>
-                  <ChevronDown className="w-4 h-4 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                {mockOrganizations.map((org) => (
-                  <DropdownMenuItem
-                    key={org.id}
-                    onClick={() => navigate(`/client/${org.id}/dashboard`)}
-                    className={cn(org.id === orgId && 'bg-accent')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-primary/20 flex items-center justify-center">
-                        <span className="text-xs font-semibold text-primary">
-                          {org.name.charAt(0)}
-                        </span>
-                      </div>
-                      <span>{org.name}</span>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="px-3 py-2 rounded-lg bg-sidebar-accent/50 border border-sidebar-border flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-accent-foreground font-bold">
+                {organization?.name.charAt(0) || 'O'}
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="text-xs font-bold text-sidebar-foreground truncate uppercase tracking-widest">Enterprise</p>
+                <p className="text-[10px] text-sidebar-foreground/60 truncate">{organization?.name}</p>
+              </div>
+            </div>
           </div>
 
           {/* Navigation */}
@@ -121,27 +101,28 @@ const ClientLayout = () => {
             })}
           </nav>
 
-          {/* User section */}
           <div className="p-4 border-t border-sidebar-border">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center">
-                  <span className="text-sm font-medium text-sidebar-accent-foreground">
-                    {currentOrg.adminName.charAt(0)}
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="w-9 h-9 rounded-xl bg-sidebar-accent flex items-center justify-center border border-sidebar-border">
+                  <span className="text-sm font-bold text-sidebar-accent-foreground">
+                    {profile?.full_name?.charAt(0) || 'U'}
                   </span>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-sidebar-foreground">
-                    {currentOrg.adminName}
+                <div className="overflow-hidden">
+                  <p className="text-sm font-bold text-sidebar-foreground truncate">
+                    {profile?.full_name || 'Usuário'}
                   </p>
-                  <p className="text-xs text-sidebar-foreground/60">Admin</p>
+                  <p className="text-[10px] text-sidebar-foreground/60 uppercase font-mono">
+                    Dashboard Access
+                  </p>
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                onClick={() => navigate('/login')}
+                className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-xl"
+                onClick={() => signOut()}
               >
                 <LogOut className="w-4 h-4" />
               </Button>
@@ -154,6 +135,20 @@ const ClientLayout = () => {
       <main className="ml-64 min-h-screen">
         <Outlet />
       </main>
+
+      {/* AI Chat Floating Action Button */}
+      <div className="fixed bottom-6 right-8 z-50">
+        {!isChatOpen && (
+          <Button
+            className="w-14 h-14 rounded-full bg-accent text-accent-foreground shadow-2xl shadow-accent/40 hover:scale-110 transition-transform animate-bounce-slow"
+            onClick={() => setIsChatOpen(true)}
+          >
+            <Sparkles size={24} />
+          </Button>
+        )}
+      </div>
+
+      {isChatOpen && <AIChat onClose={() => setIsChatOpen(false)} />}
     </div>
   );
 };

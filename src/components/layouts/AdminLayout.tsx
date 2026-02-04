@@ -8,10 +8,12 @@ import {
   Settings,
   LogOut,
   Activity,
+  LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
+  { path: '/admin/hq', label: 'Global HQ', icon: LayoutDashboard },
   { path: '/admin/organizations', label: 'Organizações', icon: Building2 },
   { path: '/admin/templates', label: 'Templates', icon: LayoutTemplate },
   { path: '/admin/users', label: 'Usuários', icon: Users },
@@ -30,12 +32,10 @@ const AdminLayout = () => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex items-center gap-3 p-6 border-b border-sidebar-border">
-            <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-accent-foreground" />
-            </div>
+            <img src="/pinn-logo.svg" alt="Pinn Logo" className="h-10 w-auto object-contain" />
             <div>
-              <span className="text-xl font-bold text-sidebar-foreground">Pinn BAI</span>
-              <p className="text-xs text-sidebar-foreground/60">Admin Panel</p>
+              <span className="text-xl font-bold text-sidebar-foreground hidden">Pinn BAI</span>
+              <p className="text-[10px] text-sidebar-foreground/60 uppercase tracking-widest ml-1">Admin Panel</p>
             </div>
           </div>
 

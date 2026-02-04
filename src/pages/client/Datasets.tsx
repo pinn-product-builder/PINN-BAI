@@ -29,7 +29,13 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Plus,
+  Calculator,
 } from 'lucide-react';
+import ConnectorDialog from '@/components/connectors/ConnectorDialog';
+import MetricBuilder from '@/components/settings/MetricBuilder';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface Dataset {
   id: string;
@@ -115,8 +121,37 @@ const statusConfig = {
 
 const Datasets = () => {
   const { orgId } = useParams();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [datasets] = useState<Dataset[]>(mockDatasets);
+  const [isConnectorOpen, setIsConnectorOpen] = useState(false);
+  const [isMetricBuilderOpen, setIsMetricBuilderOpen] = useState(false);
+  const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
+  const [datasets, setDatasets] = useState<Dataset[]>(mockDatasets);
+
+  const handleOpenMetricBuilder = (dataset: Dataset) => {
+    setSelectedDataset(dataset);
+    setIsMetricBuilderOpen(true);
+  };
+
+  const handleConnectorSuccess = (config: any) => {
+    const newDataset: Dataset = {
+      id: `ds-${Date.now()}`,
+      name: config.name,
+      fileName: config.type === 'supabase' ? 'Supabase Table' : config.type === 'google_sheets' ? 'Google Sheet' : 'REST API',
+      recordCount: 0,
+      status: 'processing',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      size: 'Remote Source',
+    };
+
+    setDatasets([newDataset, ...datasets]);
+
+    toast({
+      title: "Conector Registrado",
+      description: `${config.name} foi adicionado aos seus conjuntos de dados.`,
+    });
+  };
 
   const filteredDatasets = datasets.filter(
     (ds) =>
@@ -151,7 +186,20 @@ const Datasets = () => {
             Gerencie os conjuntos de dados importados
           </p>
         </div>
+        <Button
+          className="bg-accent hover:bg-accent/90 text-accent-foreground"
+          onClick={() => setIsConnectorOpen(true)}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Conectar Fonte Externa
+        </Button>
       </div>
+
+      <ConnectorDialog
+        isOpen={isConnectorOpen}
+        onOpenChange={setIsConnectorOpen}
+        onSuccess={handleConnectorSuccess}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -288,6 +336,10 @@ const Datasets = () => {
                             <RefreshCw className="w-4 h-4 mr-2" />
                             Reprocessar
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleOpenMetricBuilder(dataset)}>
+                            <Calculator className="w-4 h-4 mr-2" />
+                            Métricas Calculadas
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive">
                             <Trash2 className="w-4 h-4 mr-2" />
                             Excluir
@@ -302,7 +354,22 @@ const Datasets = () => {
           </Table>
         </CardContent>
       </Card>
-    </div>
+
+      <Dialog open={isMetricBuilderOpen} onOpenChange={setIsMetricBuilderOpen}>
+        <DialogContent className="sm:max-w-[600px] border-sidebar-border bg-sidebar shadow-2xl">
+          <MetricBuilder
+            columns={['leads', 'vendas', 'receita', 'visitantes', 'custo_ads']} // Mock columns for now
+            onSave={(metric) => {
+              toast({
+                title: "Métrica Salva",
+                description: `A métrica '${metric.name}' foi adicionada à camada semântica.`,
+              });
+              setIsMetricBuilderOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </div >
   );
 };
 

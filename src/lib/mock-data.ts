@@ -75,7 +75,7 @@ export interface DataMapping {
   format?: string;
 }
 
-export type TargetMetric = 
+export type TargetMetric =
   | 'total_leads'
   | 'new_leads'
   | 'conversions'
@@ -117,16 +117,16 @@ export const targetMetricLabels: Record<TargetMetric, { label: string; descripti
 
 // ============= Dashboard Widget Types =============
 
-export type DashboardWidgetType = 
-  | 'metric_card' 
-  | 'area_chart' 
-  | 'bar_chart' 
-  | 'line_chart' 
-  | 'pie_chart' 
+export type DashboardWidgetType =
+  | 'metric_card'
+  | 'area_chart'
+  | 'bar_chart'
+  | 'line_chart'
+  | 'pie_chart'
   | 'donut_chart'
-  | 'funnel' 
+  | 'funnel'
   | 'radar_chart'
-  | 'table' 
+  | 'table'
   | 'insight_card';
 
 export interface DashboardWidgetConfig {
@@ -161,7 +161,7 @@ export interface OnboardingWizardState {
     name: string;
     adminName: string;
     adminEmail: string;
-    plan: 1 | 2 | 3 | 4;
+    plan: 1 | 2 | 3 | 4 | 5;
   };
   integration: DataIntegration | null;
   mappings: DataMapping[];
@@ -224,7 +224,7 @@ export interface DashboardTemplate {
   id: string;
   name: string;
   description: string;
-  plan: 1 | 2 | 3 | 4;
+  plan: 1 | 2 | 3 | 4 | 5;
   widgets: Widget[];
   isDefault: boolean;
 }
@@ -306,7 +306,7 @@ export interface ActivityLog {
 export interface PlatformSettings {
   platformName: string;
   supportEmail: string;
-  defaultPlan: 1 | 2 | 3 | 4;
+  defaultPlan: 1 | 2 | 3 | 4 | 5;
   trialDays: number;
   enableNotifications: boolean;
   enableAutoInsights: boolean;
@@ -509,8 +509,8 @@ export const mockClientAdmin: User = mockUsers[1];
 export const mockTemplates: DashboardTemplate[] = [
   {
     id: 'template-1',
-    name: 'Starter Dashboard',
-    description: 'Dashboard básico com métricas essenciais para pequenas empresas',
+    name: 'Pinn Agent Sales Dashboard',
+    description: 'High-conversion funnel focusing on lead capture and sales activity.',
     plan: 1,
     isDefault: true,
     widgets: [
@@ -521,52 +521,66 @@ export const mockTemplates: DashboardTemplate[] = [
   },
   {
     id: 'template-2',
-    name: 'Professional Dashboard',
-    description: 'Dashboard completo com funil e insights para equipes médias',
+    name: 'Pinn Revenue OS Dashboard',
+    description: 'Executive revenue control with pipeline health and forecasting.',
     plan: 2,
     isDefault: true,
     widgets: [
-      { id: 'w1', type: 'metric', title: 'Total de Leads', config: {} },
-      { id: 'w2', type: 'metric', title: 'Conversões', config: {} },
-      { id: 'w3', type: 'metric', title: 'Taxa de Conversão', config: {} },
-      { id: 'w4', type: 'funnel', title: 'Funil de Vendas', config: {} },
-      { id: 'w5', type: 'chart', title: 'Leads por Mês', config: { chartType: 'line' } },
+      { id: 'w1', type: 'metric', title: 'Estimated Revenue', config: {} },
+      { id: 'w2', type: 'metric', title: 'Pipeline Velocity', config: {} },
+      { id: 'w3', type: 'metric', title: 'Quota vs Actual', config: {} },
+      { id: 'w4', type: 'funnel', title: 'Sales Funnel', config: {} },
+      { id: 'w5', type: 'chart', title: 'Revenue Forecast', config: { chartType: 'line' } },
     ],
   },
   {
     id: 'template-3',
-    name: 'Business Dashboard',
-    description: 'Dashboard avançado com análises detalhadas e insights por IA',
+    name: 'Pinn Growth Engine Dashboard',
+    description: 'Marketing-centric dashboard focusing on LTV, CAC, and attribution.',
     plan: 3,
     isDefault: true,
     widgets: [
-      { id: 'w1', type: 'metric', title: 'Total de Leads', config: {} },
-      { id: 'w2', type: 'metric', title: 'Conversões', config: {} },
-      { id: 'w3', type: 'metric', title: 'Taxa de Conversão', config: {} },
-      { id: 'w4', type: 'metric', title: 'Receita', config: {} },
-      { id: 'w5', type: 'funnel', title: 'Funil de Vendas', config: {} },
-      { id: 'w6', type: 'chart', title: 'Leads por Mês', config: { chartType: 'line' } },
-      { id: 'w7', type: 'chart', title: 'Conversões por Canal', config: { chartType: 'bar' } },
-      { id: 'w8', type: 'insight', title: 'Insights IA', config: {} },
+      { id: 'w1', type: 'metric', title: 'Total LTV', config: {} },
+      { id: 'w2', type: 'metric', title: 'Target CAC', config: {} },
+      { id: 'w3', type: 'metric', title: 'ROAS', config: {} },
+      { id: 'w4', type: 'metric', title: 'Growth Score', config: {} },
+      { id: 'w5', type: 'funnel', title: 'Marketing Attribution', config: {} },
+      { id: 'w6', type: 'chart', title: 'Channel Performance', config: { chartType: 'bar' } },
+      { id: 'w7', type: 'insight', title: 'Growth AI Insight', config: {} },
     ],
   },
   {
     id: 'template-4',
-    name: 'Enterprise Dashboard',
-    description: 'Dashboard enterprise com todas as funcionalidades e customização total',
+    name: 'Pinn Process Automation Hub Dashboard',
+    description: 'Operational excellence: Bot efficiency, workflow ROI, and throughput.',
     plan: 4,
     isDefault: true,
     widgets: [
-      { id: 'w1', type: 'metric', title: 'Total de Leads', config: {} },
-      { id: 'w2', type: 'metric', title: 'Conversões', config: {} },
-      { id: 'w3', type: 'metric', title: 'Taxa de Conversão', config: {} },
-      { id: 'w4', type: 'metric', title: 'Receita', config: {} },
-      { id: 'w5', type: 'metric', title: 'Crescimento', config: {} },
-      { id: 'w6', type: 'funnel', title: 'Funil de Vendas', config: {} },
-      { id: 'w7', type: 'chart', title: 'Leads por Mês', config: { chartType: 'area' } },
-      { id: 'w8', type: 'chart', title: 'Conversões por Canal', config: { chartType: 'bar' } },
-      { id: 'w9', type: 'table', title: 'Top Leads', config: {} },
-      { id: 'w10', type: 'insight', title: 'Insights IA', config: {} },
+      { id: 'w1', type: 'metric', title: 'Active Automations', config: {} },
+      { id: 'w2', type: 'metric', title: 'Hours Saved', config: {} },
+      { id: 'w3', type: 'metric', title: 'Workflow Success Rate', config: {} },
+      { id: 'w4', type: 'metric', title: 'Bot Performance', config: {} },
+      { id: 'w5', type: 'funnel', title: 'Efficiency Funnel', config: {} },
+      { id: 'w6', type: 'chart', title: 'Execution Trends', config: { chartType: 'area' } },
+      { id: 'w7', type: 'insight', title: 'Ops Optimization (IA)', config: {} },
+    ],
+  },
+  {
+    id: 'template-5',
+    name: 'Pinn MicroSaaS Studio Dashboard',
+    description: 'The "Full Suite" Executive Center: Semantic Layers and Platform Intelligence.',
+    plan: 5,
+    isDefault: true,
+    widgets: [
+      { id: 'w1', type: 'metric', title: 'Platform MRR', config: {} },
+      { id: 'w2', type: 'metric', title: 'Net Retention', config: {} },
+      { id: 'w3', type: 'metric', title: 'Customer Health', config: {} },
+      { id: 'w4', type: 'metric', title: 'Active Units', config: {} },
+      { id: 'w5', type: 'chart', title: 'Global Growth Trend', config: { chartType: 'area' } },
+      { id: 'w6', type: 'funnel', title: 'End-to-End Journey', config: {} },
+      { id: 'w7', type: 'table', title: 'Product P&L', config: {} },
+      { id: 'w8', type: 'insight', title: 'Platform Brain (IA)', config: {} },
+      { id: 'w9', type: 'insight', title: 'CEO Voice Active', config: {} },
     ],
   },
 ];
@@ -867,16 +881,18 @@ export const mockLeads: Lead[] = [
 
 // Plan names
 export const planNames: Record<number, string> = {
-  1: 'Starter',
-  2: 'Professional',
-  3: 'Business',
-  4: 'Enterprise',
+  1: 'Pinn Agent Sales',
+  2: 'Pinn Revenue OS',
+  3: 'Pinn Growth Engine',
+  4: 'Pinn Process Automation Hub',
+  5: 'Pinn MicroSaaS Studio',
 };
 
 // Plan limits
 export const planLimits: Record<number, { users: number; storage: string; features: string[] }> = {
-  1: { users: 3, storage: '5GB', features: ['Dashboard básico', 'Importação CSV', 'Suporte email'] },
-  2: { users: 10, storage: '25GB', features: ['Dashboard avançado', 'Importação multi-formato', 'Insights básicos', 'Suporte prioritário'] },
-  3: { users: 25, storage: '100GB', features: ['Dashboard customizável', 'Importação ilimitada', 'Insights IA', 'API access', 'Suporte dedicado'] },
-  4: { users: -1, storage: 'Ilimitado', features: ['Tudo do Business', 'Multi-dashboards', 'White-label', 'SLA garantido', 'Gerente de conta'] },
+  1: { users: 3, storage: '5GB', features: ['Dashboard básico', 'Lead Tracking', 'Suporte email'] },
+  2: { users: 10, storage: '25GB', features: ['Revenue Forecasting', 'Pipeline Health', 'Suporte prioritário'] },
+  3: { users: 25, storage: '100GB', features: ['Growth Attribution', 'LTV/CAC Analysis', 'Marketing Insights'] },
+  4: { users: 50, storage: '250GB', features: ['Automation ROI', 'Bot Tracking', 'Workflow Insights'] },
+  5: { users: -1, storage: 'Ilimitado', features: ['Tudo anterior', 'MicroSaaS Global View', 'Semantic Layer', 'White-label Total', 'Gerente de conta'] },
 };

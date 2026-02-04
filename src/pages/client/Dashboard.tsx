@@ -1,178 +1,186 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Calendar, Edit3, Save, X } from 'lucide-react';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Plus,
+  Share2,
+  Download,
+  Filter,
+  Layout,
+  Calendar,
+  ChevronDown,
+  Sparkles,
+  Volume2,
+  Mic2,
+  Play,
+  Monitor,
+  Database
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { mockOrganizations } from '@/lib/mock-data';
-
-// High-quality dashboard widgets
-import MetricCard from '@/components/dashboard/widgets/MetricCard';
-import AreaChartWidget from '@/components/dashboard/widgets/AreaChartWidget';
-import LineChartWidget from '@/components/dashboard/widgets/LineChartWidget';
-import BarChartWidget from '@/components/dashboard/widgets/BarChartWidget';
-import PieChartWidget from '@/components/dashboard/widgets/PieChartWidget';
-import FunnelWidget from '@/components/dashboard/widgets/FunnelWidget';
-import InsightCard from '@/components/dashboard/widgets/InsightCard';
-import TableWidget from '@/components/dashboard/widgets/TableWidget';
+import DashboardEngine from '@/components/dashboard/DashboardEngine';
+import { Card, CardContent } from '@/components/ui/card';
 
 const Dashboard = () => {
   const { orgId } = useParams();
   const { toast } = useToast();
-  const [isEditing, setIsEditing] = useState(false);
-  const [dateRange, setDateRange] = useState('30d');
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
 
-  const currentOrg = mockOrganizations.find((org) => org.id === orgId);
+  // Fetch the default dashboard for this organization
+  const { data: dashboard, isLoading: isLoadingDash } = useQuery({
+    queryKey: ['org-dashboard', orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dashboards')
+        .select('*')
+        .eq('org_id', orgId)
+        .eq('is_default', true)
+        .maybeSingle();
 
-  const handleSaveLayout = () => {
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleVoiceBriefing = () => {
+    setIsVoiceActive(true);
     toast({
-      title: 'Layout salvo',
-      description: 'As alterações no dashboard foram salvas com sucesso.',
+      title: "CEO Voice Mode Ativado",
+      description: "A IA está preparando seu resumo executivo em áudio...",
     });
-    setIsEditing(false);
+
+    // Simulate TTS
+    setTimeout(() => {
+      setIsVoiceActive(false);
+      const utterance = new SpeechSynthesisUtterance(
+        "Olá! Hoje notamos um crescimento atípico de vinte e dois por cento nos leads provenientes do LinkedIn. Sua taxa de conversão geral está estável, mas o ticket médio subiu para dois mil e quatrocentos reais."
+      );
+      utterance.lang = 'pt-BR';
+      window.speechSynthesis.speak(utterance);
+    }, 1500);
   };
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">{currentOrg?.name || 'Minha Organização'}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Últimos 7 dias</SelectItem>
-                <SelectItem value="30d">Últimos 30 dias</SelectItem>
-                <SelectItem value="90d">Últimos 90 dias</SelectItem>
-                <SelectItem value="1y">Último ano</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="p-8 space-y-8 pb-32">
+      {/* Dynamic Header with AI Briefing Trigger */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-accent font-bold text-xs uppercase tracking-tight">
+            <Sparkles className="w-3 h-3 fill-current" />
+            Insights em Tempo Real
           </div>
-          {isEditing ? (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsEditing(false)}>
-                <X className="w-4 h-4 mr-2" />
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleSaveLayout}
-                className="bg-accent hover:bg-accent/90 text-accent-foreground"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Salvar Layout
-              </Button>
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">
+            {dashboard?.name || 'Executive Dashboard'}
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            Bem-vindo ao seu centro de comando. Aqui está o que aconteceu hoje.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="h-12 px-6 rounded-xl gap-2 font-bold border-accent/20 hover:bg-accent/5 text-accent"
+            onClick={handleVoiceBriefing}
+            disabled={isVoiceActive}
+          >
+            {isVoiceActive ? (
+              <div className="flex gap-1 items-center">
+                <div className="w-1 h-3 bg-accent animate-bounce" />
+                <div className="w-1 h-5 bg-accent animate-bounce delay-75" />
+                <div className="w-1 h-4 bg-accent animate-bounce delay-150" />
+              </div>
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
+            CEO Briefing
+          </Button>
+          <Button className="h-12 px-6 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground font-bold shadow-lg shadow-accent/20 gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Widget
+          </Button>
+        </div>
+      </div>
+
+      {/* AI Narrative Section */}
+      <Card className="border-none shadow-2xl bg-gradient-to-br from-accent/15 via-background to-background overflow-hidden relative group rounded-3xl">
+        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+          <Sparkles size={180} />
+        </div>
+        <CardContent className="p-10">
+          <div className="flex flex-col md:flex-row gap-8 items-start">
+            <div className="w-20 h-20 rounded-3xl bg-accent flex items-center justify-center shadow-2xl shadow-accent/30 shrink-0 transform group-hover:scale-105 transition-transform">
+              <Mic2 className="text-accent-foreground w-10 h-10" />
             </div>
-          ) : (
-            <Button variant="outline" onClick={() => setIsEditing(true)}>
-              <Edit3 className="w-4 h-4 mr-2" />
-              Editar Dashboard
-            </Button>
-          )}
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-2xl font-bold text-foreground">Resumo Narrativo: <span className="text-accent tracking-tight">Destaques do Dia</span></h3>
+                <div className="h-1 w-20 bg-accent mt-1 rounded-full" />
+              </div>
+              <p className="text-muted-foreground leading-relaxed text-xl max-w-4xl font-medium">
+                "Olá! Hoje notamos um <span className="text-foreground font-bold underline decoration-accent/30 underline-offset-4">crescimento atípico de 22%</span> nos leads provenientes do LinkedIn.
+                Sua taxa de conversão geral está estável em 12.5%, mas o ticket médio subiu para R$ 2.4k.
+                Recomendamos focar nas campanhas de São Paulo para aproveitar o feriado regional."
+              </p>
+              <div className="flex gap-4">
+                <Button variant="ghost" size="sm" className="text-accent gap-2 font-bold hover:bg-accent/5 rounded-lg" onClick={handleVoiceBriefing}>
+                  <Play className="w-3 h-3 fill-current" />
+                  Ouvir Resumo por IA
+                </Button>
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 text-success text-[10px] font-bold uppercase tracking-widest">
+                  <TrendingUp className="w-3 h-3" />
+                  Tendência de Alta
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dynamic Grid Engine */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Monitor className="w-5 h-5 text-accent" />
+            Visão Detalhada
+          </h2>
+          <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-xl">
+            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs font-bold bg-background shadow-sm">Grade</Button>
+            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs font-bold">Lista</Button>
+          </div>
         </div>
+
+        {dashboard?.id ? (
+          <DashboardEngine dashboardId={dashboard.id} />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-80 rounded-3xl bg-muted/20 animate-pulse border-2 border-dashed border-muted" />
+            ))}
+          </div>
+        )}
       </div>
 
-      {isEditing && (
-        <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg flex items-center gap-2">
-          <Edit3 className="w-4 h-4 text-accent" />
-          <span className="text-sm text-accent">
-            Modo de edição ativo. O drag & drop será habilitado quando o backend estiver integrado.
-          </span>
-        </div>
-      )}
-
-      {/* Metric Cards - 4 columns on desktop */}
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 ${isEditing ? '[&>*]:ring-2 [&>*]:ring-dashed [&>*]:ring-accent/30' : ''}`}>
-        <MetricCard
-          title="Total de Leads"
-          description="Número total de leads capturados no período selecionado. Inclui todos os canais de aquisição configurados (Google Ads, LinkedIn, Referral, Orgânico)."
-          value={2450}
-          previousValue={2100}
-          format="number"
-        />
-        <MetricCard
-          title="Conversões"
-          description="Leads que se tornaram clientes pagantes no período. Calculado pela mudança de status para 'Cliente' após fechamento do deal."
-          value={156}
-          previousValue={128}
-          format="number"
-        />
-        <MetricCard
-          title="Taxa de Conversão"
-          description="Percentual de leads convertidos em clientes. Fórmula: (Total de Clientes / Total de Leads) × 100. Meta ideal: acima de 10%."
-          value={12.5}
-          previousValue={12.0}
-          format="percentage"
-        />
-        <MetricCard
-          title="Receita MRR"
-          description="Receita Recorrente Mensal (Monthly Recurring Revenue). Soma de todas as assinaturas ativas normalizadas para base mensal."
-          value={458000}
-          previousValue={371000}
-          format="currency"
-        />
-      </div>
-
-      {/* Main Charts Row - Area + Line */}
-      <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 ${isEditing ? '[&>*]:ring-2 [&>*]:ring-dashed [&>*]:ring-accent/30' : ''}`}>
-        <AreaChartWidget
-          title="Evolução de Leads"
-          description="Visualização da evolução de leads e conversões ao longo do tempo. O gráfico de área mostra a tendência de crescimento e permite identificar sazonalidades."
-        />
-        <LineChartWidget
-          title="Performance Mensal"
-          description="Comparativo entre leads gerados e receita obtida por mês. Permite identificar correlações entre volume de leads e resultado financeiro."
-        />
-      </div>
-
-      {/* Secondary Charts Row - Bar + Pie + Funnel */}
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${isEditing ? '[&>*]:ring-2 [&>*]:ring-dashed [&>*]:ring-accent/30' : ''}`}>
-        <BarChartWidget
-          title="Leads por Canal"
-          description="Distribuição de leads por canal de aquisição. Permite identificar quais canais estão performando melhor e otimizar investimentos em marketing."
-        />
-        <PieChartWidget
-          title="Status dos Leads"
-          description="Distribuição dos leads por status no funil. Qualificados são leads prontos para abordagem comercial. Em Análise estão sendo verificados pela equipe."
-          isDonut={true}
-        />
-        <FunnelWidget
-          title="Funil de Vendas"
-          description="Visualização completa do funil de vendas com taxas de conversão entre cada etapa. Permite identificar gargalos e oportunidades de melhoria no processo comercial."
-        />
-      </div>
-
-      {/* Insights Section - Full width */}
-      <div className={isEditing ? 'ring-2 ring-dashed ring-accent/30 rounded-lg' : ''}>
-        <InsightCard
-          title="Insights IA"
-          description="Insights gerados automaticamente por inteligência artificial com base nos dados do seu dashboard. Recomendações são ações sugeridas, alertas indicam problemas detectados, e tendências mostram padrões identificados."
-        />
-      </div>
-
-      {/* Recent Leads Table - Full width */}
-      <div className={isEditing ? 'ring-2 ring-dashed ring-accent/30 rounded-lg' : ''}>
-        <TableWidget
-          title="Leads Recentes"
-          description="Últimos leads capturados no período selecionado. Clique em um lead para ver detalhes completos e histórico de interações."
-          pageSize={5}
-          showPagination={true}
-        />
+      {/* Floating Action for CRM Kanban */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <Button className="h-16 px-10 rounded-full bg-foreground text-background font-bold shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-105 transition-transform gap-3 group">
+          <Layout className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+          Visualizar Smart CRM
+          <div className="absolute -top-2 -right-2 w-6 h-6 bg-accent rounded-full flex items-center justify-center text-[10px] text-accent-foreground animate-pulse shadow-lg shadow-accent/50">
+            12
+          </div>
+        </Button>
       </div>
     </div>
   );
 };
+
+// Placeholder icon until I can confirm icons
+const TrendingUp = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+  </svg>
+);
 
 export default Dashboard;
