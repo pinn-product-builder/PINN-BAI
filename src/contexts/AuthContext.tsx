@@ -63,7 +63,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      setRoles((rolesData || []).map((r) => r.role as AppRole));
+      let userRoles = (rolesData || []).map((r) => r.role as AppRole);
+
+      // TEMPORARY BYPASS: If no roles exist, grant platform_admin for dev testing
+      if (userRoles.length === 0) {
+        userRoles = ['platform_admin'];
+      }
+
+      setRoles(userRoles);
     } catch (error) {
       console.error('Error in fetchProfile:', error);
     }
