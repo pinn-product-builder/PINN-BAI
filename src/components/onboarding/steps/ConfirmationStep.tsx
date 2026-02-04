@@ -11,38 +11,11 @@ import {
   Loader2,
   Users,
   Mail,
-  Sparkles
+  Sparkles,
+  LayoutTemplate
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { DataIntegration } from './IntegrationStep';
-
-// Local types for confirmation step
-interface DataMapping {
-  id: string;
-  sourceField: string;
-  sourceTable: string;
-  targetMetric: string;
-}
-
-interface DashboardWidgetConfig {
-  id: string;
-  type: string;
-  title: string;
-}
-
-interface OnboardingWizardState {
-  currentStep: number;
-  organization: {
-    name: string;
-    adminName: string;
-    adminEmail: string;
-    plan: 1 | 2 | 3 | 4;
-  };
-  integration: DataIntegration | null;
-  mappings: DataMapping[];
-  selectedWidgets: DashboardWidgetConfig[];
-  isComplete: boolean;
-}
+import type { OnboardingWizardState } from '../OnboardingWizard';
 
 const planNames: Record<number, string> = {
   1: 'Básico',
@@ -58,7 +31,12 @@ interface ConfirmationStepProps {
 }
 
 const ConfirmationStep = ({ state, isSubmitting, onSubmit }: ConfirmationStepProps) => {
-  const { organization, integration, mappings, selectedWidgets, isComplete } = state;
+  const { organization, integration, mappings, selectedWidgets, selectedTemplate, isComplete } = state;
+
+  // Calculate total widgets (from template or manual selection)
+  const totalWidgets = selectedTemplate 
+    ? (selectedTemplate.widgets || []).length 
+    : selectedWidgets.length;
 
   if (isComplete) {
     return (
@@ -121,6 +99,31 @@ const ConfirmationStep = ({ state, isSubmitting, onSubmit }: ConfirmationStepPro
           </div>
         </Card>
 
+        {/* Template Info (NEW) */}
+        {selectedTemplate && (
+          <Card className="p-4">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                <LayoutTemplate className="w-5 h-5 text-indigo-500" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-foreground">Template Base</h3>
+                  <Badge variant="outline" className="text-indigo-600 border-indigo-500/30">
+                    Selecionado
+                  </Badge>
+                </div>
+                <div className="mt-2">
+                  <p className="text-sm text-foreground">{selectedTemplate.name}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {totalWidgets} widgets serão criados automaticamente
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Integration Info */}
         <Card className="p-4">
           <div className="flex items-start gap-4">
@@ -156,11 +159,15 @@ const ConfirmationStep = ({ state, isSubmitting, onSubmit }: ConfirmationStepPro
             <div className="flex-1">
               <h3 className="font-medium text-foreground">Mapeamento de Dados</h3>
               <div className="mt-2 flex flex-wrap gap-2">
-                {mappings.map((mapping) => (
-                  <Badge key={mapping.id} variant="secondary" className="text-xs">
-                    {mapping.sourceField} → {mapping.targetMetric}
-                  </Badge>
-                ))}
+                {mappings.length > 0 ? (
+                  mappings.map((mapping) => (
+                    <Badge key={mapping.id} variant="secondary" className="text-xs">
+                      {mapping.sourceField} → {mapping.targetMetric}
+                    </Badge>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhum mapeamento configurado</p>
+                )}
               </div>
             </div>
           </div>
@@ -176,7 +183,8 @@ const ConfirmationStep = ({ state, isSubmitting, onSubmit }: ConfirmationStepPro
               <h3 className="font-medium text-foreground">Dashboard</h3>
               <div className="mt-2">
                 <p className="text-sm text-muted-foreground">
-                  {selectedWidgets.length} widgets configurados
+                  {totalWidgets} widgets configurados
+                  {selectedTemplate && ' (do template)'}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {selectedWidgets.slice(0, 6).map((widget) => (
@@ -210,7 +218,9 @@ const ConfirmationStep = ({ state, isSubmitting, onSubmit }: ConfirmationStepPro
               <li>• Organização com ID único e configurações iniciais</li>
               <li>• Usuário administrador com credenciais de acesso</li>
               <li>• Conexão com a fonte de dados configurada</li>
-              <li>• Dashboard completo com {selectedWidgets.length} widgets</li>
+              <li>• Dashboard completo com {totalWidgets} widgets
+                {selectedTemplate && ` (template: ${selectedTemplate.name})`}
+              </li>
               <li>• Estrutura de permissões e RLS ativado</li>
               <li>• Email de boas-vindas enviado para {organization.adminEmail}</li>
             </ul>

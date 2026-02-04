@@ -51,7 +51,7 @@ const NewOrganization = () => {
 
       if (orgError) throw orgError;
 
-      // Create initial dashboard for the org
+      // Create initial dashboard for the org (empty - widgets will be added via template in wizard)
       const { data: dash, error: dashError } = await supabase
         .from('dashboards')
         .insert({
@@ -63,56 +63,6 @@ const NewOrganization = () => {
         .single();
 
       if (dashError) throw dashError;
-
-      // Provision default widgets for the plan
-      const defaultWidgets = [
-        {
-          dashboard_id: dash.id,
-          title: 'MRR Consolidado',
-          type: 'metric_card' as const,
-          position: 0,
-          config: {
-            showTrend: true,
-            format: 'currency',
-            width: 4,
-            height: 2,
-            position_x: 0,
-            position_y: 0
-          } as any
-        },
-        {
-          dashboard_id: dash.id,
-          title: 'Total de Leads',
-          type: 'metric_card' as const,
-          position: 1,
-          config: {
-            showTrend: true,
-            width: 4,
-            height: 2,
-            position_x: 4,
-            position_y: 0
-          } as any
-        },
-        {
-          dashboard_id: dash.id,
-          title: 'Funil de Vendas',
-          type: 'bar_chart' as const,
-          position: 2,
-          config: {
-            showLegend: true,
-            width: 8,
-            height: 4,
-            position_x: 0,
-            position_y: 2
-          } as any
-        }
-      ];
-
-      const { error: widgetError } = await supabase
-        .from('dashboard_widgets')
-        .insert(defaultWidgets);
-
-      if (widgetError) throw widgetError;
 
       toast({
         title: 'Organização criada com sucesso',
