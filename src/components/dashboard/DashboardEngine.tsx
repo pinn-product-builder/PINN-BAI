@@ -351,17 +351,48 @@ const WidgetRenderer = ({
   switch (widget.type) {
     case 'metric_card':
       const metricValue = calculateMetricValue();
-      // Determine format based on metric name or config
+      // Determine format based on transformation, targetMetric, or metric field name
       let format: 'number' | 'currency' | 'percentage' = 'number';
-      if (config.metric?.toLowerCase().includes('revenue') || 
-          config.metric?.toLowerCase().includes('receita') ||
-          config.metric?.toLowerCase().includes('valor') ||
-          config.metric?.toLowerCase().includes('value')) {
+      
+      // First check transformation from mapping
+      if (config.transformation === 'currency') {
         format = 'currency';
-      } else if (config.metric?.toLowerCase().includes('rate') || 
-                 config.metric?.toLowerCase().includes('taxa') ||
-                 config.metric?.toLowerCase().includes('percent')) {
+      } else if (config.transformation === 'percentage') {
         format = 'percentage';
+      } else if (config.transformation === 'number') {
+        format = 'number';
+      }
+      // Fallback to targetMetric name
+      else if (config.targetMetric) {
+        const targetMetric = config.targetMetric.toLowerCase();
+        if (targetMetric.includes('revenue') || 
+            targetMetric.includes('receita') ||
+            targetMetric.includes('mrr') ||
+            targetMetric.includes('valor') ||
+            targetMetric.includes('value') ||
+            targetMetric.includes('investimento')) {
+          format = 'currency';
+        } else if (targetMetric.includes('rate') || 
+                   targetMetric.includes('taxa') ||
+                   targetMetric.includes('percent') ||
+                   targetMetric.includes('conversion_rate') ||
+                   targetMetric.includes('growth_rate')) {
+          format = 'percentage';
+        }
+      }
+      // Last fallback to metric field name
+      else if (config.metric) {
+        const metricName = config.metric.toLowerCase();
+        if (metricName.includes('revenue') || 
+            metricName.includes('receita') ||
+            metricName.includes('valor') ||
+            metricName.includes('value')) {
+          format = 'currency';
+        } else if (metricName.includes('rate') || 
+                   metricName.includes('taxa') ||
+                   metricName.includes('percent')) {
+          format = 'percentage';
+        }
       }
       
       return (

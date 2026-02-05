@@ -123,6 +123,10 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
           metric: firstMapping?.sourceField || null,
           // Include aggregation from mapping
           aggregation: firstMapping?.aggregation || 'count',
+          // Include transformation for format detection
+          transformation: firstMapping?.transformation || 'none',
+          // Store targetMetric for reference
+          targetMetric: firstMapping?.targetMetric || null,
           animate: true,
           showTooltip: true,
         },
