@@ -124,6 +124,14 @@ const TableSelection = ({
   const [aiSuggestions, setAiSuggestions] = useState<TableSuggestion[]>([]);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [tableFilter, setTableFilter] = useState<'all' | 'suggested' | 'no_system'>('all');
+
+  // System table patterns to filter out
+  const isSystemTable = (name: string) => {
+    const systemPatterns = /^(pg_|_|sql_|information_schema|auth\.|storage\.|supabase_|realtime\.|extensions\.|graphql_|vault\.|pgsodium)/i;
+    const systemNames = ['schema_migrations', 'migrations', 'flyway_schema_history', 'ar_internal_metadata'];
+    return systemPatterns.test(name) || systemNames.includes(name.toLowerCase());
+  };
 
   const rpcHelperSql = `CREATE OR REPLACE FUNCTION get_public_tables()
 RETURNS TABLE(table_name text)
@@ -258,14 +266,28 @@ $$;`;
   }, [allTablesSelected, tables, onSelectionChange]);
 
   const filteredTables = useMemo(() => {
-    if (!searchQuery) return tables;
-    const query = searchQuery.toLowerCase();
-    return tables.filter(
-      (table) =>
-        table.name.toLowerCase().includes(query) ||
-        table.columns.some((col) => col.name.toLowerCase().includes(query))
-    );
-  }, [tables, searchQuery]);
+    let result = tables;
+    
+    // Apply filter mode
+    if (tableFilter === 'suggested' && aiSuggestions.length > 0) {
+      const suggestedNames = new Set(aiSuggestions.map(s => s.tableName));
+      result = result.filter(t => suggestedNames.has(t.name));
+    } else if (tableFilter === 'no_system') {
+      result = result.filter(t => !isSystemTable(t.name));
+    }
+    
+    // Apply search
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (table) =>
+          table.name.toLowerCase().includes(query) ||
+          table.columns.some((col) => col.name.toLowerCase().includes(query))
+      );
+    }
+    
+    return result;
+  }, [tables, searchQuery, tableFilter, aiSuggestions]);
 
   const isTableSelected = (tableName: string) =>
     selectedTables.some((t) => t.tableName === tableName);
@@ -510,67 +532,138 @@ $$;`;
             </TooltipProvider>
           </div>
 
-          {/* AI Suggestions Panel */}
+          {/* Table Filters */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Filtrar:</span>
+            <div className="flex gap-1">
+              <Button
+                variant={tableFilter === 'all' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setTableFilter('all')}
+                className="h-7 text-xs"
+              >
+                Todas ({tables.length})
+              </Button>
+              <Button
+                variant={tableFilter === 'no_system' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setTableFilter('no_system')}
+                className="h-7 text-xs"
+              >
+                Sem sistema ({tables.filter(t => !isSystemTable(t.name)).length})
+              </Button>
+              {aiSuggestions.length > 0 && (
+                <Button
+                  variant={tableFilter === 'suggested' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTableFilter('suggested')}
+                  className="h-7 text-xs gap-1"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Sugeridas IA ({aiSuggestions.length})
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* AI Suggestions Panel - Expanded */}
           {showSuggestions && aiSuggestions.length > 0 && (
-            <Alert className="bg-accent/5 border-accent/30">
-              <Sparkles className="h-4 w-4 text-accent" />
-              <AlertTitle className="text-accent flex items-center gap-2">
-                Sugestões da IA
-                <Badge variant="outline" className="text-xs">
-                  {aiSuggestions.length} tabelas recomendadas
-                </Badge>
-              </AlertTitle>
-              <AlertDescription className="mt-2">
-                <div className="space-y-2">
-                  {aiSuggestions.slice(0, 5).map((suggestion) => (
+            <Card className="border-accent/30 bg-accent/5">
+              <div className="p-4 border-b border-accent/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-accent" />
+                    <h4 className="font-semibold text-foreground">Sugestões da IA</h4>
+                    <Badge variant="outline" className="text-xs">
+                      {aiSuggestions.length} tabelas
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      onClick={applySuggestions}
+                      className="gap-1"
+                    >
+                      <Check className="w-3 h-3" />
+                      Aplicar Todas
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => setShowSuggestions(false)}
+                    >
+                      Fechar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <ScrollArea className="max-h-[300px]">
+                <div className="p-3 space-y-2">
+                  {aiSuggestions.map((suggestion) => (
                     <div 
                       key={suggestion.tableName}
-                      className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50"
+                      className="p-3 bg-background rounded-lg border border-border/50 hover:border-accent/30 transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="outline" 
-                          className={cn(
-                            "text-xs",
-                            suggestion.score >= 80 ? "border-green-500/50 text-green-600" :
-                            suggestion.score >= 60 ? "border-amber-500/50 text-amber-600" :
-                            "border-muted-foreground/50"
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                "text-xs shrink-0",
+                                suggestion.score >= 80 ? "border-accent/50 bg-accent/10 text-accent" :
+                                suggestion.score >= 60 ? "border-primary/50 bg-primary/10 text-primary" :
+                                "border-muted-foreground/50"
+                              )}
+                            >
+                              {suggestion.score}%
+                            </Badge>
+                            <span className="font-semibold text-sm truncate">{suggestion.tableName}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {suggestion.reason}
+                          </p>
+                          {suggestion.suggestedColumns && suggestion.suggestedColumns.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              <span className="text-[10px] text-muted-foreground">Colunas sugeridas:</span>
+                              {suggestion.suggestedColumns.map((col) => (
+                                <Badge 
+                                  key={col} 
+                                  variant="secondary" 
+                                  className="text-[10px] py-0 px-1.5"
+                                >
+                                  {col}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const table = tables.find(t => t.name === suggestion.tableName);
+                            if (table) {
+                              handleTableToggle(table, !isTableSelected(suggestion.tableName));
+                            }
+                          }}
+                          className="shrink-0 h-7"
                         >
-                          {suggestion.score}%
-                        </Badge>
-                        <span className="font-medium text-sm">{suggestion.tableName}</span>
+                          {isTableSelected(suggestion.tableName) ? (
+                            <>
+                              <Check className="w-3 h-3 mr-1" />
+                              Selecionada
+                            </>
+                          ) : (
+                            'Selecionar'
+                          )}
+                        </Button>
                       </div>
-                      <span className="text-xs text-muted-foreground truncate max-w-[300px]">
-                        {suggestion.reason}
-                      </span>
                     </div>
                   ))}
-                  {aiSuggestions.length > 5 && (
-                    <p className="text-xs text-muted-foreground">
-                      +{aiSuggestions.length - 5} outras tabelas sugeridas
-                    </p>
-                  )}
                 </div>
-                <div className="flex gap-2 mt-3">
-                  <Button 
-                    size="sm" 
-                    onClick={applySuggestions}
-                    className="gap-1"
-                  >
-                    <Check className="w-3 h-3" />
-                    Aplicar Sugestões
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => setShowSuggestions(false)}
-                  >
-                    Fechar
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
+              </ScrollArea>
+            </Card>
           )}
         </div>
       )}

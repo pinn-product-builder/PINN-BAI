@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -18,7 +19,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, ArrowRight, Info } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Plus, Trash2, ArrowRight, Info, PenLine, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { DataIntegration } from './IntegrationStep';
@@ -266,34 +272,59 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
 
                   <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
 
-                  {/* Target Metric */}
+                  {/* Target Metric with Custom Input */}
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs text-muted-foreground">Métrica Destino</Label>
-                    <Select
-                      value={mapping.targetMetric}
-                      onValueChange={(value) => updateMapping(mapping.id, { targetMetric: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TARGET_METRICS.map(m => (
-                          <SelectItem key={m.value} value={m.value}>
-                            <div className="flex items-center gap-2">
-                              <span>{m.label}</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between font-normal"
+                        >
+                          {TARGET_METRICS.find(m => m.value === mapping.targetMetric)?.label || mapping.targetMetric || 'Selecione...'}
+                          <PenLine className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[280px] p-0" align="start">
+                        <div className="p-2 border-b">
+                          <Input
+                            placeholder="Digite uma métrica customizada..."
+                            value={mapping.targetMetric}
+                            onChange={(e) => updateMapping(mapping.id, { targetMetric: e.target.value })}
+                            className="h-8"
+                          />
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Escreva seu próprio nome ou selecione abaixo
+                          </p>
+                        </div>
+                        <div className="max-h-[200px] overflow-y-auto p-1">
+                          {TARGET_METRICS.map(m => (
+                            <button
+                              key={m.value}
+                              onClick={() => updateMapping(mapping.id, { targetMetric: m.value })}
+                              className={cn(
+                                "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-muted transition-colors text-left",
+                                mapping.targetMetric === m.value && "bg-accent/10"
+                              )}
+                            >
+                              {mapping.targetMetric === m.value && (
+                                <Check className="w-3 h-3 text-accent" />
+                              )}
+                              <span className={cn(mapping.targetMetric !== m.value && "ml-5")}>{m.label}</span>
                               <Tooltip>
-                                <TooltipTrigger>
-                                  <Info className="w-3 h-3 text-muted-foreground" />
+                                <TooltipTrigger asChild>
+                                  <Info className="w-3 h-3 text-muted-foreground ml-auto" />
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="text-xs">{m.description}</p>
+                                <TooltipContent side="right">
+                                  <p className="text-xs max-w-[200px]">{m.description}</p>
                                 </TooltipContent>
                               </Tooltip>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   {/* Delete Button */}
