@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,16 +13,66 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { signIn, profile, roles, isPlatformAdmin } = useAuth();
+  const { signIn, profile, roles, isPlatformAdmin, isLoading: authLoading, refreshProfile } = useAuth();
+  const hasRedirected = useRef(false);
 
-  const from = (location.state as { from?: Location })?.from?.pathname || '/admin/hq';
+  const from = (location.state as { from?: Location })?.from?.pathname || '/admin/settings';
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && profile && roles.length > 0 && !shouldRedirect) {
+      if (isPlatformAdmin || roles.includes('platform_admin')) {
+        navigate('/admin/settings', { replace: true });
+      } else if (profile.org_id) {
+        navigate(`/client/${profile.org_id}/dashboard`, { replace: true });
+      }
+    }
+  }, [authLoading, profile, roles, isPlatformAdmin, navigate, shouldRedirect]);
+
+  // Handle redirect after profile and roles are loaded
+  useEffect(() => {
+    // Only redirect if we should and haven't already redirected
+    if (!shouldRedirect || hasRedirected.current || authLoading) {
+      return;
+    }
+
+    // Wait for profile and roles to be available
+    if (roles.length === 0 && !profile) {
+      return;
+    }
+
+    // Prevent multiple redirects
+    hasRedirected.current = true;
+
+    // Platform admin should go to settings
+    if (isPlatformAdmin || roles.includes('platform_admin')) {
+      navigate('/admin/settings', { replace: true });
+    } 
+    // Client users should go to their organization's dashboard
+    else if (profile?.org_id) {
+      navigate(`/client/${profile.org_id}/dashboard`, { replace: true });
+    } 
+    // Fallback - should not happen, but handle gracefully
+    else {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível determinar sua organização. Entre em contato com o suporte.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
+      setShouldRedirect(false);
+      hasRedirected.current = false;
+    }
+  }, [shouldRedirect, profile, roles, isPlatformAdmin, authLoading, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    hasRedirected.current = false;
 
     const { error } = await signIn(email, password);
 
@@ -38,20 +88,15 @@ const Login = () => {
 
     toast({
       title: 'Autenticado',
-      description: 'Iniciando ambiente seguro...',
+      description: 'Carregando seu perfil...',
       className: 'bg-primary text-primary-foreground border-none',
     });
 
-    setTimeout(() => {
-      if (isPlatformAdmin || roles.includes('platform_admin')) {
-        navigate('/admin/hq');
-      } else if (profile?.org_id) {
-        navigate(`/client/${profile.org_id}/dashboard`);
-      } else {
-        navigate(from);
-      }
-      setIsLoading(false);
-    }, 800);
+    // Refresh profile to ensure we have latest data
+    await refreshProfile();
+
+    // Trigger redirect check
+    setShouldRedirect(true);
   };
 
   return (
