@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -20,6 +21,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Database,
   ChevronDown,
@@ -35,9 +42,15 @@ import {
   AlertCircle,
   Info,
   Copy,
+  Sparkles,
+  Loader2,
+  CheckSquare,
+  Square,
+  Wand2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import type { DetectedTable, DetectedColumn } from '@/lib/types';
 
 export interface SelectedTableConfig {
@@ -47,6 +60,13 @@ export interface SelectedTableConfig {
   rowCount: number;
   columnTypes: Record<string, string>;
   sampleData: Record<string, unknown>[];
+}
+
+interface TableSuggestion {
+  tableName: string;
+  score: number;
+  reason: string;
+  suggestedColumns: string[];
 }
 
 interface TableSelectionProps {
@@ -93,7 +113,7 @@ const TableSelection = ({
   selectedTables,
   onSelectionChange,
   minTables = 1,
-  maxTables = 10,
+  maxTables = 10000,
   isLoading = false,
   discoveryMethod,
 }: TableSelectionProps) => {
@@ -101,6 +121,9 @@ const TableSelection = ({
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [previewTable, setPreviewTable] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<TableSuggestion[]>([]);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const rpcHelperSql = `CREATE OR REPLACE FUNCTION get_public_tables()
 RETURNS TABLE(table_name text)
@@ -127,6 +150,113 @@ $$;`;
     }
   };
 
+  // AI Suggestions
+  const fetchAISuggestions = useCallback(async () => {
+    if (tables.length === 0) return;
+    
+    setIsLoadingAI(true);
+    try {
+      const tablesData = tables.map(t => ({
+        name: t.name,
+        rowCount: t.rowCount,
+        columns: t.columns.map(c => ({ name: c.name, type: c.type })),
+      }));
+
+      const { data, error } = await supabase.functions.invoke('suggest-tables', {
+        body: { tables: tablesData },
+      });
+
+      if (error) throw error;
+
+      if (data?.suggestions) {
+        setAiSuggestions(data.suggestions);
+        setShowSuggestions(true);
+        toast({
+          title: 'Sugestões geradas!',
+          description: `IA analisou ${tables.length} tabelas e sugeriu ${data.suggestions.length} para o dashboard.`,
+        });
+      }
+    } catch (error) {
+      console.error('AI suggestions error:', error);
+      toast({
+        title: 'Erro ao gerar sugestões',
+        description: 'Não foi possível analisar as tabelas com IA.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingAI(false);
+    }
+  }, [tables, toast]);
+
+  const applySuggestions = useCallback(() => {
+    if (aiSuggestions.length === 0) return;
+
+    const newSelections: SelectedTableConfig[] = [];
+    
+    for (const suggestion of aiSuggestions) {
+      const table = tables.find(t => t.name === suggestion.tableName);
+      if (!table) continue;
+
+      // Use suggested columns if available, otherwise all columns
+      const columnsToSelect = suggestion.suggestedColumns?.length > 0
+        ? table.columns.filter(c => suggestion.suggestedColumns.includes(c.name)).map(c => c.name)
+        : table.columns.map(c => c.name);
+
+      // Ensure at least some columns are selected
+      const finalColumns = columnsToSelect.length > 0 ? columnsToSelect : table.columns.map(c => c.name);
+
+      newSelections.push({
+        tableName: table.name,
+        selectedColumns: finalColumns,
+        isPrimary: newSelections.length === 0,
+        rowCount: table.rowCount,
+        columnTypes: table.columns.reduce(
+          (acc, col) => ({ ...acc, [col.name]: col.type }),
+          {}
+        ),
+        sampleData: table.sampleData,
+      });
+    }
+
+    if (newSelections.length > 0) {
+      onSelectionChange(newSelections);
+      // Expand the first few tables
+      setExpandedTables(new Set(newSelections.slice(0, 3).map(t => t.tableName)));
+      toast({
+        title: 'Sugestões aplicadas!',
+        description: `${newSelections.length} tabelas selecionadas automaticamente.`,
+      });
+    }
+    setShowSuggestions(false);
+  }, [aiSuggestions, tables, onSelectionChange, toast]);
+
+  // Select/Deselect All
+  const allTablesSelected = useMemo(() => 
+    tables.length > 0 && tables.every(t => selectedTables.some(st => st.tableName === t.name)),
+    [tables, selectedTables]
+  );
+
+  const handleSelectAll = useCallback(() => {
+    if (allTablesSelected) {
+      // Deselect all
+      onSelectionChange([]);
+    } else {
+      // Select all
+      const newSelections: SelectedTableConfig[] = tables.map((table, idx) => ({
+        tableName: table.name,
+        selectedColumns: table.columns.map(c => c.name),
+        isPrimary: idx === 0,
+        rowCount: table.rowCount,
+        columnTypes: table.columns.reduce(
+          (acc, col) => ({ ...acc, [col.name]: col.type }),
+          {}
+        ),
+        sampleData: table.sampleData,
+      }));
+      onSelectionChange(newSelections);
+    }
+  }, [allTablesSelected, tables, onSelectionChange]);
+
   const filteredTables = useMemo(() => {
     if (!searchQuery) return tables;
     const query = searchQuery.toLowerCase();
@@ -143,6 +273,9 @@ $$;`;
   const getSelectedTable = (tableName: string) =>
     selectedTables.find((t) => t.tableName === tableName);
 
+  const getSuggestion = (tableName: string) =>
+    aiSuggestions.find((s) => s.tableName === tableName);
+
   const toggleTableExpanded = (tableName: string) => {
     const newExpanded = new Set(expandedTables);
     if (newExpanded.has(tableName)) {
@@ -153,7 +286,7 @@ $$;`;
     setExpandedTables(newExpanded);
   };
 
-  const handleTableToggle = (table: DetectedTable, checked: boolean) => {
+  const handleTableToggle = useCallback((table: DetectedTable, checked: boolean) => {
     if (checked) {
       // Select table with all columns by default
       const newSelection: SelectedTableConfig = {
@@ -178,7 +311,7 @@ $$;`;
       }
       onSelectionChange(newTables);
     }
-  };
+  }, [selectedTables, onSelectionChange]);
 
   const handleColumnToggle = (tableName: string, columnName: string, checked: boolean) => {
     const table = selectedTables.find((t) => t.tableName === tableName);
@@ -300,16 +433,145 @@ $$;`;
         </Alert>
       )}
 
-      {/* Search */}
+      {/* Search and Controls */}
       {tables.length > 0 && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar tabelas ou colunas..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar tabelas ou colunas..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            {/* Select All Toggle */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={allTablesSelected ? "secondary" : "outline"}
+                    size="sm"
+                    onClick={handleSelectAll}
+                    className="gap-2 shrink-0"
+                  >
+                    {allTablesSelected ? (
+                      <>
+                        <CheckSquare className="w-4 h-4" />
+                        Desmarcar Todas
+                      </>
+                    ) : (
+                      <>
+                        <Square className="w-4 h-4" />
+                        Selecionar Todas
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {allTablesSelected 
+                    ? 'Desmarcar todas as tabelas' 
+                    : `Selecionar todas as ${tables.length} tabelas`
+                  }
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* AI Suggestions Button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchAISuggestions}
+                    disabled={isLoadingAI || tables.length === 0}
+                    className="gap-2 shrink-0 border-accent/50 hover:bg-accent/10"
+                  >
+                    {isLoadingAI ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Analisando...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-4 h-4 text-accent" />
+                        Sugestão IA
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  IA analisará todas as tabelas e sugerirá as melhores para o dashboard
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+
+          {/* AI Suggestions Panel */}
+          {showSuggestions && aiSuggestions.length > 0 && (
+            <Alert className="bg-accent/5 border-accent/30">
+              <Sparkles className="h-4 w-4 text-accent" />
+              <AlertTitle className="text-accent flex items-center gap-2">
+                Sugestões da IA
+                <Badge variant="outline" className="text-xs">
+                  {aiSuggestions.length} tabelas recomendadas
+                </Badge>
+              </AlertTitle>
+              <AlertDescription className="mt-2">
+                <div className="space-y-2">
+                  {aiSuggestions.slice(0, 5).map((suggestion) => (
+                    <div 
+                      key={suggestion.tableName}
+                      className="flex items-center justify-between p-2 bg-background/50 rounded border border-border/50"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-xs",
+                            suggestion.score >= 80 ? "border-green-500/50 text-green-600" :
+                            suggestion.score >= 60 ? "border-amber-500/50 text-amber-600" :
+                            "border-muted-foreground/50"
+                          )}
+                        >
+                          {suggestion.score}%
+                        </Badge>
+                        <span className="font-medium text-sm">{suggestion.tableName}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground truncate max-w-[300px]">
+                        {suggestion.reason}
+                      </span>
+                    </div>
+                  ))}
+                  {aiSuggestions.length > 5 && (
+                    <p className="text-xs text-muted-foreground">
+                      +{aiSuggestions.length - 5} outras tabelas sugeridas
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <Button 
+                    size="sm" 
+                    onClick={applySuggestions}
+                    className="gap-1"
+                  >
+                    <Check className="w-3 h-3" />
+                    Aplicar Sugestões
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => setShowSuggestions(false)}
+                  >
+                    Fechar
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       )}
 
@@ -321,6 +583,7 @@ $$;`;
             const isSelected = isTableSelected(table.name);
             const selectedTable = getSelectedTable(table.name);
             const isExpanded = expandedTables.has(table.name);
+            const suggestion = getSuggestion(table.name);
 
             return (
               <Card
