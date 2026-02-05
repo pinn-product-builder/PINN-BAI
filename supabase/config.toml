@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.sync-external-api]
 verify_jwt = false
+
+[functions.suggest-tables]
+verify_jwt = false
+
+[functions.suggest-mappings]
+verify_jwt = false
