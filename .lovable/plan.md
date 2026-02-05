@@ -1,158 +1,223 @@
 
-# Plano: Vincular Widgets ao DataSource do Supabase do Cliente
 
-## Problema Identificado
+# Plano: Aceitar/Rejeitar Sugestões Individuais + Histórico de Mapeamentos
 
-Os widgets do dashboard não estão buscando dados do Supabase do cliente porque **falta a configuração `dataSource`** nos widgets. 
+## Resumo
 
-Atualmente:
-- Templates têm widgets com `config: { metric: "total_leads" }` 
-- Falta `dataSource: "nome_da_tabela_do_cliente"`
-- O `DashboardEngine` só busca dados externos quando `config.dataSource` existe
-- Por isso os widgets mostram "Configure Data Source"
-
-O fluxo correto seria:
-1. Cliente conecta Supabase → detectamos as tabelas
-2. No passo de mapeamento → usuário indica qual tabela usar
-3. Ao aplicar template → widgets recebem `dataSource` correto
-4. Dashboard carrega → `useExternalData` busca da tabela do cliente
+Este plano implementa duas melhorias no fluxo de mapeamento do onboarding:
+1. **Controle individual de sugestões IA** - Aceitar ou rejeitar cada sugestão antes de aplicar
+2. **Histórico de mapeamentos** - Salvar métricas customizadas para reutilização futura
 
 ---
 
-## Parte 1: Atualizar Wizard para Capturar Tabela Principal
+## Funcionalidade 1: Aceitar/Rejeitar Sugestões Individuais
 
-### 1.1 Modificar OnboardingWizard State
+### Comportamento Atual
+- IA gera sugestões e exibe lista
+- Usuário pode apenas "Aplicar Todos" ou "Personalizar" (fechar)
 
-Adicionar novo campo para armazenar a tabela principal selecionada:
+### Novo Comportamento
+- Cada sugestão terá botões de aceitar (check) e rejeitar (X)
+- Sugestões rejeitadas ficam visualmente marcadas mas não são removidas
+- Botão "Aplicar Selecionados" aplica apenas as sugestões aceitas
+- Contador mostra quantas foram aceitas/rejeitadas
 
-```typescript
-interface OnboardingWizardState {
-  // ... campos existentes
-  primaryTable: string | null; // Tabela principal do cliente
-}
+```text
++----------------------------------------------------------+
+| Sugestão IA                                              |
++----------------------------------------------------------+
+| [✓] 95%  tabela.coluna → Receita Total   [✓] [✗]        |
+| [✓] 88%  tabela.data → Data Criação      [✓] [✗]        |
+| [✗] 72%  tabela.status → Funil           [✓] [✗]  ← rejeitada (opaca)
++----------------------------------------------------------+
+| Aceitas: 2/3  | [Aplicar Selecionados] [Limpar Seleção] |
++----------------------------------------------------------+
 ```
 
-### 1.2 Atualizar MappingStep
+---
 
-O passo de mapeamento já permite selecionar tabelas. Vamos garantir que a tabela selecionada seja propagada para o estado do wizard.
+## Funcionalidade 2: Histórico de Mapeamentos Customizados
 
-**Alterações:**
-- Adicionar callback `onPrimaryTableChange` para notificar a tabela principal
-- A primeira tabela selecionada ou a marcada como "primária" será usada como `dataSource`
+### Nova Tabela no Banco de Dados
+
+```sql
+CREATE TABLE saved_custom_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID REFERENCES organizations(id),
+  metric_name TEXT NOT NULL,        -- ex: "receita_mensal"
+  display_label TEXT NOT NULL,      -- ex: "Receita Mensal"
+  description TEXT,                 -- descrição opcional
+  transformation TEXT,              -- tipo de transformação padrão
+  usage_count INTEGER DEFAULT 1,    -- quantas vezes foi usada
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(org_id, metric_name)
+);
+```
+
+### Fluxo de Uso
+1. Quando usuário digita uma métrica customizada (não predefinida), ela é salva automaticamente
+2. No dropdown de métricas, seção "Métricas Recentes" aparece acima das predefinidas
+3. Métricas mais usadas aparecem primeiro
+4. Administrador pode ver/gerenciar métricas salvas
 
 ---
 
-## Parte 2: Vincular DataSource ao Aplicar Template
+## Detalhamento Técnico
 
-### 2.1 Modificar `useApplyTemplate`
+### Arquivo: `MappingStep.tsx`
 
-Atualizar o hook para receber o `dataSource` e injetar em todos os widgets:
+**Novos estados para controle individual:**
+```typescript
+// Estado para rastrear sugestões aceitas/rejeitadas
+const [suggestionStates, setSuggestionStates] = useState<Record<number, 'accepted' | 'rejected' | 'pending'>>({});
+
+// Contadores derivados
+const acceptedCount = Object.values(suggestionStates).filter(s => s === 'accepted').length;
+const rejectedCount = Object.values(suggestionStates).filter(s => s === 'rejected').length;
+```
+
+**Novas funções:**
+```typescript
+// Toggle individual suggestion
+const toggleSuggestion = (index: number, state: 'accepted' | 'rejected') => {
+  setSuggestionStates(prev => ({
+    ...prev,
+    [index]: prev[index] === state ? 'pending' : state
+  }));
+};
+
+// Apply only accepted suggestions
+const applyAcceptedSuggestions = () => {
+  const acceptedMappings = aiSuggestions
+    .filter((_, idx) => suggestionStates[idx] === 'accepted')
+    .map((suggestion, idx) => ({...}));
+  onUpdate([...mappings, ...acceptedMappings]);
+};
+
+// Reset all to pending
+const resetSelections = () => setSuggestionStates({});
+```
+
+**Nova interface de sugestão:**
+```typescript
+<div className={cn(
+  "flex items-center gap-3 p-3 rounded-lg border transition-all",
+  suggestionStates[idx] === 'rejected' && "opacity-40 bg-muted/30",
+  suggestionStates[idx] === 'accepted' && "border-green-500/50 bg-green-500/5"
+)}>
+  {/* Conteúdo existente */}
+  
+  {/* Novos botões de ação */}
+  <div className="flex gap-1 shrink-0">
+    <Button 
+      size="icon" 
+      variant={suggestionStates[idx] === 'accepted' ? 'default' : 'ghost'}
+      onClick={() => toggleSuggestion(idx, 'accepted')}
+    >
+      <Check className="w-4 h-4" />
+    </Button>
+    <Button 
+      size="icon" 
+      variant={suggestionStates[idx] === 'rejected' ? 'destructive' : 'ghost'}
+      onClick={() => toggleSuggestion(idx, 'rejected')}
+    >
+      <X className="w-4 h-4" />
+    </Button>
+  </div>
+</div>
+```
+
+### Arquivo: Nova Migration SQL
+
+```sql
+-- Tabela para métricas customizadas salvas
+CREATE TABLE public.saved_custom_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
+  metric_name TEXT NOT NULL,
+  display_label TEXT NOT NULL,
+  description TEXT,
+  transformation TEXT DEFAULT 'none',
+  usage_count INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(org_id, metric_name)
+);
+
+-- RLS
+ALTER TABLE public.saved_custom_metrics ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Platform admins can manage all metrics"
+  ON public.saved_custom_metrics FOR ALL
+  USING (public.is_platform_admin(auth.uid()));
+
+CREATE POLICY "Org users can view their metrics"
+  ON public.saved_custom_metrics FOR SELECT
+  USING (org_id = public.get_user_org_id(auth.uid()));
+
+-- Trigger para updated_at
+CREATE TRIGGER update_saved_custom_metrics_updated_at
+  BEFORE UPDATE ON public.saved_custom_metrics
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
+```
+
+### Hook: `useSavedMetrics.ts`
 
 ```typescript
-export const useApplyTemplate = () => {
-  return useMutation({
-    mutationFn: async ({ 
-      templateId, 
-      dashboardId,
-      dataSource,     // NOVO: tabela do cliente
-      metricMappings, // NOVO: mapeamento campo → métrica
-    }: { 
-      templateId: string; 
-      dashboardId: string;
-      dataSource?: string;
-      metricMappings?: Record<string, { field: string; aggregation: string }>;
-    }) => {
-      // ... buscar template
-      
-      // Criar widgets com dataSource injetado
-      const widgetsToCreate = templateWidgets.map((tw, index) => ({
-        dashboard_id: dashboardId,
-        title: tw.title,
-        type: tw.type,
-        position: index,
-        size: tw.size,
-        config: {
-          ...tw.config,
-          // Injetar dataSource se widget usa métricas
-          dataSource: dataSource || null,
-          // Injetar mapeamento de métrica se disponível
-          metric: metricMappings?.[tw.config.metric]?.field || tw.config.metric,
-          aggregation: metricMappings?.[tw.config.metric]?.aggregation || 'count',
-        },
-        description: tw.description,
-      }));
-      
-      // ... inserir widgets
-    },
-  });
+// Buscar métricas salvas da organização
+const { data: savedMetrics } = useQuery({
+  queryKey: ['saved-metrics', orgId],
+  queryFn: async () => {
+    const { data } = await supabase
+      .from('saved_custom_metrics')
+      .select('*')
+      .order('usage_count', { ascending: false })
+      .limit(10);
+    return data || [];
+  },
+});
+
+// Salvar/atualizar métrica customizada
+const saveCustomMetric = async (metric: { 
+  name: string; 
+  label: string; 
+  orgId: string 
+}) => {
+  await supabase
+    .from('saved_custom_metrics')
+    .upsert({
+      org_id: metric.orgId,
+      metric_name: metric.name,
+      display_label: metric.label,
+    }, { onConflict: 'org_id,metric_name' });
 };
 ```
 
-### 2.2 Atualizar handleComplete no Wizard
-
-Passar o `dataSource` e mapeamentos ao aplicar template:
+### Integração no MappingStep
 
 ```typescript
-// Em handleComplete:
-if (state.selectedTemplateId && state.selectedTemplate) {
-  // Pegar tabela principal das seleções
-  const primaryTable = state.integration?.selectedTables?.find(t => t.isPrimary)?.tableName 
-    || state.integration?.selectedTables?.[0]?.tableName;
+// No Popover de métricas destino
+<PopoverContent>
+  <Input ... />
   
-  // Construir mapeamento de métricas
-  const metricMappings = state.mappings.reduce((acc, m) => ({
-    ...acc,
-    [m.targetMetric]: {
-      field: m.sourceField,
-      aggregation: m.aggregation || 'count',
-    },
-  }), {});
-
-  await applyTemplate.mutateAsync({
-    templateId: state.selectedTemplateId,
-    dashboardId: dashboard.id,
-    dataSource: primaryTable,
-    metricMappings,
-  });
-}
-```
-
----
-
-## Parte 3: Garantir Edge Function Funciona
-
-### 3.1 Verificar fetch-client-data
-
-A Edge Function já está correta - ela:
-1. Recebe `orgId` e `tableName`
-2. Busca credenciais da integração (`projectUrl`, `anonKey`)
-3. Cria cliente para Supabase externo
-4. Executa query na tabela do cliente
-
-**Já implementado corretamente** - só precisamos garantir que os widgets tenham `config.dataSource`.
-
----
-
-## Parte 4: Widgets Existentes (Migração)
-
-Para organizações já criadas cujos widgets não têm `dataSource`, criar botão para configurar manualmente ou script de migração.
-
-### 4.1 Adicionar Editor de Widget Config
-
-No `DashboardEngine`, permitir que o admin configure o `dataSource` de um widget existente:
-
-```typescript
-// Botão de configuração no hover
-<Button onClick={() => openWidgetConfigDialog(widget)}>
-  <Settings className="w-4 h-4" />
-</Button>
-
-// Dialog para editar config
-<WidgetConfigDialog 
-  widget={widget}
-  availableTables={integration?.tables}
-  onSave={(newConfig) => updateWidgetConfig(widget.id, newConfig)}
-/>
+  {/* Seção de métricas recentes/salvas */}
+  {savedMetrics.length > 0 && (
+    <div className="border-b pb-2 mb-2">
+      <p className="text-xs text-muted-foreground px-2 mb-1">Recentes</p>
+      {savedMetrics.slice(0, 5).map(m => (
+        <button onClick={() => updateMapping(id, { targetMetric: m.metric_name })}>
+          {m.display_label}
+          <Badge>{m.usage_count}x</Badge>
+        </button>
+      ))}
+    </div>
+  )}
+  
+  {/* Métricas predefinidas existentes */}
+  {TARGET_METRICS.map(...)}
+</PopoverContent>
 ```
 
 ---
@@ -161,36 +226,36 @@ No `DashboardEngine`, permitir que o admin configure o `dataSource` de um widget
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/hooks/useTemplates.ts` | Adicionar parâmetros `dataSource` e `metricMappings` ao `useApplyTemplate` |
-| `src/components/onboarding/OnboardingWizard.tsx` | Passar `dataSource` e mapeamentos no `handleComplete` |
-| `src/components/onboarding/steps/MappingStep.tsx` | Expor tabela primária selecionada |
-| `src/components/dashboard/DashboardEngine.tsx` | (Opcional) Adicionar editor de widget config |
+| `src/components/onboarding/steps/MappingStep.tsx` | Adicionar estados de seleção individual, botões aceitar/rejeitar, integrar métricas salvas |
+| `src/hooks/useSavedMetrics.ts` | **Novo** - Hook para gerenciar métricas customizadas |
+| `src/integrations/supabase/types.ts` | Será atualizado automaticamente após migration |
+| `supabase/migrations/XXXX_add_saved_custom_metrics.sql` | **Novo** - Criar tabela |
 
 ---
 
-## Fluxo Atualizado
+## Fluxo de Usuário Final
 
 ```text
-1. Admin cria org → conecta Supabase do cliente
-2. Sistema detecta tabelas (ex: "leads", "vendas")
-3. Admin seleciona tabela "leads" como primária
-4. Admin mapeia campos:
-   - leads.id → total_leads (count)
-   - leads.status = 'converted' → conversions (count)
-   - leads.value → revenue (sum)
-5. Ao finalizar → template é aplicado com:
-   - config.dataSource = "leads"
-   - config.metric = "id" (mapeado de total_leads)
-   - config.aggregation = "count"
-6. Dashboard carrega → useExternalData busca de "leads"
-7. Widget exibe dados reais do Supabase do cliente
+1. Usuário clica "Gerar Mapeamentos"
+2. IA retorna 8 sugestões
+3. Usuário vê painel com todas sugestões em estado "pendente"
+4. Usuário clica ✓ em 5 sugestões que fazem sentido
+5. Usuário clica ✗ em 2 sugestões irrelevantes
+6. Usuário ignora 1 sugestão (fica pendente)
+7. Contador mostra "5 aceitas / 2 rejeitadas / 1 pendente"
+8. Usuário clica "Aplicar Selecionados"
+9. 5 mapeamentos são criados
+10. Usuário adiciona manualmente uma métrica customizada "taxa_churn"
+11. Sistema salva "taxa_churn" no histórico
+12. Em futuros onboardings, "taxa_churn" aparece na seção "Recentes"
 ```
 
 ---
 
-## Resultado Esperado
+## Considerações
 
-- Widgets do dashboard puxam dados do Supabase do cliente automaticamente
-- Configuração `dataSource` é injetada durante o provisionamento
-- Mapeamentos definem qual campo/agregação usar por métrica
-- Edge Function `fetch-client-data` retorna dados em tempo real
+- Métricas customizadas são salvas por organização para contexto relevante
+- O campo `usage_count` permite ordenar por popularidade
+- RLS garante que cada org veja apenas suas métricas
+- Sugestões rejeitadas não são perdidas - usuário pode mudar de ideia antes de aplicar
+
