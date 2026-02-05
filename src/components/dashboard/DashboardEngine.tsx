@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import {
-  BarChart as BarChartIcon,
-  Activity,
   AlertCircle,
   Trash2,
   Database,
@@ -27,235 +26,323 @@ import FunnelWidget from '@/components/dashboard/widgets/FunnelWidget';
 import TableWidget from '@/components/dashboard/widgets/TableWidget';
 import InsightCard from '@/components/dashboard/widgets/InsightCard';
 
-// Widget renderer that renders appropriate chart type
-const WidgetRenderer = ({
-  widget,
+interface WidgetConfig {
+  dataSource?: string;
+  metric?: string;
+  groupBy?: string;
+  aggregation?: 'sum' | 'count' | 'avg' | 'min' | 'max';
+  columns?: string[];
+  funnelField?: string;
+  dateFormat?: string;
+  sourceTable?: string;
+}
+
+// Process raw data into chart-compatible format
+const processChartData = (
+  rawData: Record<string, unknown>[],
+  config: WidgetConfig,
+  widgetType: string
+): any[] => {
+  if (!rawData || rawData.length === 0) return [];
+  
+  const { metric = 'value', groupBy, aggregation = 'count' } = config;
+  
+  // For tables, return raw data
+  if (widgetType === 'table') {
+    return rawData;
+  }
+  
+  // If no groupBy, create a single aggregated value
+  if (!groupBy) {
+    const values = rawData.map(row => {
+      const val = row[metric];
+      return typeof val === 'number' ? val : parseFloat(String(val)) || 1;
+    });
+    
+    const aggregatedValue = aggregation === 'sum'
+      ? values.reduce((a, b) => a + b, 0)
+      : aggregation === 'avg'
+      ? values.reduce((a, b) => a + b, 0) / values.length
+      : values.length;
+      
+    return [{ label: metric, value: aggregatedValue, name: metric, stage: metric }];
+  }
+  
+  // Group by the specified field
+  const grouped = new Map<string, number[]>();
+  
+  rawData.forEach(row => {
+    let key = String(row[groupBy] || 'Outros');
+    
+    // Handle date grouping - extract month/year
+    if (groupBy.includes('date') || groupBy.includes('created_at') || groupBy.includes('updated_at')) {
+      try {
+        const date = new Date(String(row[groupBy]));
+        if (!isNaN(date.getTime())) {
+          const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+          key = months[date.getMonth()];
+        }
+      } catch {
+        // Keep original key if date parsing fails
+      }
+    }
+    
+    const value = typeof row[metric] === 'number'
+      ? row[metric] as number
+      : parseFloat(String(row[metric])) || 1;
+    
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(value);
+  });
+  
+  // Apply aggregation
+  const result = Array.from(grouped.entries()).map(([label, values]) => {
+    let value: number;
+    switch (aggregation) {
+      case 'sum':
+        value = values.reduce((a, b) => a + b, 0);
+        break;
+      case 'avg':
+        value = values.reduce((a, b) => a + b, 0) / values.length;
+        break;
+      case 'min':
+        value = Math.min(...values);
+        break;
+      case 'max':
+        value = Math.max(...values);
+        break;
+      default:
+        value = values.length;
+    }
+    return { label, value, name: label, stage: label };
+  });
+  
+  return result;
+};
+
+// Widget wrapper with source badge and controls
+const WidgetWrapper = ({ 
+  children, 
+  sourceTable, 
+  onRefresh,
+  onRemove,
+  isRefreshing
+}: { 
+  children: React.ReactNode; 
+  sourceTable?: string;
+  onRefresh?: () => void;
+  onRemove?: () => void;
+  isRefreshing?: boolean;
+}) => (
+  <div className="relative group animate-fade-up h-full">
+    {sourceTable && (
+      <Badge 
+        variant="secondary" 
+        className="absolute -top-2 left-3 z-10 text-[10px] px-1.5 py-0 flex items-center gap-1"
+      >
+        <Database className="w-3 h-3" />
+        {sourceTable}
+      </Badge>
+    )}
+    <div className="absolute -top-2 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+      {onRefresh && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 bg-background/80 backdrop-blur-sm"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </Button>
+      )}
+      {onRemove && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 bg-background/80 backdrop-blur-sm text-destructive hover:text-destructive"
+          onClick={onRemove}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
+    {children}
+  </div>
+);
+
+// Individual widget renderer that fetches its own data
+const WidgetRenderer = ({ 
+  widget, 
   orgId,
-  onDelete
-}: {
+  onRemove
+}: { 
   widget: DashboardWidget;
   orgId: string;
-  onDelete: (id: string) => void;
+  onRemove?: (widgetId: string) => void;
 }) => {
-  const config = widget.config as {
-    dataSource?: string;
-    metric?: string;
-    aggregation?: string;
-    columns?: string[];
-  };
-
-  // Fetch data from external Supabase
-  const { data: externalData, isLoading, error, refetch } = useExternalData(
+  const config = (widget.config || {}) as WidgetConfig;
+  const tableName = config.dataSource || config.sourceTable;
+  
+  const { data: externalData, isLoading, refetch } = useExternalData(
     orgId,
-    config.dataSource ? {
-      tableName: config.dataSource,
-      columns: config.columns,
-      limit: 100,
-    } : null
+    tableName ? { tableName, limit: 1000 } : undefined
   );
-
-  // Calculate metric value
-  const calculateMetric = () => {
-    if (!externalData?.data || externalData.data.length === 0) return null;
-
-    const data = externalData.data;
+  
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  };
+  
+  const handleRemove = () => {
+    if (onRemove) onRemove(widget.id);
+  };
+  
+  const rawData = externalData?.data || [];
+  const chartData = processChartData(rawData, config, widget.type);
+  
+  // Calculate metric value for metric cards
+  const calculateMetricValue = (): number | undefined => {
+    if (rawData.length === 0) return undefined;
+    
     const metricField = config.metric;
-
-    if (!metricField) {
-      return { value: externalData.count || data.length, previousValue: null };
-    }
-
-    const values = data
+    if (!metricField) return rawData.length;
+    
+    const values = rawData
       .map((row) => {
         const val = row[metricField];
         return typeof val === 'number' ? val : parseFloat(String(val)) || 0;
       })
       .filter((v) => !isNaN(v));
 
-    let value = 0;
     switch (config.aggregation) {
       case 'sum':
-        value = values.reduce((a, b) => a + b, 0);
-        break;
+        return values.reduce((a, b) => a + b, 0);
       case 'avg':
-        value = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-        break;
+        return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
       case 'min':
-        value = values.length > 0 ? Math.min(...values) : 0;
-        break;
+        return values.length > 0 ? Math.min(...values) : 0;
       case 'max':
-        value = values.length > 0 ? Math.max(...values) : 0;
-        break;
+        return values.length > 0 ? Math.max(...values) : 0;
       case 'count':
       default:
-        value = values.length;
+        return values.length;
     }
-
-    return { value, previousValue: Math.round(value * 0.85) };
   };
-
-  const metricResult = config.dataSource ? calculateMetric() : null;
-
-  // Wrapper with table indicator and actions
-  const WidgetWrapper = ({ children }: { children: React.ReactNode }) => (
-    <div className="relative group h-full">
-      {config.dataSource && (
-        <div className="absolute -top-2 left-3 z-10 px-2 py-0.5 text-[10px] bg-card border border-border rounded text-muted-foreground flex items-center gap-1">
-          <Database className="w-3 h-3" />
-          {config.dataSource}
-        </div>
-      )}
-      <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-        {config.dataSource && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground bg-background/80 backdrop-blur-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              refetch();
-            }}
-          >
-            <RefreshCw size={12} />
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-destructive hover:bg-destructive/10 bg-background/80 backdrop-blur-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(widget.id);
-          }}
-        >
-          <Trash2 size={12} />
-        </Button>
-      </div>
-      {children}
-    </div>
-  );
-
-  // Loading state
-  if (isLoading && config.dataSource) {
-    return (
-      <Card className="h-full flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <RefreshCw className="w-6 h-6 animate-spin" />
-          <span className="text-xs">Carregando dados...</span>
-        </div>
-      </Card>
-    );
-  }
-
-  // Error state
-  if (error && config.dataSource) {
-    return (
-      <Card className="h-full flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2 text-destructive text-center p-4">
-          <AlertCircle className="w-6 h-6" />
-          <span className="text-xs max-w-[200px]">{String(error)}</span>
-        </div>
-      </Card>
-    );
-  }
-
-  // Render by widget type
+  
+  const wrapperProps = {
+    sourceTable: tableName,
+    onRefresh: tableName ? handleRefresh : undefined,
+    onRemove: handleRemove,
+    isRefreshing,
+  };
+  
   switch (widget.type) {
     case 'metric_card':
       return (
-        <WidgetWrapper>
+        <WidgetWrapper {...wrapperProps}>
           <MetricCard
             title={widget.title}
             description={widget.description || ''}
-            value={metricResult?.value ?? 0}
-            previousValue={metricResult?.previousValue ?? undefined}
-            format="number"
-            showSparkline
+            value={calculateMetricValue()}
+            isLoading={isLoading}
           />
         </WidgetWrapper>
       );
-
+      
     case 'area_chart':
       return (
-        <WidgetWrapper>
+        <WidgetWrapper {...wrapperProps}>
           <AreaChartWidget
             title={widget.title}
             description={widget.description || ''}
+            data={chartData}
+            xAxisKey="label"
+            dataKeys={['value']}
+            isLoading={isLoading}
           />
         </WidgetWrapper>
       );
-
+      
     case 'bar_chart':
       return (
-        <WidgetWrapper>
+        <WidgetWrapper {...wrapperProps}>
           <BarChartWidget
             title={widget.title}
             description={widget.description || ''}
+            data={chartData}
+            isLoading={isLoading}
           />
         </WidgetWrapper>
       );
-
+      
     case 'line_chart':
       return (
-        <WidgetWrapper>
+        <WidgetWrapper {...wrapperProps}>
           <LineChartWidget
             title={widget.title}
             description={widget.description || ''}
+            data={chartData}
+            dataKeys={['value']}
+            xAxisKey="label"
+            isLoading={isLoading}
           />
         </WidgetWrapper>
       );
-
+      
     case 'pie_chart':
       return (
-        <WidgetWrapper>
+        <WidgetWrapper {...wrapperProps}>
           <PieChartWidget
             title={widget.title}
             description={widget.description || ''}
+            data={chartData}
             isDonut={false}
+            isLoading={isLoading}
           />
         </WidgetWrapper>
       );
-
+      
     case 'funnel':
       return (
-        <WidgetWrapper>
+        <WidgetWrapper {...wrapperProps}>
           <FunnelWidget
             title={widget.title}
             description={widget.description || ''}
+            data={chartData}
+            isLoading={isLoading}
           />
         </WidgetWrapper>
       );
-
+      
     case 'table':
       return (
-        <WidgetWrapper>
+        <WidgetWrapper {...wrapperProps}>
           <TableWidget
             title={widget.title}
             description={widget.description || ''}
+            data={rawData}
+            columns={config.columns?.map(col => ({ key: col, label: col, type: 'text' as const }))}
+            isLoading={isLoading}
           />
         </WidgetWrapper>
       );
-
+      
     case 'insight_card':
       return (
-        <WidgetWrapper>
+        <WidgetWrapper {...wrapperProps}>
           <InsightCard
             title={widget.title}
             description={widget.description || ''}
           />
         </WidgetWrapper>
       );
-
+      
     default:
-      return (
-        <WidgetWrapper>
-          <Card className="h-full flex items-center justify-center">
-            <div className="text-center text-muted-foreground">
-              <span className="text-xs font-mono">Widget: {widget.type}</span>
-            </div>
-          </Card>
-        </WidgetWrapper>
-      );
+      return null;
   }
 };
 
@@ -306,10 +393,17 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <Skeleton key={i} className="h-[300px] w-full rounded-2xl" />
-        ))}
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-lg" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[...Array(2)].map((_, i) => (
+            <Skeleton key={i} className="h-80 rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -333,7 +427,8 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   // Group widgets by type for better layout
   const metricWidgets = widgets.filter(w => w.type === 'metric_card');
   const chartWidgets = widgets.filter(w => ['area_chart', 'bar_chart', 'line_chart'].includes(w.type));
-  const pieAndFunnelWidgets = widgets.filter(w => ['pie_chart', 'funnel'].includes(w.type));
+  const pieWidgets = widgets.filter(w => w.type === 'pie_chart');
+  const funnelWidgets = widgets.filter(w => w.type === 'funnel');
   const tableWidgets = widgets.filter(w => w.type === 'table');
   const insightWidgets = widgets.filter(w => w.type === 'insight_card');
 
@@ -341,31 +436,31 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
     <div className="space-y-6 pb-20">
       {/* Metric Cards Row */}
       {metricWidgets.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {metricWidgets.map((widget) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {metricWidgets.map(widget => (
             <div key={widget.id} className="pt-3">
-              <WidgetRenderer
-                widget={widget}
+              <WidgetRenderer 
+                widget={widget} 
                 orgId={orgId || ''}
-                onDelete={handleDelete}
+                onRemove={handleDelete}
               />
             </div>
           ))}
         </div>
       )}
 
-      {/* Line/Area/Bar Charts */}
+      {/* Main Charts */}
       {chartWidgets.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {chartWidgets.map((widget) => (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {chartWidgets.map(widget => (
             <div 
               key={widget.id} 
-              className={`pt-3 ${widget.type === 'area_chart' ? 'md:col-span-2' : ''}`}
+              className={`pt-3 ${widget.type === 'area_chart' ? 'lg:col-span-2' : ''}`}
             >
-              <WidgetRenderer
-                widget={widget}
+              <WidgetRenderer 
+                widget={widget} 
                 orgId={orgId || ''}
-                onDelete={handleDelete}
+                onRemove={handleDelete}
               />
             </div>
           ))}
@@ -373,14 +468,23 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
       )}
 
       {/* Pie Charts and Funnels */}
-      {pieAndFunnelWidgets.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pieAndFunnelWidgets.map((widget) => (
+      {(pieWidgets.length > 0 || funnelWidgets.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {pieWidgets.map(widget => (
             <div key={widget.id} className="pt-3">
-              <WidgetRenderer
-                widget={widget}
+              <WidgetRenderer 
+                widget={widget} 
                 orgId={orgId || ''}
-                onDelete={handleDelete}
+                onRemove={handleDelete}
+              />
+            </div>
+          ))}
+          {funnelWidgets.map(widget => (
+            <div key={widget.id} className="pt-3">
+              <WidgetRenderer 
+                widget={widget} 
+                orgId={orgId || ''}
+                onRemove={handleDelete}
               />
             </div>
           ))}
@@ -389,28 +493,28 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
 
       {/* Tables */}
       {tableWidgets.length > 0 && (
-        <div className="grid grid-cols-1 gap-6">
-          {tableWidgets.map((widget) => (
+        <div className="grid grid-cols-1 gap-4">
+          {tableWidgets.map(widget => (
             <div key={widget.id} className="pt-3">
-              <WidgetRenderer
-                widget={widget}
+              <WidgetRenderer 
+                widget={widget} 
                 orgId={orgId || ''}
-                onDelete={handleDelete}
+                onRemove={handleDelete}
               />
             </div>
           ))}
         </div>
       )}
 
-      {/* Insight Cards */}
+      {/* Insights */}
       {insightWidgets.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {insightWidgets.map((widget) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {insightWidgets.map(widget => (
             <div key={widget.id} className="pt-3">
-              <WidgetRenderer
-                widget={widget}
+              <WidgetRenderer 
+                widget={widget} 
                 orgId={orgId || ''}
-                onDelete={handleDelete}
+                onRemove={handleDelete}
               />
             </div>
           ))}

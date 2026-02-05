@@ -1,17 +1,18 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info, Loader2, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 
 interface MetricCardProps {
   title: string;
   description: string;
-  value: number;
+  value?: number;
   previousValue?: number;
   format?: 'number' | 'currency' | 'percentage';
   showSparkline?: boolean;
+  isLoading?: boolean;
 }
 
 // Generate mock sparkline data
@@ -29,15 +30,29 @@ const MetricCard = ({
   previousValue,
   format = 'number',
   showSparkline = true,
+  isLoading = false,
 }: MetricCardProps) => {
-  const percentChange = previousValue
-    ? ((value - previousValue) / previousValue) * 100
+  if (isLoading) {
+    return (
+      <Card className="overflow-hidden h-full flex items-center justify-center min-h-[120px]">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          <span className="text-xs text-muted-foreground">Carregando...</span>
+        </div>
+      </Card>
+    );
+  }
+
+  const hasValue = value !== undefined;
+  const displayValue = value ?? 0;
+  const percentChange = previousValue && displayValue
+    ? ((displayValue - previousValue) / previousValue) * 100
     : 0;
 
   const isPositive = percentChange > 0;
   const isNeutral = percentChange === 0;
 
-  const formatValue = (val: number): string => {
+  const formatDisplayValue = (val: number): string => {
     switch (format) {
       case 'currency':
         return new Intl.NumberFormat('pt-BR', {
@@ -53,7 +68,7 @@ const MetricCard = ({
     }
   };
 
-  const sparklineData = generateSparklineData(value);
+  const sparklineData = generateSparklineData(displayValue);
 
   return (
     <Card className="overflow-hidden">
@@ -72,7 +87,7 @@ const MetricCard = ({
               </Tooltip>
             </div>
             <p className="text-2xl font-bold text-foreground">
-              {formatValue(value)}
+              {hasValue ? formatDisplayValue(displayValue) : '-'}
             </p>
           </div>
           
@@ -130,7 +145,7 @@ const MetricCard = ({
           </div>
           {previousValue !== undefined && (
             <p className="text-xs text-muted-foreground mt-1">
-              vs. período anterior: {formatValue(previousValue)}
+              vs. período anterior: {formatDisplayValue(previousValue)}
             </p>
           )}
         </CardContent>

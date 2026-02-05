@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+import { Info, Loader2, Database } from 'lucide-react';
 import {
   Line,
   LineChart,
@@ -9,22 +9,24 @@ import {
   Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
-  Legend,
 } from 'recharts';
+import { cn } from '@/lib/utils';
 
 interface LineChartWidgetProps {
   title: string;
   description: string;
+  data?: Array<{ label: string; [key: string]: unknown }>;
+  dataKeys?: string[];
+  xAxisKey?: string;
+  isLoading?: boolean;
 }
 
-// Mock data for chart
-const mockData = [
-  { month: 'Jan', leads: 180, conversions: 22, revenue: 85000 },
-  { month: 'Fev', leads: 220, conversions: 28, revenue: 112000 },
-  { month: 'Mar', leads: 195, conversions: 24, revenue: 98000 },
-  { month: 'Abr', leads: 310, conversions: 38, revenue: 156000 },
-  { month: 'Mai', leads: 280, conversions: 35, revenue: 142000 },
-  { month: 'Jun', leads: 365, conversions: 45, revenue: 189000 },
+const CHART_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
 ];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -40,9 +42,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             />
             <span className="text-muted-foreground">{entry.name}:</span>
             <span className="font-medium text-foreground">
-              {entry.name === 'Receita' 
-                ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(entry.value)
-                : entry.value.toLocaleString('pt-BR')
+              {typeof entry.value === 'number'
+                ? entry.value.toLocaleString('pt-BR')
+                : entry.value
               }
             </span>
           </div>
@@ -53,9 +55,29 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const LineChartWidget = ({ title, description }: LineChartWidgetProps) => {
+const LineChartWidget = ({ 
+  title, 
+  description,
+  data = [],
+  dataKeys = ['value'],
+  xAxisKey = 'label',
+  isLoading = false
+}: LineChartWidgetProps) => {
+  const hasRealData = data.length > 0;
+
+  if (isLoading) {
+    return (
+      <Card className="h-full flex items-center justify-center min-h-[350px]">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <span className="text-xs text-muted-foreground">Carregando dados...</span>
+        </div>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
+    <Card className={cn(!hasRealData && 'opacity-60')}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
@@ -69,84 +91,72 @@ const LineChartWidget = ({ title, description }: LineChartWidgetProps) => {
               </TooltipContent>
             </Tooltip>
           </div>
+          {!hasRealData && (
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+              Sem dados
+            </span>
+          )}
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-[250px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={mockData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis
-                dataKey="month"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-              />
-              <YAxis
-                yAxisId="left"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                width={40}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                width={50}
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-              />
-              <RechartsTooltip content={<CustomTooltip />} />
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="leads"
-                name="Leads"
-                stroke="hsl(var(--chart-1))"
-                strokeWidth={2}
-                dot={{ fill: 'hsl(var(--chart-1))', strokeWidth: 0, r: 3 }}
-                activeDot={{ r: 5, strokeWidth: 0 }}
-              />
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="conversions"
-                name="Conversões"
-                stroke="hsl(var(--chart-2))"
-                strokeWidth={2}
-                dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 0, r: 3 }}
-                activeDot={{ r: 5, strokeWidth: 0 }}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="revenue"
-                name="Receita"
-                stroke="hsl(var(--chart-3))"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={{ fill: 'hsl(var(--chart-3))', strokeWidth: 0, r: 3 }}
-                activeDot={{ r: 5, strokeWidth: 0 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="flex items-center justify-center gap-6 mt-4">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-0.5 bg-[hsl(var(--chart-1))]" />
-            <span className="text-sm text-muted-foreground">Leads</span>
+        {!hasRealData ? (
+          <div className="h-[250px] flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Sem dados disponíveis</p>
+              <p className="text-xs mt-1">Configure a fonte de dados</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-0.5 bg-[hsl(var(--chart-2))]" />
-            <span className="text-sm text-muted-foreground">Conversões</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-0.5 border-t-2 border-dashed border-[hsl(var(--chart-3))]" />
-            <span className="text-sm text-muted-foreground">Receita</span>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis
+                    dataKey={xAxisKey}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                    width={40}
+                  />
+                  <RechartsTooltip content={<CustomTooltip />} />
+                  {dataKeys.map((key, index) => (
+                    <Line
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      name={key}
+                      stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ fill: CHART_COLORS[index % CHART_COLORS.length], strokeWidth: 0, r: 3 }}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
+                      animationDuration={1200}
+                      animationEasing="ease-out"
+                      animationBegin={index * 200}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex items-center justify-center gap-6 mt-4">
+              {dataKeys.map((key, index) => (
+                <div key={key} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-0.5" 
+                    style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                  />
+                  <span className="text-sm text-muted-foreground capitalize">{key}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
