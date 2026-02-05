@@ -251,44 +251,65 @@ const WidgetRenderer = ({
     if (rawData.length === 0) return undefined;
     
     const metricField = config.metric;
+    const aggregation = config.aggregation || 'count';
     
     // If no metric field specified, try to find numeric columns
     if (!metricField) {
       // Try common metric field names
-      const commonFields = ['value', 'total', 'count', 'amount', 'valor', 'total_leads', 'revenue', 'receita'];
+      const commonFields = ['value', 'total', 'count', 'amount', 'valor', 'total_leads', 'revenue', 'receita', 'leads', 'conversions'];
       const foundField = commonFields.find(field => 
-        rawData.some(row => row[field] !== undefined && typeof row[field] === 'number')
+        rawData.some(row => {
+          const val = row[field];
+          return val !== undefined && val !== null && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
+        })
       );
       
       if (foundField) {
         const values = rawData
           .map((row) => {
             const val = row[foundField];
-            return typeof val === 'number' ? val : parseFloat(String(val)) || 0;
+            if (val === null || val === undefined) return null;
+            return typeof val === 'number' ? val : parseFloat(String(val));
           })
-          .filter((v) => !isNaN(v));
+          .filter((v): v is number => v !== null && !isNaN(v));
         
-        return config.aggregation === 'sum'
-          ? values.reduce((a, b) => a + b, 0)
-          : config.aggregation === 'avg'
-          ? values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0
-          : values.length;
+        if (values.length === 0) return undefined;
+        
+        switch (aggregation) {
+          case 'sum':
+            return values.reduce((a, b) => a + b, 0);
+          case 'avg':
+            return values.reduce((a, b) => a + b, 0) / values.length;
+          case 'min':
+            return Math.min(...values);
+          case 'max':
+            return Math.max(...values);
+          case 'count':
+          default:
+            return values.length;
+        }
       }
       
-      // Fallback to count
+      // Fallback to count of rows
       return rawData.length;
     }
     
+    // Extract values from the specified metric field
     const values = rawData
       .map((row) => {
         const val = row[metricField];
-        return typeof val === 'number' ? val : parseFloat(String(val)) || 0;
+        if (val === null || val === undefined) return null;
+        return typeof val === 'number' ? val : parseFloat(String(val));
       })
-      .filter((v) => !isNaN(v));
+      .filter((v): v is number => v !== null && !isNaN(v));
 
-    if (values.length === 0) return undefined;
+    if (values.length === 0) {
+      // If no numeric values found, return count of rows that have the field
+      const rowsWithField = rawData.filter(row => row[metricField] !== undefined && row[metricField] !== null);
+      return aggregation === 'count' ? rowsWithField.length : undefined;
+    }
 
-    switch (config.aggregation) {
+    switch (aggregation) {
       case 'sum':
         return values.reduce((a, b) => a + b, 0);
       case 'avg':
@@ -299,6 +320,7 @@ const WidgetRenderer = ({
         return Math.max(...values);
       case 'count':
       default:
+        // For count, return number of non-null values
         return values.length;
     }
   };

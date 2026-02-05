@@ -106,6 +106,7 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
       // If no specific match, use all mappings (widget will use first table)
       const widgetMappings = relevantMappings.length > 0 ? relevantMappings : mappings.slice(0, 1);
 
+      const firstMapping = widgetMappings[0];
       const widget: DashboardWidgetConfig = {
         id: `widget-${rec.type}-${index}`,
         type: rec.type as DashboardWidgetType,
@@ -116,8 +117,12 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
         config: {
           ...rec.config,
           // Include data source from mapping for dynamic dashboard
-          dataSource: widgetMappings[0]?.sourceTable || null,
-          metric: widgetMappings[0]?.targetMetric || null,
+          dataSource: firstMapping?.sourceTable || null,
+          sourceTable: firstMapping?.sourceTable || null,
+          // Use sourceField (actual column name) not targetMetric
+          metric: firstMapping?.sourceField || null,
+          // Include aggregation from mapping
+          aggregation: firstMapping?.aggregation || 'count',
           animate: true,
           showTooltip: true,
         },
