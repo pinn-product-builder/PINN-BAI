@@ -21,6 +21,7 @@ import Activity from "./pages/admin/Activity";
 import AdminSettings from "./pages/admin/Settings";
 import GlobalHQ from "./pages/admin/GlobalHQ";
 import OrganizationDetail from "./pages/admin/OrganizationDetail";
+import CustomMetrics from "./pages/admin/CustomMetrics";
 
 // Onboarding Wizard
 import OnboardingWizard from "./components/onboarding/OnboardingWizard";
@@ -66,6 +67,7 @@ const App = () => (
                 <Route path="organizations/new" element={<NewOrganization />} />
                 <Route path="organizations/onboarding" element={<OnboardingWizard />} />
                 <Route path="templates" element={<Templates />} />
+                <Route path="custom-metrics" element={<CustomMetrics />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="activity" element={<Activity />} />
                 <Route path="settings" element={<AdminSettings />} />

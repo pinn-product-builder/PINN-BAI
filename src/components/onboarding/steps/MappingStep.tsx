@@ -407,9 +407,14 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                 </Button>
               </div>
 
-              {/* Suggestions List */}
+              {/* Suggestions List - Sorted by confidence (highest first) */}
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                {aiSuggestions.map((suggestion, idx) => (
+                {[...aiSuggestions]
+                  .map((suggestion, originalIdx) => ({ ...suggestion, originalIdx }))
+                  .sort((a, b) => b.confidence - a.confidence)
+                  .map((suggestion) => {
+                    const idx = suggestion.originalIdx;
+                    return (
                   <div
                     key={idx}
                     className={cn(
@@ -475,7 +480,8 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                       </Tooltip>
                     </div>
                   </div>
-                ))}
+                    );
+                  })}
               </div>
 
               {/* Apply Button */}
