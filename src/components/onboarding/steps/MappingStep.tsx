@@ -172,9 +172,11 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
         columns: t.columns.map(c => ({ 
           name: c.name, 
           type: c.type,
-          sampleValues: c.sampleValues?.slice(0, 3),
+          // Send more samples for better analysis (5-10 values)
+          sampleValues: c.sampleValues?.slice(0, 10) || [],
         })),
-        sampleData: t.sampleData?.slice(0, 2),
+        // Send more sample rows for better context
+        sampleData: t.sampleData?.slice(0, 5) || [],
       }));
 
       const { data, error } = await supabase.functions.invoke('suggest-mappings', {
@@ -184,41 +186,91 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
       if (error) throw error;
 
       if (data?.suggestions && data.suggestions.length > 0) {
-        setAiSuggestions(data.suggestions);
+        // Validate suggestions before using them
+        const validSuggestions = data.suggestions.filter((s: MappingSuggestion) => {
+          // Check if source table exists
+          const tableExists = tables.some(t => t.name === s.sourceTable);
+          if (!tableExists) {
+            console.warn(`Table ${s.sourceTable} not found for suggestion`, s);
+            return false;
+          }
+          
+          // Check if source field exists in the table
+          const table = tables.find(t => t.name === s.sourceTable);
+          if (table) {
+            const fieldExists = table.columns.some(c => c.name === s.sourceField);
+            if (!fieldExists) {
+              console.warn(`Field ${s.sourceField} not found in table ${s.sourceTable}`, s);
+              return false;
+            }
+          }
+          
+          return true;
+        });
+        
+        if (validSuggestions.length === 0) {
+          toast({
+            title: 'Nenhuma sugestão válida',
+            description: 'As sugestões da IA não correspondem às tabelas disponíveis.',
+            variant: 'destructive',
+          });
+          setActiveTab('manual');
+          return;
+        }
+        
+        setAiSuggestions(validSuggestions);
         setAiSummary(data.summary || '');
         setAiMethod(data.method || 'ai');
         
         // Update primary table if AI suggests one
         if (data.primaryTable && data.primaryTable !== selectedTable) {
-          handleTableChange(data.primaryTable);
+          const primaryTableExists = tables.some(t => t.name === data.primaryTable);
+          if (primaryTableExists) {
+            handleTableChange(data.primaryTable);
+          }
         }
         
-        // Auto-accept all suggestions
+        // Auto-accept all valid suggestions
         const newStates: Record<number, SuggestionState> = {};
-        data.suggestions.forEach((_: MappingSuggestion, idx: number) => {
+        validSuggestions.forEach((_: MappingSuggestion, idx: number) => {
           newStates[idx] = 'accepted';
         });
         setSuggestionStates(newStates);
         
-        // If auto-apply, create mappings immediately
+        // If auto-apply, create mappings immediately with aggregation
         if (autoApply) {
-          const autoMappings: DataMapping[] = data.suggestions.map((suggestion: MappingSuggestion, idx: number) => ({
-            id: `mapping-ai-${Date.now()}-${idx}`,
-            sourceField: suggestion.sourceField,
-            sourceTable: suggestion.sourceTable,
-            targetMetric: suggestion.targetMetric,
-            transformation: suggestion.transformation,
-          }));
+          const autoMappings: DataMapping[] = validSuggestions.map((suggestion: MappingSuggestion, idx: number) => {
+            // Determine aggregation based on metric type
+            let aggregation = 'count';
+            if (['revenue', 'mrr', 'investimento', 'cpl', 'cpm', 'ltv', 'cac', 'avg_ticket'].includes(suggestion.targetMetric)) {
+              aggregation = 'sum';
+            } else if (['conversion_rate', 'growth_rate', 'ctr'].includes(suggestion.targetMetric)) {
+              aggregation = 'avg';
+            } else if (suggestion.targetMetric.includes('_rate') || suggestion.targetMetric.includes('taxa')) {
+              aggregation = 'avg';
+            } else if (['total_leads', 'new_leads', 'conversions', 'active_users', 'mensagens', 'reuniões'].includes(suggestion.targetMetric)) {
+              aggregation = 'count';
+            }
+            
+            return {
+              id: `mapping-ai-${Date.now()}-${idx}`,
+              sourceField: suggestion.sourceField,
+              sourceTable: suggestion.sourceTable,
+              targetMetric: suggestion.targetMetric,
+              transformation: suggestion.transformation,
+              aggregation,
+            };
+          });
           onUpdate(autoMappings);
           
           toast({
             title: 'Dashboard configurado automaticamente!',
-            description: `IA analisou ${tables.length} tabelas e criou ${data.suggestions.length} mapeamentos. Você pode editar na aba "Manual".`,
+            description: `IA analisou ${tables.length} tabelas e criou ${validSuggestions.length} mapeamentos válidos. Você pode editar na aba "Manual".`,
           });
         } else {
           toast({
             title: 'Mapeamentos sugeridos!',
-            description: `IA analisou ${tables.length} tabelas e sugeriu ${data.suggestions.length} mapeamentos.`,
+            description: `IA analisou ${tables.length} tabelas e sugeriu ${validSuggestions.length} mapeamentos válidos. Revise e aceite os que desejar.`,
           });
         }
       } else {
@@ -254,13 +306,28 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
   const applyAcceptedSuggestions = useCallback(() => {
     const acceptedMappings: DataMapping[] = aiSuggestions
       .filter((_, idx) => suggestionStates[idx] === 'accepted')
-      .map((suggestion, idx) => ({
-        id: `mapping-ai-${Date.now()}-${idx}`,
-        sourceField: suggestion.sourceField,
-        sourceTable: suggestion.sourceTable,
-        targetMetric: suggestion.targetMetric,
-        transformation: suggestion.transformation,
-      }));
+      .map((suggestion, idx) => {
+        // Determine aggregation based on metric type
+        let aggregation = 'count';
+        if (['revenue', 'mrr', 'investimento', 'cpl', 'cpm', 'ltv', 'cac', 'avg_ticket'].includes(suggestion.targetMetric)) {
+          aggregation = 'sum';
+        } else if (['conversion_rate', 'growth_rate', 'ctr'].includes(suggestion.targetMetric)) {
+          aggregation = 'avg';
+        } else if (suggestion.targetMetric.includes('_rate') || suggestion.targetMetric.includes('taxa')) {
+          aggregation = 'avg';
+        } else if (['total_leads', 'new_leads', 'conversions', 'active_users', 'mensagens', 'reuniões'].includes(suggestion.targetMetric)) {
+          aggregation = 'count';
+        }
+        
+        return {
+          id: `mapping-ai-${Date.now()}-${idx}`,
+          sourceField: suggestion.sourceField,
+          sourceTable: suggestion.sourceTable,
+          targetMetric: suggestion.targetMetric,
+          transformation: suggestion.transformation,
+          aggregation,
+        };
+      });
 
     if (acceptedMappings.length === 0) {
       toast({
@@ -283,13 +350,28 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
   const replaceWithAcceptedSuggestions = useCallback(() => {
     const acceptedMappings: DataMapping[] = aiSuggestions
       .filter((_, idx) => suggestionStates[idx] === 'accepted')
-      .map((suggestion, idx) => ({
-        id: `mapping-ai-${Date.now()}-${idx}`,
-        sourceField: suggestion.sourceField,
-        sourceTable: suggestion.sourceTable,
-        targetMetric: suggestion.targetMetric,
-        transformation: suggestion.transformation,
-      }));
+      .map((suggestion, idx) => {
+        // Determine aggregation based on metric type
+        let aggregation = 'count';
+        if (['revenue', 'mrr', 'investimento', 'cpl', 'cpm', 'ltv', 'cac', 'avg_ticket'].includes(suggestion.targetMetric)) {
+          aggregation = 'sum';
+        } else if (['conversion_rate', 'growth_rate', 'ctr'].includes(suggestion.targetMetric)) {
+          aggregation = 'avg';
+        } else if (suggestion.targetMetric.includes('_rate') || suggestion.targetMetric.includes('taxa')) {
+          aggregation = 'avg';
+        } else if (['total_leads', 'new_leads', 'conversions', 'active_users', 'mensagens', 'reuniões'].includes(suggestion.targetMetric)) {
+          aggregation = 'count';
+        }
+        
+        return {
+          id: `mapping-ai-${Date.now()}-${idx}`,
+          sourceField: suggestion.sourceField,
+          sourceTable: suggestion.sourceTable,
+          targetMetric: suggestion.targetMetric,
+          transformation: suggestion.transformation,
+          aggregation,
+        };
+      });
 
     if (acceptedMappings.length === 0) {
       toast({
