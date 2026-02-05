@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,11 +25,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Plus, Trash2, ArrowRight, Info, PenLine, Check, Wand2, Loader2, Sparkles, CheckCircle2, Edit3 } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Info, PenLine, Check, Wand2, Loader2, Sparkles, CheckCircle2, X, RotateCcw, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useSavedMetrics } from '@/hooks/useSavedMetrics';
 import type { DataIntegration } from './IntegrationStep';
 
 // Local types for mapping step
@@ -52,6 +53,8 @@ interface MappingSuggestion {
   reason: string;
 }
 
+type SuggestionState = 'pending' | 'accepted' | 'rejected';
+
 type TransformationType = 'none' | 'date' | 'number' | 'currency' | 'percentage' | 'text' | 'boolean';
 
 interface MappingStepProps {
@@ -59,6 +62,7 @@ interface MappingStepProps {
   mappings: DataMapping[];
   onUpdate: (mappings: DataMapping[]) => void;
   onPrimaryTableChange?: (tableName: string) => void;
+  orgId?: string;
 }
 
 const TRANSFORMATIONS: { value: TransformationType; label: string }[] = [
@@ -84,7 +88,7 @@ const TARGET_METRICS: { value: string; label: string; description: string }[] = 
   { value: 'created_date', label: 'Data de Criação', description: 'Data do registro' },
 ];
 
-const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: MappingStepProps) => {
+const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, orgId }: MappingStepProps) => {
   const { toast } = useToast();
   const [selectedTable, setSelectedTable] = useState<string>(
     integration?.tables?.[0]?.name || ''
@@ -94,6 +98,22 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
   const [aiMethod, setAiMethod] = useState<'ai' | 'heuristic'>('ai');
+  
+  // Individual suggestion states
+  const [suggestionStates, setSuggestionStates] = useState<Record<number, SuggestionState>>({});
+  
+  // Saved metrics hook
+  const { savedMetrics, saveMetric, incrementUsage } = useSavedMetrics(orgId || null);
+
+  // Derived counters for suggestions
+  const suggestionCounts = useMemo(() => {
+    const states = Object.values(suggestionStates);
+    return {
+      accepted: states.filter(s => s === 'accepted').length,
+      rejected: states.filter(s => s === 'rejected').length,
+      pending: aiSuggestions.length - states.filter(s => s === 'accepted' || s === 'rejected').length,
+    };
+  }, [suggestionStates, aiSuggestions.length]);
 
   // Notify parent of primary table changes
   const handleTableChange = (tableName: string) => {
@@ -105,11 +125,35 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
   const currentTable = tables.find(t => t.name === selectedTable);
   const columns = currentTable?.columns || [];
 
+  // Toggle suggestion state
+  const toggleSuggestion = useCallback((index: number, state: SuggestionState) => {
+    setSuggestionStates(prev => ({
+      ...prev,
+      [index]: prev[index] === state ? 'pending' : state,
+    }));
+  }, []);
+
+  // Accept all suggestions
+  const acceptAllSuggestions = useCallback(() => {
+    const newStates: Record<number, SuggestionState> = {};
+    aiSuggestions.forEach((_, idx) => {
+      newStates[idx] = 'accepted';
+    });
+    setSuggestionStates(newStates);
+  }, [aiSuggestions]);
+
+  // Reset all suggestion states
+  const resetSuggestionStates = useCallback(() => {
+    setSuggestionStates({});
+  }, []);
+
   // Fetch AI mapping suggestions
   const fetchAIMappings = useCallback(async () => {
     if (tables.length === 0) return;
     
     setIsLoadingAI(true);
+    setSuggestionStates({});
+    
     try {
       const tablesData = tables.map(t => ({
         name: t.name,
@@ -141,7 +185,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
         
         toast({
           title: 'Mapeamentos sugeridos!',
-          description: `IA analisou ${tables.length} tabelas e sugeriu ${data.suggestions.length} mapeamentos.`,
+          description: `IA analisou ${tables.length} tabelas e sugeriu ${data.suggestions.length} mapeamentos. Revise e aceite as sugestões.`,
         });
       } else {
         toast({
@@ -162,24 +206,36 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
     }
   }, [tables, selectedTable, toast]);
 
-  // Apply AI suggestions
-  const applyAISuggestions = useCallback(() => {
-    const newMappings: DataMapping[] = aiSuggestions.map((suggestion, idx) => ({
-      id: `mapping-ai-${Date.now()}-${idx}`,
-      sourceField: suggestion.sourceField,
-      sourceTable: suggestion.sourceTable,
-      targetMetric: suggestion.targetMetric,
-      transformation: suggestion.transformation,
-    }));
+  // Apply accepted AI suggestions only
+  const applyAcceptedSuggestions = useCallback(() => {
+    const acceptedMappings: DataMapping[] = aiSuggestions
+      .filter((_, idx) => suggestionStates[idx] === 'accepted')
+      .map((suggestion, idx) => ({
+        id: `mapping-ai-${Date.now()}-${idx}`,
+        sourceField: suggestion.sourceField,
+        sourceTable: suggestion.sourceTable,
+        targetMetric: suggestion.targetMetric,
+        transformation: suggestion.transformation,
+      }));
 
-    onUpdate(newMappings);
+    if (acceptedMappings.length === 0) {
+      toast({
+        title: 'Nenhuma sugestão aceita',
+        description: 'Aceite pelo menos uma sugestão para aplicar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onUpdate([...mappings, ...acceptedMappings]);
     setShowAISuggestions(false);
+    setSuggestionStates({});
     
     toast({
       title: 'Mapeamentos aplicados!',
-      description: `${newMappings.length} mapeamentos configurados. Você pode ajustá-los abaixo.`,
+      description: `${acceptedMappings.length} mapeamentos configurados. Você pode ajustá-los abaixo.`,
     });
-  }, [aiSuggestions, onUpdate, toast]);
+  }, [aiSuggestions, suggestionStates, mappings, onUpdate, toast]);
 
   const addMapping = () => {
     const newMapping: DataMapping = {
@@ -198,6 +254,27 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
     );
   };
 
+  // Save custom metric when user types a non-predefined metric
+  const handleMetricChange = useCallback((mappingId: string, metricValue: string) => {
+    updateMapping(mappingId, { targetMetric: metricValue });
+    
+    // Check if it's a custom metric (not in predefined list)
+    const isPredefined = TARGET_METRICS.some(m => m.value === metricValue);
+    if (!isPredefined && metricValue.trim().length >= 3 && orgId) {
+      // Save custom metric for future use
+      saveMetric({
+        orgId,
+        metricName: metricValue.toLowerCase().replace(/\s+/g, '_'),
+        displayLabel: metricValue,
+      });
+    }
+  }, [orgId, saveMetric]);
+
+  const handleSavedMetricSelect = useCallback((mappingId: string, metric: { id: string; metric_name: string }) => {
+    updateMapping(mappingId, { targetMetric: metric.metric_name });
+    incrementUsage(metric.id);
+  }, [incrementUsage]);
+
   const removeMapping = (id: string) => {
     onUpdate(mappings.filter(m => m.id !== id));
   };
@@ -211,6 +288,13 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
     if (confidence >= 90) return 'text-green-500 bg-green-500/10 border-green-500/30';
     if (confidence >= 75) return 'text-amber-500 bg-amber-500/10 border-amber-500/30';
     return 'text-muted-foreground bg-muted/50 border-muted';
+  };
+
+  const getSuggestionStateStyle = (idx: number) => {
+    const state = suggestionStates[idx];
+    if (state === 'accepted') return 'border-green-500/50 bg-green-500/5';
+    if (state === 'rejected') return 'opacity-40 bg-muted/30 line-through';
+    return 'bg-background/50';
   };
 
   return (
@@ -259,11 +343,12 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
           </div>
         </Card>
 
-        {/* AI Suggestions Panel */}
+        {/* AI Suggestions Panel with Individual Accept/Reject */}
         {showAISuggestions && aiSuggestions.length > 0 && (
           <Card className="p-6 border-accent/30 bg-gradient-to-br from-accent/5 to-transparent">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              {/* Header */}
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                   <Sparkles className="w-5 h-5 text-accent" />
                   <div>
@@ -276,16 +361,50 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
                     <p className="text-sm text-muted-foreground">{aiSummary}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowAISuggestions(false)}>
-                    <Edit3 className="w-4 h-4 mr-1" />
-                    Personalizar
-                  </Button>
-                  <Button size="sm" onClick={applyAISuggestions} className="gap-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Aplicar Todos
-                  </Button>
+                
+                {/* Status Counters */}
+                <div className="flex items-center gap-3 text-sm">
+                  <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
+                    <Check className="w-3 h-3 mr-1" />
+                    {suggestionCounts.accepted} aceitas
+                  </Badge>
+                  <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+                    <X className="w-3 h-3 mr-1" />
+                    {suggestionCounts.rejected} rejeitadas
+                  </Badge>
+                  <Badge variant="outline" className="bg-muted text-muted-foreground">
+                    {suggestionCounts.pending} pendentes
+                  </Badge>
                 </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex gap-2 border-b pb-3">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={acceptAllSuggestions}
+                  className="gap-1"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Aceitar Todas
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={resetSuggestionStates}
+                  className="gap-1"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Limpar Seleção
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowAISuggestions(false)}
+                >
+                  Fechar
+                </Button>
               </div>
 
               {/* Suggestions List */}
@@ -293,14 +412,19 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
                 {aiSuggestions.map((suggestion, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border"
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-lg border transition-all",
+                      getSuggestionStateStyle(idx)
+                    )}
                   >
+                    {/* Confidence Badge */}
                     <Badge className={cn("shrink-0 text-xs font-mono", getConfidenceColor(suggestion.confidence))}>
                       {suggestion.confidence}%
                     </Badge>
                     
+                    {/* Mapping Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-sm flex-wrap">
                         <code className="px-1.5 py-0.5 bg-muted rounded text-xs truncate max-w-[150px]">
                           {suggestion.sourceTable}.{suggestion.sourceField}
                         </code>
@@ -316,16 +440,62 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
                         {suggestion.reason}
                       </p>
                     </div>
+
+                    {/* Accept/Reject Buttons */}
+                    <div className="flex gap-1 shrink-0">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant={suggestionStates[idx] === 'accepted' ? 'default' : 'ghost'}
+                            className={cn(
+                              "h-8 w-8",
+                              suggestionStates[idx] === 'accepted' && "bg-accent hover:bg-accent/90"
+                            )}
+                            onClick={() => toggleSuggestion(idx, 'accepted')}
+                          >
+                            <Check className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Aceitar sugestão</TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant={suggestionStates[idx] === 'rejected' ? 'destructive' : 'ghost'}
+                            className="h-8 w-8"
+                            onClick={() => toggleSuggestion(idx, 'rejected')}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Rejeitar sugestão</TooltipContent>
+                      </Tooltip>
+                    </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Apply Button */}
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button 
+                  onClick={applyAcceptedSuggestions}
+                  disabled={suggestionCounts.accepted === 0}
+                  className="gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Aplicar {suggestionCounts.accepted > 0 ? `${suggestionCounts.accepted} Selecionados` : 'Selecionados'}
+                </Button>
               </div>
 
               <Alert className="bg-muted/30 border-muted">
                 <Info className="w-4 h-4" />
                 <AlertTitle className="text-sm">Como funciona?</AlertTitle>
                 <AlertDescription className="text-xs">
-                  Clique em "Aplicar Todos" para usar as sugestões da IA, ou "Personalizar" para fechá-las e editar manualmente.
-                  Após aplicar, você ainda pode ajustar cada mapeamento individualmente.
+                  Clique no ✓ para aceitar ou ✗ para rejeitar cada sugestão individualmente.
+                  Após revisar, clique em "Aplicar Selecionados" para criar os mapeamentos aceitos.
                 </AlertDescription>
               </Alert>
             </div>
@@ -481,7 +651,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
 
                     <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
 
-                    {/* Target Metric with Custom Input */}
+                    {/* Target Metric with Custom Input + Saved Metrics */}
                     <div className="flex-1 space-y-1">
                       <Label className="text-xs text-muted-foreground">Métrica Destino</Label>
                       <Popover>
@@ -500,14 +670,44 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange }: 
                             <Input
                               placeholder="Digite uma métrica customizada..."
                               value={mapping.targetMetric}
-                              onChange={(e) => updateMapping(mapping.id, { targetMetric: e.target.value })}
+                              onChange={(e) => handleMetricChange(mapping.id, e.target.value)}
                               className="h-8"
                             />
                             <p className="text-[10px] text-muted-foreground mt-1">
                               Escreva seu próprio nome ou selecione abaixo
                             </p>
                           </div>
+                          
+                          {/* Saved/Recent Metrics */}
+                          {savedMetrics.length > 0 && (
+                            <div className="border-b">
+                              <p className="text-xs text-muted-foreground px-2 py-1.5 flex items-center gap-1">
+                                <History className="w-3 h-3" />
+                                Métricas Recentes
+                              </p>
+                              <div className="max-h-[120px] overflow-y-auto">
+                                {savedMetrics.slice(0, 5).map(m => (
+                                  <button
+                                    key={m.id}
+                                    onClick={() => handleSavedMetricSelect(mapping.id, { id: m.id, metric_name: m.metric_name })}
+                                    className={cn(
+                                      "flex items-center justify-between w-full px-2 py-1.5 text-sm hover:bg-muted transition-colors text-left",
+                                      mapping.targetMetric === m.metric_name && "bg-accent/10"
+                                    )}
+                                  >
+                                    <span className="truncate">{m.display_label}</span>
+                                    <Badge variant="outline" className="text-[10px] ml-2 shrink-0">
+                                      {m.usage_count}x
+                                    </Badge>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Predefined Metrics */}
                           <div className="max-h-[200px] overflow-y-auto p-1">
+                            <p className="text-xs text-muted-foreground px-2 py-1">Métricas Padrão</p>
                             {TARGET_METRICS.map(m => (
                               <button
                                 key={m.value}
