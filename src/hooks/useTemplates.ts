@@ -303,39 +303,104 @@ export const useApplyTemplate = () => {
 
       const templateWidgets = template.widgets as unknown as TemplateWidget[];
 
-      // Create widgets based on template with injected dataSource
-      const widgetsToCreate = templateWidgets.map((tw, index) => {
-        const templateMetric = (tw.config as Record<string, unknown>)?.metric as string | undefined;
-        let mapping = templateMetric && metricMappings ? metricMappings[templateMetric] : null;
+      // Smart mapping function - finds the best mapping for a widget
+      const findBestMapping = (widget: TemplateWidget): MetricMapping | null => {
+        const templateMetric = (widget.config as Record<string, unknown>)?.metric as string | undefined;
+        const titleLower = (widget.title || '').toLowerCase();
         
-        // If no mapping found, try to infer from widget title
-        if (!mapping && tw.title) {
-          const titleLower = tw.title.toLowerCase();
-          
-          // Try to find matching mapping by target metric name
-          const matchingMapping = Object.entries(metricMappings || {}).find(([targetMetric]) => {
+        // Priority 1: Direct metric match
+        if (templateMetric && metricMappings?.[templateMetric]) {
+          return metricMappings[templateMetric];
+        }
+        
+        // Priority 2: Smart title-based matching with multiple strategies
+        if (metricMappings && Object.keys(metricMappings).length > 0) {
+          // Strategy 1: Exact metric name in title
+          const exactMatch = Object.entries(metricMappings).find(([targetMetric]) => {
             const metricLower = targetMetric.toLowerCase();
-            return (
-              titleLower.includes(metricLower) ||
-              (titleLower.includes('lead') && metricLower.includes('lead')) ||
-              (titleLower.includes('receita') && metricLower.includes('revenue')) ||
-              (titleLower.includes('revenue') && metricLower.includes('revenue')) ||
-              (titleLower.includes('convers') && metricLower.includes('conversion')) ||
-              (titleLower.includes('taxa') && metricLower.includes('rate'))
-            );
+            return titleLower.includes(metricLower) || metricLower.includes(titleLower);
           });
+          if (exactMatch) return exactMatch[1];
           
-          if (matchingMapping) {
-            mapping = matchingMapping[1];
-            console.log('[useTemplates] Found mapping by title match:', tw.title, '->', matchingMapping[0]);
+          // Strategy 2: Semantic matching (Portuguese + English)
+          const semanticMatches: Array<{ keywords: string[]; metrics: string[] }> = [
+            { keywords: ['lead', 'leads', 'lead'], metrics: ['total_leads', 'new_leads', 'leads'] },
+            { keywords: ['receita', 'revenue', 'valor', 'value', 'amount'], metrics: ['revenue', 'total_revenue', 'mrr'] },
+            { keywords: ['convers', 'conversion'], metrics: ['conversions', 'conversion'] },
+            { keywords: ['taxa', 'rate', 'percent'], metrics: ['conversion_rate', 'growth_rate', 'rate'] },
+            { keywords: ['novo', 'new'], metrics: ['new_leads', 'new'] },
+            { keywords: ['total'], metrics: ['total_leads', 'total', 'total_revenue'] },
+            { keywords: ['mrr', 'recorrente', 'recurring'], metrics: ['mrr', 'recurring'] },
+            { keywords: ['ativo', 'active', 'usuário', 'user'], metrics: ['active_users', 'users'] },
+            { keywords: ['mensagem', 'message'], metrics: ['mensagens', 'messages'] },
+            { keywords: ['reunião', 'meeting'], metrics: ['reuniões_agendadas', 'meetings'] },
+          ];
+          
+          for (const semantic of semanticMatches) {
+            const hasKeyword = semantic.keywords.some(kw => titleLower.includes(kw));
+            if (hasKeyword) {
+              const match = Object.entries(metricMappings).find(([targetMetric]) => {
+                const metricLower = targetMetric.toLowerCase();
+                return semantic.metrics.some(m => metricLower.includes(m) || m.includes(metricLower));
+              });
+              if (match) return match[1];
+            }
+          }
+          
+          // Strategy 3: Partial word matching
+          const partialMatch = Object.entries(metricMappings).find(([targetMetric]) => {
+            const metricWords = targetMetric.toLowerCase().split(/[_\s]+/);
+            const titleWords = titleLower.split(/[\s-]+/);
+            return metricWords.some(mw => titleWords.some(tw => tw.includes(mw) || mw.includes(tw)));
+          });
+          if (partialMatch) return partialMatch[1];
+        }
+        
+        return null;
+      };
+      
+      // Create widgets based on template with smart mapping
+      const widgetsToCreate = templateWidgets.map((tw, index) => {
+        const mapping = findBestMapping(tw);
+        const templateMetric = (tw.config as Record<string, unknown>)?.metric as string | undefined;
+        
+        // Determine format based on widget title/config
+        let format: 'number' | 'currency' | 'percentage' = 'number';
+        const titleLower = (tw.title || '').toLowerCase();
+        if (titleLower.includes('receita') || titleLower.includes('revenue') || titleLower.includes('valor') || titleLower.includes('mrr')) {
+          format = 'currency';
+        } else if (titleLower.includes('taxa') || titleLower.includes('rate') || titleLower.includes('percent')) {
+          format = 'percentage';
+        } else if (tw.config?.format) {
+          format = tw.config.format as 'number' | 'currency' | 'percentage';
+        }
+        
+        const widgetConfig: Record<string, unknown> = {
+          ...tw.config,
+          dataSource: dataSource || null,
+          format,
+        };
+        
+        // Apply mapping if found
+        if (mapping) {
+          widgetConfig.metric = mapping.field;
+          widgetConfig.aggregation = mapping.aggregation;
+          widgetConfig.targetMetric = templateMetric || Object.keys(metricMappings || {}).find(
+            k => metricMappings![k] === mapping
+          ) || null;
+        } else {
+          // If no mapping found, try to use template metric as fallback
+          if (templateMetric) {
+            widgetConfig.targetMetric = templateMetric;
           }
         }
         
-        // Log for debugging
         console.log('[useTemplates] Creating widget:', {
           title: tw.title,
+          type: tw.type,
           templateMetric,
-          mapping: mapping ? { field: mapping.field, aggregation: mapping.aggregation } : null,
+          mapping: mapping ? { field: mapping.field, aggregation: mapping.aggregation } : 'NOT FOUND',
+          format,
           availableMappings: Object.keys(metricMappings || {}),
         });
 
@@ -345,18 +410,7 @@ export const useApplyTemplate = () => {
           type: tw.type as WidgetType,
           position: index,
           size: tw.size,
-          config: {
-            ...tw.config,
-            // Inject dataSource if available (required for external data fetch)
-            dataSource: dataSource || null,
-            // Apply metric mapping if available
-            ...(mapping && {
-              metric: mapping.field,
-              aggregation: mapping.aggregation,
-            }),
-            // Store target metric for reference
-            ...(templateMetric && { targetMetric: templateMetric }),
-          },
+          config: widgetConfig,
           description: tw.description || null,
         };
       });
