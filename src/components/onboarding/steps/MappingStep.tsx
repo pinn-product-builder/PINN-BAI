@@ -27,7 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Plus, Trash2, ArrowRight, Info, PenLine, Check, Wand2, Loader2, Sparkles, CheckCircle2, X, RotateCcw, History, Bot, Pencil } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Info, PenLine, Check, Wand2, Loader2, Sparkles, CheckCircle2, X, RotateCcw, History, Bot, Pencil, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
@@ -88,6 +88,12 @@ const TARGET_METRICS: { value: string; label: string; description: string }[] = 
   { value: 'funnel_stage', label: 'Estágio do Funil', description: 'Posição no funil de vendas' },
   { value: 'lead_source', label: 'Origem do Lead', description: 'Canal de aquisição' },
   { value: 'created_date', label: 'Data de Criação', description: 'Data do registro' },
+  { value: 'mensagens', label: 'Mensagens', description: 'Total de mensagens enviadas/recebidas' },
+  { value: 'reuniões_agendadas', label: 'Reuniões Agendadas', description: 'Total de reuniões agendadas' },
+  { value: 'reuniões_canceladas', label: 'Reuniões Canceladas', description: 'Total de reuniões canceladas' },
+  { value: 'investimento', label: 'Investimento', description: 'Valor investido em marketing' },
+  { value: 'cpl', label: 'CPL (Custo por Lead)', description: 'Custo médio por lead adquirido' },
+  { value: 'cpm', label: 'CPM (Custo por Reunião)', description: 'Custo médio por reunião agendada' },
 ];
 
 const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, orgId }: MappingStepProps) => {
@@ -350,8 +356,9 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
   };
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 90) return 'text-green-500 bg-green-500/10 border-green-500/30';
-    if (confidence >= 75) return 'text-amber-500 bg-amber-500/10 border-amber-500/30';
+    if (confidence >= 90) return 'text-green-600 bg-green-500/20 border-green-500/40 font-semibold';
+    if (confidence >= 80) return 'text-blue-600 bg-blue-500/20 border-blue-500/40 font-semibold';
+    if (confidence >= 75) return 'text-amber-600 bg-amber-500/20 border-amber-500/40';
     return 'text-muted-foreground bg-muted/50 border-muted';
   };
 
@@ -396,37 +403,56 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
           {/* AI Mapping Tab */}
           <TabsContent value="ai" className="mt-4 space-y-4">
             {/* Status Card */}
-            <Card className="p-4 border-accent/30 bg-gradient-to-br from-accent/5 to-transparent">
+            <Card className="p-5 border-accent/30 bg-gradient-to-br from-accent/5 via-accent/3 to-transparent">
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-accent/20">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="p-3 rounded-xl bg-accent/20 shadow-lg shadow-accent/10">
                     {isLoadingAI ? (
-                      <Loader2 className="w-5 h-5 text-accent animate-spin" />
+                      <Loader2 className="w-6 h-6 text-accent animate-spin" />
                     ) : (
-                      <Wand2 className="w-5 h-5 text-accent" />
+                      <Wand2 className="w-6 h-6 text-accent" />
                     )}
                   </div>
-                  <div>
-                    <h3 className="font-medium text-foreground">
-                      {isLoadingAI ? 'Analisando tabelas...' : 'Mapeamento Automático com IA'}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-foreground">
+                        {isLoadingAI ? 'Analisando tabelas com IA...' : 'Mapeamento Automático com IA'}
+                      </h3>
+                      {aiSuggestions.length > 0 && (
+                        <Badge variant="outline" className="text-xs border-accent/30 bg-accent/10">
+                          {aiMethod === 'ai' ? 'Gemini AI' : 'Heurística'}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
                       {isLoadingAI 
-                        ? 'A IA está analisando o esquema e dados para criar o melhor mapeamento'
+                        ? 'A IA está analisando o esquema, tipos de dados e valores de amostra para criar o melhor mapeamento possível'
                         : aiSuggestions.length > 0 
-                          ? aiSummary || `${aiSuggestions.length} mapeamentos identificados`
-                          : 'Clique para gerar mapeamentos automaticamente'}
+                          ? aiSummary || `${aiSuggestions.length} mapeamentos inteligentes identificados automaticamente`
+                          : 'Clique no botão para a IA analisar suas tabelas e gerar mapeamentos automaticamente'}
                     </p>
+                    {aiSuggestions.length > 0 && (
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Database className="w-3 h-3" />
+                          {tables.length} {tables.length === 1 ? 'tabela' : 'tabelas'} analisadas
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          {aiSuggestions.length} {aiSuggestions.length === 1 ? 'sugestão' : 'sugestões'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {!isLoadingAI && (
                   <Button
                     onClick={() => fetchAIMappings(false)}
                     variant="outline"
-                    className="gap-2 shrink-0"
+                    className="gap-2 shrink-0 border-accent/30 hover:bg-accent/10"
                   >
                     <Sparkles className="w-4 h-4" />
-                    {aiSuggestions.length > 0 ? 'Regerar' : 'Gerar'}
+                    {aiSuggestions.length > 0 ? 'Regerar' : 'Gerar Mapeamentos'}
                   </Button>
                 )}
               </div>
@@ -434,87 +460,130 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
 
             {/* AI Suggestions List */}
             {aiSuggestions.length > 0 && (
-              <Card className="p-4">
+              <Card className="p-5 border-2 border-accent/20">
                 {/* Header with counters */}
-                <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-accent" />
-                    <span className="font-medium">Sugestões da IA</span>
-                    <Badge variant="outline" className="text-xs">
-                      {aiMethod === 'ai' ? 'Gemini' : 'Heurística'}
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-5 pb-4 border-b">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-accent/10">
+                      <Sparkles className="w-5 h-5 text-accent" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">Sugestões da IA</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Revise e aceite as sugestões mais relevantes
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-xs border-accent/30 bg-accent/10">
+                      {aiMethod === 'ai' ? 'Gemini AI' : 'Análise Heurística'}
                     </Badge>
                   </div>
                   
-                  <div className="flex items-center gap-2 text-sm">
-                    <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30">
-                      <Check className="w-3 h-3 mr-1" />
-                      {suggestionCounts.accepted}
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 font-medium">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      {suggestionCounts.accepted} aceitas
                     </Badge>
                     <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
                       <X className="w-3 h-3 mr-1" />
-                      {suggestionCounts.rejected}
+                      {suggestionCounts.rejected} rejeitadas
+                    </Badge>
+                    <Badge variant="outline" className="bg-muted text-muted-foreground">
+                      {suggestionCounts.pending} pendentes
                     </Badge>
                   </div>
                 </div>
 
                 {/* Quick Actions */}
-                <div className="flex gap-2 border-b pb-3 mb-3">
+                <div className="flex gap-2 pb-4 mb-4 border-b">
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={acceptAllSuggestions}
-                    className="gap-1"
+                    className="gap-2 border-green-500/30 hover:bg-green-500/10 hover:border-green-500/50"
+                    disabled={aiSuggestions.length === 0}
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    Aceitar Todas
+                    Aceitar Todas ({aiSuggestions.length})
                   </Button>
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={resetSuggestionStates}
-                    className="gap-1"
+                    className="gap-2"
+                    disabled={Object.keys(suggestionStates).length === 0}
                   >
                     <RotateCcw className="w-4 h-4" />
-                    Limpar
+                    Limpar Seleções
                   </Button>
+                  <div className="flex-1" />
+                  <div className="text-xs text-muted-foreground self-center">
+                    Ordenado por confiança (maior primeiro)
+                  </div>
                 </div>
 
                 {/* Scrollable Suggestions List */}
-                <ScrollArea className="h-[350px] pr-3">
-                  <div className="space-y-2">
+                <ScrollArea className="h-[500px] pr-3">
+                  <div className="space-y-3">
                     {[...aiSuggestions]
                       .map((suggestion, originalIdx) => ({ ...suggestion, originalIdx }))
                       .sort((a, b) => b.confidence - a.confidence)
                       .map((suggestion) => {
                         const idx = suggestion.originalIdx;
+                        const state = suggestionStates[idx];
+                        const isAccepted = state === 'accepted';
+                        const isRejected = state === 'rejected';
+                        
                         return (
                           <div
                             key={idx}
                             className={cn(
-                              "flex items-center gap-3 p-3 rounded-lg border transition-all",
-                              getSuggestionStateStyle(idx)
+                              "flex items-start gap-3 p-4 rounded-lg border transition-all hover:shadow-md",
+                              isAccepted && "border-green-500/50 bg-green-500/5 ring-2 ring-green-500/20",
+                              isRejected && "opacity-50 bg-muted/30 border-muted",
+                              !isAccepted && !isRejected && "bg-background/50 border-border hover:border-accent/30"
                             )}
                           >
                             {/* Confidence Badge */}
-                            <Badge className={cn("shrink-0 text-xs font-mono", getConfidenceColor(suggestion.confidence))}>
-                              {suggestion.confidence}%
-                            </Badge>
+                            <div className="flex flex-col items-center gap-2 shrink-0">
+                              <Badge className={cn("text-xs font-mono px-2 py-1", getConfidenceColor(suggestion.confidence))}>
+                                {suggestion.confidence}%
+                              </Badge>
+                              {isAccepted && (
+                                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                              )}
+                              {isRejected && (
+                                <X className="w-4 h-4 text-destructive" />
+                              )}
+                            </div>
                             
                             {/* Mapping Info */}
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 space-y-2">
                               <div className="flex items-center gap-2 text-sm flex-wrap">
-                                <code className="px-1.5 py-0.5 bg-muted rounded text-xs truncate max-w-[150px]">
-                                  {suggestion.sourceTable}.{suggestion.sourceField}
-                                </code>
+                                <div className="flex items-center gap-1.5">
+                                  <code className="px-2 py-1 bg-muted rounded text-xs font-mono border border-border">
+                                    {suggestion.sourceTable}
+                                  </code>
+                                  <span className="text-muted-foreground">.</span>
+                                  <code className="px-2 py-1 bg-muted rounded text-xs font-mono border border-border">
+                                    {suggestion.sourceField}
+                                  </code>
+                                </div>
                                 <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                                <span className="font-medium truncate">
-                                  {TARGET_METRICS.find(m => m.value === suggestion.targetMetric)?.label || suggestion.targetMetric}
-                                </span>
-                                <Badge variant="outline" className="text-[10px] shrink-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-semibold text-foreground">
+                                    {TARGET_METRICS.find(m => m.value === suggestion.targetMetric)?.label || suggestion.targetMetric}
+                                  </span>
+                                  {!TARGET_METRICS.find(m => m.value === suggestion.targetMetric) && (
+                                    <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/30 bg-accent/5">
+                                      Custom
+                                    </Badge>
+                                  )}
+                                </div>
+                                <Badge variant="outline" className="text-[10px] shrink-0 border-accent/30">
                                   {TRANSFORMATIONS.find(t => t.value === suggestion.transformation)?.label || suggestion.transformation}
                                 </Badge>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-1 truncate">
+                              <p className="text-xs text-muted-foreground leading-relaxed">
                                 {suggestion.reason}
                               </p>
                             </div>
@@ -525,31 +594,31 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                                 <TooltipTrigger asChild>
                                   <Button
                                     size="icon"
-                                    variant={suggestionStates[idx] === 'accepted' ? 'default' : 'ghost'}
+                                    variant={isAccepted ? 'default' : 'ghost'}
                                     className={cn(
-                                      "h-8 w-8",
-                                      suggestionStates[idx] === 'accepted' && "bg-accent hover:bg-accent/90"
+                                      "h-9 w-9",
+                                      isAccepted && "bg-green-500 hover:bg-green-600 text-white"
                                     )}
                                     onClick={() => toggleSuggestion(idx, 'accepted')}
                                   >
                                     <Check className="w-4 h-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Aceitar</TooltipContent>
+                                <TooltipContent>Aceitar sugestão</TooltipContent>
                               </Tooltip>
                               
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
                                     size="icon"
-                                    variant={suggestionStates[idx] === 'rejected' ? 'destructive' : 'ghost'}
-                                    className="h-8 w-8"
+                                    variant={isRejected ? 'destructive' : 'ghost'}
+                                    className="h-9 w-9"
                                     onClick={() => toggleSuggestion(idx, 'rejected')}
                                   >
                                     <X className="w-4 h-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Rejeitar</TooltipContent>
+                                <TooltipContent>Rejeitar sugestão</TooltipContent>
                               </Tooltip>
                             </div>
                           </div>

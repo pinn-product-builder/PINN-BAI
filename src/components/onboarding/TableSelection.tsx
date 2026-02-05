@@ -597,8 +597,8 @@ $$;`;
                   </div>
                 </div>
               </div>
-              <ScrollArea className="max-h-[300px]">
-                <div className="p-3 space-y-2">
+              <ScrollArea className="h-[500px] pr-4">
+                <div className="p-4 space-y-3">
                   {aiSuggestions.map((suggestion) => (
                     <div 
                       key={suggestion.tableName}
