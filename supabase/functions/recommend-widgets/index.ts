@@ -239,8 +239,8 @@ function generateRecommendations(
     });
   }
 
-  // Add line chart for trends (plan 2+)
-  if (plan >= 2 && patterns.hasTemporalData) {
+  // Add line chart for trends - Available for all plans
+  if (patterns.hasTemporalData) {
     recommendations.push({
       type: 'line_chart',
       title: 'Tendência de Conversões',
@@ -252,12 +252,12 @@ function generateRecommendations(
         curveType: 'smooth',
         showTooltip: true,
       },
-      basedOn: 'Dados temporais detectados + plano suporta gráficos de linha',
+      basedOn: 'Dados temporais detectados nos mapeamentos',
     });
   }
 
-  // Add pie chart for categorical data (plan 2+)
-  if (plan >= 2 && (patterns.hasCategoricalData || patterns.metrics.has('lead_source'))) {
+  // Add pie chart for categorical data - Available for all plans
+  if (patterns.hasCategoricalData || patterns.metrics.has('lead_source')) {
     recommendations.push({
       type: 'pie_chart',
       title: 'Distribuição por Origem',
@@ -275,10 +275,9 @@ function generateRecommendations(
     });
   }
 
-  // Add funnel for stage data or leads+conversions (plan 2+)
+  // Add funnel for stage data or leads+conversions - Available for all plans
   if (
-    plan >= 2 &&
-    (patterns.hasFunnelData || (patterns.metrics.has('total_leads') && patterns.metrics.has('conversions')))
+    patterns.hasFunnelData || (patterns.metrics.has('total_leads') && patterns.metrics.has('conversions'))
   ) {
     recommendations.push({
       type: 'funnel',
@@ -328,20 +327,18 @@ function generateRecommendations(
     basedOn: 'Widget padrão: tabela de dados para análise detalhada',
   });
 
-  // Add insight card for AI features (plan 3+)
-  if (plan >= 3) {
-    recommendations.push({
-      type: 'insight_card',
-      title: 'Insights IA',
-      description: 'Análises e recomendações inteligentes geradas automaticamente por IA, baseadas nos padrões detectados.',
-      score: 75,
-      config: {
-        refreshInterval: 300,
-        animate: true,
-      },
-      basedOn: 'Funcionalidade IA disponível no seu plano',
-    });
-  }
+  // Add insight card for AI features - Available for all plans
+  recommendations.push({
+    type: 'insight_card',
+    title: 'Insights IA',
+    description: 'Análises e recomendações inteligentes geradas automaticamente por IA, baseadas nos padrões detectados.',
+    score: 75,
+    config: {
+      refreshInterval: 300,
+      animate: true,
+    },
+    basedOn: 'Funcionalidade IA disponível para todos os planos',
+  });
 
   // Sort by score (highest first)
   recommendations.sort((a, b) => b.score - a.score);

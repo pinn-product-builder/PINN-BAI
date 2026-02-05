@@ -63,43 +63,133 @@ serve(async (req) => {
       );
     }
 
-    // Build detailed prompt for AI with comprehensive sample data analysis
+    // Build comprehensive data analysis for AI
     const tablesSummary = tables.map(t => {
+      // Analyze table structure and data patterns
+      const numericColumns = t.columns.filter(c => {
+        const type = c.type.toLowerCase();
+        return type.includes('int') || type.includes('numeric') || type.includes('decimal') || type.includes('float') || type.includes('double');
+      });
+      
+      const textColumns = t.columns.filter(c => {
+        const type = c.type.toLowerCase();
+        return type.includes('text') || type.includes('varchar') || type.includes('char');
+      });
+      
+      const dateColumns = t.columns.filter(c => {
+        const type = c.type.toLowerCase();
+        const name = c.name.toLowerCase();
+        return type.includes('date') || type.includes('timestamp') || name.includes('date') || name.includes('created') || name.includes('updated');
+      });
+      
+      // Analyze column relationships and patterns
       const cols = t.columns.map(c => {
-        // Include more samples (up to 10) for better pattern recognition
-        const samples = c.sampleValues?.slice(0, 10).map(v => {
+        // Include more samples (up to 15) for deep analysis
+        const samples = c.sampleValues?.slice(0, 15).map(v => {
           const str = JSON.stringify(v);
-          return str.length > 40 ? str.substring(0, 40) + '...' : str;
+          return str.length > 50 ? str.substring(0, 50) + '...' : str;
         }).join(', ') || '';
         
-        // Include more sample rows (up to 5) for better context
-        const sampleData = t.sampleData?.slice(0, 5).map(row => {
+        // Include full sample rows (up to 10) for context understanding
+        const sampleData = t.sampleData?.slice(0, 10).map(row => {
           const val = row[c.name];
-          return val !== undefined ? JSON.stringify(val).substring(0, 25) : null;
-        }).filter(Boolean).join(', ') || '';
+          return val !== undefined ? JSON.stringify(val).substring(0, 40) : null;
+        }).filter(Boolean).join(' | ') || '';
         
-        // Calculate value statistics if numeric
-        const numericSamples = c.sampleValues?.filter(v => typeof v === 'number' || (typeof v === 'string' && !isNaN(parseFloat(v))));
+        // Deep statistical analysis
+        const numericSamples = c.sampleValues?.filter(v => {
+          if (typeof v === 'number') return true;
+          if (typeof v === 'string') {
+            const cleaned = v.replace(/,/g, '.').replace(/[R$\s%]/g, '');
+            return !isNaN(parseFloat(cleaned));
+          }
+          return false;
+        });
+        
         let stats = '';
+        let dataPattern = '';
         if (numericSamples && numericSamples.length > 0) {
-          const nums = numericSamples.map(v => typeof v === 'number' ? v : parseFloat(v)).filter(n => !isNaN(n));
+          const nums = numericSamples.map(v => {
+            if (typeof v === 'number') return v;
+            const cleaned = String(v).replace(/,/g, '.').replace(/[R$\s%]/g, '');
+            return parseFloat(cleaned);
+          }).filter(n => !isNaN(n));
+          
           if (nums.length > 0) {
             const min = Math.min(...nums);
             const max = Math.max(...nums);
             const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
-            stats = ` [min:${min.toFixed(2)}, max:${max.toFixed(2)}, avg:${avg.toFixed(2)}]`;
+            const median = nums.sort((a, b) => a - b)[Math.floor(nums.length / 2)];
+            const uniqueCount = new Set(nums).size;
+            const hasDecimals = nums.some(n => n % 1 !== 0);
+            
+            stats = ` [min:${min.toFixed(2)}, max:${max.toFixed(2)}, avg:${avg.toFixed(2)}, mediana:${median.toFixed(2)}, únicos:${uniqueCount}/${nums.length}]`;
+            
+            // Pattern detection
+            if (avg > 1000 && hasDecimals) dataPattern = ' [PADRÃO: Valores monetários grandes]';
+            else if (avg > 0 && avg <= 100 && !hasDecimals && uniqueCount < nums.length * 0.3) dataPattern = ' [PADRÃO: Contagem discreta]';
+            else if (avg >= 0 && avg <= 100 && (max <= 100)) dataPattern = ' [PADRÃO: Possível percentual ou contagem]';
+            else if (hasDecimals && avg < 1) dataPattern = ' [PADRÃO: Taxa decimal (0-1)]';
           }
         }
         
-        return `  - ${c.name} (${c.type})${samples ? ` [amostras: ${samples}]` : ''}${sampleData ? ` [dados: ${sampleData}]` : ''}${stats}`;
+        // Analyze text patterns
+        const textSamples = c.sampleValues?.filter(v => typeof v === 'string').slice(0, 10);
+        if (textSamples && textSamples.length > 0) {
+          const uniqueTexts = new Set(textSamples);
+          const avgLength = textSamples.reduce((sum, v) => sum + v.length, 0) / textSamples.length;
+          if (uniqueTexts.size <= 5) {
+            dataPattern = ` [PADRÃO: Categoria (${uniqueTexts.size} valores únicos: ${Array.from(uniqueTexts).slice(0, 3).join(', ')})]`;
+          } else if (avgLength > 50) {
+            dataPattern = ' [PADRÃO: Texto longo/descrição]';
+          }
+        }
+        
+        // Date pattern detection
+        const dateSamples = c.sampleValues?.filter(v => {
+          if (typeof v === 'string') {
+            const date = new Date(v);
+            return !isNaN(date.getTime());
+          }
+          return false;
+        });
+        if (dateSamples && dateSamples.length > 0) {
+          dataPattern = ' [PADRÃO: Datas/timestamps]';
+        }
+        
+        return `  - ${c.name} (${c.type})${samples ? `\n    Amostras: ${samples}` : ''}${sampleData ? `\n    Dados reais: ${sampleData}` : ''}${stats}${dataPattern}`;
       }).join('\n');
-      return `Tabela: ${t.name} (${t.rowCount} registros)\nColunas:\n${cols}`;
-    }).join('\n\n');
+      
+      const tableAnalysis = `
+Tabela: ${t.name}
+- Total de registros: ${t.rowCount.toLocaleString()}
+- Colunas numéricas: ${numericColumns.length}
+- Colunas de texto: ${textColumns.length}
+- Colunas de data: ${dateColumns.length}
+- Análise: ${t.rowCount > 1000 ? 'Grande volume de dados' : t.rowCount > 100 ? 'Volume médio' : 'Volume pequeno'}
+${numericColumns.length > 3 ? '- RICA EM MÉTRICAS: Esta tabela tem muitas colunas numéricas, ideal para KPIs' : ''}
+${t.name.toLowerCase().includes('view') || t.name.toLowerCase().includes('vw_') ? '- VIEW AGREGADA: Esta tabela provavelmente já tem dados processados' : ''}
 
-    const systemPrompt = `Você é um especialista em Business Intelligence e criação de dashboards executivos. Sua tarefa é analisar tabelas de banco de dados e criar mapeamentos inteligentes de colunas para métricas de dashboard.
+Colunas detalhadas:
+${cols}`;
+      
+      return tableAnalysis;
+    }).join('\n\n' + '='.repeat(80) + '\n\n');
 
-CONTEXTO:
-Você está analisando tabelas de um banco de dados para criar um dashboard de métricas de negócio. O objetivo é identificar automaticamente quais colunas representam KPIs importantes e mapeá-las para métricas padronizadas.
+    const systemPrompt = `Você é um ESPECIALISTA SÊNIOR em Business Intelligence, Analytics e criação de dashboards executivos. Sua missão é analisar profundamente tabelas de banco de dados e criar mapeamentos PERFEITOS e ASSERTIVOS de colunas para métricas de dashboard.
+
+CONTEXTO CRÍTICO:
+Você está analisando tabelas de um banco de dados para criar um dashboard executivo AUTOMÁTICO. O objetivo é:
+1. IDENTIFICAR com precisão quais colunas representam KPIs importantes
+2. MAPEAR corretamente para métricas padronizadas que funcionarão no dashboard
+3. PENSAR no dashboard final: como os dados serão visualizados, agregados e apresentados
+4. SER ASSERTIVO: tomar decisões claras baseadas em evidências múltiplas (nome + tipo + valores + padrões)
+
+IMPORTANTE: Você precisa pensar como um ANALISTA DE DADOS EXPERIENTE que:
+- Entende o contexto de negócio por trás dos dados
+- Identifica padrões e relacionamentos entre colunas
+- Prioriza métricas que realmente importam para decisões executivas
+- Garante que os mapeamentos resultarão em dashboards úteis e acionáveis
 
 MÉTRICAS PADRÃO DISPONÍVEIS (priorize estas, mas crie customizadas quando necessário):
 - total_leads: Total de registros/leads/contagem geral
@@ -134,63 +224,138 @@ TRANSFORMAÇÕES DISPONÍVEIS (escolha baseado no tipo e conteúdo):
 - date: Formatar como data (para campos temporais)
 - text: Texto simples (para categorias, status, nomes)
 
-ANÁLISE DETALHADA REQUERIDA:
-1. Analise os NOMES das colunas procurando por padrões (case-insensitive):
-   - Contagens: total, count, quantidade, qtd, leads, clientes, users, usuarios, registros
-   - Valores monetários: value, valor, amount, revenue, receita, mrr, spend, gasto, cost, custo, investimento, price, preco
-   - Taxas: rate, taxa, percent, conv, cpl, cpm, ctr, ratio, proporcao
-   - Datas: date, data, created, updated, timestamp, day, dia, hora, time
-   - Status/Estágios: status, stage, etapa, fase, state, estado, situacao
-   - Origens: source, origem, canal, channel, utm, medium, campaign
-   - Conversões: conversion, conversao, converted, convertido
-   - Mensagens: message, mensagem, msg, mensagens
-   - Reuniões: meeting, reuniao, reunioes, agendada, scheduled
+METODOLOGIA DE ANÁLISE (SIGA RIGOROSAMENTE):
 
-2. Analise os VALORES DE AMOSTRA e ESTATÍSTICAS:
-   - Se valores são numéricos grandes (>100) e têm decimais → currency (ex: 1250.50, 2500.00)
-   - Se valores são numéricos pequenos (0-100) e inteiros → pode ser contagem ou percentual
-   - Se valores estão entre 0-1 ou 0-100 → percentage
-   - Se valores são datas/timestamps válidos → date
-   - Se valores são texto categórico limitado → text, funnel_stage, ou lead_source
-   - Use as estatísticas (min, max, avg) para confirmar o tipo
+ETAPA 1: ANÁLISE ESTRUTURAL DAS TABELAS
+1. Identifique a TABELA PRINCIPAL (primaryTable):
+   - Views agregadas (vw_*, view_*) têm PRIORIDADE MÁXIMA
+   - Tabelas com "dashboard", "kpi", "summary", "metrics" no nome
+   - Tabelas com MAIS registros e MAIS colunas numéricas
+   - Tabelas que parecem ser a "fonte da verdade" do negócio
+   - EVITE tabelas de log, audit, ou transacionais muito granulares
 
-3. Analise o TIPO DE DADO do banco:
-   - numeric, integer, bigint, decimal, float, double → number ou currency
-   - text, varchar, char → text, funnel_stage, ou lead_source
-   - timestamp, date, datetime → date
-   - boolean → pode ser conversion ou status
+2. Analise o CONTEXTO DO NEGÓCIO:
+   - O que esta tabela representa? (leads, vendas, usuários, produtos?)
+   - Quais são as métricas mais importantes para este tipo de negócio?
+   - Quais colunas são essenciais para um dashboard executivo?
 
-4. Priorize tabelas que são VIEWS (vw_*, view_*) ou têm "dashboard", "kpi", "summary" no nome
-5. Priorize colunas com nomes descritivos e valores significativos (não nulos)
-6. Evite mapear IDs, UUIDs, ou campos técnicos (id, uuid, pk, fk, _id, _uuid)
-7. Se uma coluna tem poucos valores únicos (<10), pode ser categórica (funnel_stage, lead_source)
-8. Se uma coluna tem muitos valores únicos e é numérica, provavelmente é uma métrica (revenue, leads)
+ETAPA 2: ANÁLISE PROFUNDA DAS COLUNAS (para cada coluna):
 
-REGRAS DE QUALIDADE:
-1. Confidence (confiança) deve ser 70-100:
-   - 95-100: Mapeamento muito claro e óbvio (nome + tipo + valores confirmam)
-   - 85-94: Mapeamento provável com boa evidência (nome ou valores confirmam fortemente)
-   - 75-84: Mapeamento possível mas requer validação (evidência parcial)
-   - 70-74: Mapeamento sugerido mas incerto (pode ser útil)
+A) ANÁLISE DO NOME (case-insensitive, múltiplos padrões):
+   - Contagens: total, count, quantidade, qtd, leads, clientes, users, usuarios, registros, numero, num
+   - Valores monetários: value, valor, amount, revenue, receita, mrr, spend, gasto, cost, custo, investimento, price, preco, ticket, lucro, profit
+   - Taxas: rate, taxa, percent, conv, cpl, cpm, ctr, ratio, proporcao, porcentagem
+   - Datas: date, data, created, updated, timestamp, day, dia, hora, time, quando, inicio, fim
+   - Status/Estágios: status, stage, etapa, fase, state, estado, situacao, fase_atual
+   - Origens: source, origem, canal, channel, utm, medium, campaign, fonte, aquisicao
+   - Conversões: conversion, conversao, converted, convertido, convertido_em
+   - Mensagens: message, mensagem, msg, mensagens, chat, texto
+   - Reuniões: meeting, reuniao, reunioes, agendada, scheduled, call
+   - Novos/Recentes: new, novo, novos, recent, recente, latest, ultimo
 
-2. Retorne 10-25 mapeamentos, priorizando os mais importantes (KPIs primeiro)
-3. Ordene por relevância: revenue/receita > leads > conversions > rates > dates > outros
-4. Seja ESPECÍFICO na "reason" explicando:
-   - Por que o nome da coluna sugere essa métrica
-   - Como os valores de amostra confirmam o tipo
-   - Qual transformação é necessária e por quê
-   Exemplo: "Coluna 'total_revenue' com valores numéricos grandes (R$ 1.250-5.000) confirma receita total, requer formatação currency"
+B) ANÁLISE DOS VALORES (use TODAS as amostras e estatísticas):
+   - Valores numéricos GRANDES (>100) com decimais → currency (ex: 1250.50, 2500.00, 10000.99)
+   - Valores numéricos MÉDIOS (10-1000) inteiros → contagem (ex: 25, 150, 500)
+   - Valores numéricos PEQUENOS (0-100) → pode ser contagem OU percentual
+   - Valores entre 0-1 → percentage (taxa decimal)
+   - Valores entre 0-100 → percentage (taxa percentual) OU contagem pequena
+   - Valores com muitos decimais → currency ou medida precisa
+   - Valores inteiros sem decimais → contagem ou ID
+   - Muitos valores únicos → métrica individual (revenue por registro)
+   - Poucos valores únicos → categoria (funnel_stage, lead_source)
+   - Valores de data/timestamp válidos → date
+   - Texto com poucos valores únicos (<10) → categoria (funnel_stage, lead_source)
+   - Texto com muitos valores únicos → descrição/nome (não mapear)
 
-5. Identifique a melhor tabela principal (primaryTable) baseado em:
-   - Views agregadas (vw_*, view_*) têm prioridade máxima
-   - Tabelas com mais KPIs relevantes mapeados
-   - Tabelas com mais registros (rowCount alto)
-   - Tabelas com dados mais completos (menos nulos)
+C) ANÁLISE DO TIPO DE DADO:
+   - numeric, integer, bigint → number (contagem) ou currency (se valores grandes)
+   - decimal, float, double → currency (se >100) ou percentage (se 0-100)
+   - text, varchar, char → text, funnel_stage, ou lead_source (depende dos valores)
+   - timestamp, date, datetime → date (SEMPRE)
+   - boolean → conversion (se nome sugere) ou status
 
-6. IMPORTANTE: Se uma coluna pode ser mapeada para múltiplas métricas, escolha a mais específica:
-   - "total_leads" é melhor que "total" genérico
-   - "conversion_rate" é melhor que apenas "rate"
-   - "revenue" é melhor que "value" genérico
+D) ANÁLISE DE RELACIONAMENTOS:
+   - Se há coluna "created_date" + coluna numérica → pode ser evolução temporal
+   - Se há coluna "status" + coluna numérica → pode ser funil
+   - Se há coluna "source" + coluna numérica → pode ser análise por origem
+   - Se há múltiplas colunas monetárias → identifique qual é receita vs custo
+
+ETAPA 3: DECISÃO ASSERTIVA DE MAPEAMENTO
+1. Para cada coluna, avalie TODAS as evidências:
+   - Nome da coluna (peso: 40%)
+   - Valores de amostra e estatísticas (peso: 40%)
+   - Tipo de dado (peso: 10%)
+   - Contexto da tabela (peso: 10%)
+
+2. Seja DECISIVO:
+   - Se 3+ evidências apontam para uma métrica → confidence 95-100
+   - Se 2 evidências apontam → confidence 85-94
+   - Se 1 evidência aponta → confidence 75-84
+   - Se incerto mas útil → confidence 70-74
+
+3. PRIORIZE métricas que serão úteis no dashboard:
+   - Revenue/Receita é SEMPRE importante
+   - Leads são SEMPRE importantes
+   - Conversões são SEMPRE importantes
+   - Taxas são importantes para análise
+   - Datas são essenciais para gráficos temporais
+   - Categorias são essenciais para agrupamentos
+
+REGRAS DE QUALIDADE E ASSERTIVIDADE:
+
+1. CONFIDENCE (confiança) - Seja RIGOROSO:
+   - 98-100: Mapeamento PERFEITO - nome + tipo + valores + padrões TODOS confirmam (ex: coluna "total_revenue" numeric com valores 1000-50000)
+   - 95-97: Mapeamento EXCELENTE - 3+ evidências fortes confirmam
+   - 90-94: Mapeamento BOM - 2 evidências fortes confirmam
+   - 85-89: Mapeamento PROVÁVEL - evidência forte mas alguma incerteza
+   - 80-84: Mapeamento POSSÍVEL - evidência parcial, mas útil
+   - 75-79: Mapeamento SUGERIDO - pode ser útil, mas requer validação
+   - 70-74: Mapeamento INCERTO - última opção, apenas se necessário
+
+2. QUANTIDADE E QUALIDADE:
+   - Retorne 12-30 mapeamentos (mais é melhor se forem relevantes)
+   - PRIORIZE QUALIDADE sobre quantidade
+   - Cada mapeamento deve ser ÚTIL para o dashboard
+   - Evite mapeamentos redundantes (não mapeie a mesma coluna 2x)
+
+3. ORDENAÇÃO POR RELEVÂNCIA (KPIs primeiro):
+   - revenue/receita (mais importante para executivos)
+   - total_leads (essencial para vendas)
+   - conversions (essencial para performance)
+   - conversion_rate (importante para análise)
+   - mrr (importante para SaaS)
+   - new_leads (importante para crescimento)
+   - created_date (essencial para gráficos temporais)
+   - lead_source (importante para análise de canais)
+   - funnel_stage (importante para funis)
+   - outros...
+
+4. REASON (justificativa) - Seja DETALHADO e ESPECÍFICO:
+   - Explique TODAS as evidências que levaram à decisão
+   - Mencione nome da coluna, tipo, valores, padrões identificados
+   - Explique por que esta métrica é útil no dashboard
+   - Exemplo PERFEITO: "Coluna 'total_revenue' (tipo: numeric) com valores entre R$ 1.250-5.000 (média: R$ 2.450) e decimais confirma receita total. Nome explícito + valores monetários + tipo numérico = mapeamento perfeito para métrica 'revenue' com transformação 'currency'."
+
+5. PRIMARY TABLE (tabela principal) - Seja ESTRATÉGICO:
+   - Views agregadas (vw_*, view_*) têm PRIORIDADE ABSOLUTA
+   - Tabelas com mais KPIs mapeados
+   - Tabelas com mais registros (dados completos)
+   - Tabelas que parecem ser a "fonte da verdade"
+   - EVITE tabelas de log, audit, ou muito granulares
+
+6. ESPECIFICIDADE - Escolha SEMPRE a métrica mais específica:
+   - "total_leads" > "total" genérico
+   - "conversion_rate" > "rate" genérico
+   - "revenue" > "value" genérico
+   - "new_leads" > "leads" (se houver distinção)
+   - "mrr" > "revenue" (se for recorrente)
+
+7. PENSANDO NO DASHBOARD FINAL:
+   - Mapeie colunas que serão úteis em gráficos temporais (datas)
+   - Mapeie colunas que permitirão agrupamentos (categorias)
+   - Mapeie métricas que executivos querem ver (KPIs principais)
+   - Garanta que haverá dados suficientes para visualizações
+   - Pense em como os dados serão agregados (sum, count, avg)
 
 FORMATO DE RESPOSTA (JSON válido, sem markdown):
 {
@@ -218,7 +383,23 @@ FORMATO DE RESPOSTA (JSON válido, sem markdown):
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Analise estas tabelas e sugira os melhores mapeamentos para um dashboard de métricas:\n\n${tablesSummary}` }
+          { role: "user", content: `Analise PROFUNDAMENTE estas tabelas e crie mapeamentos PERFEITOS e ASSERTIVOS para um dashboard executivo.
+
+PENSE NO DASHBOARD FINAL:
+- Como os dados serão visualizados?
+- Quais métricas são mais importantes para decisões executivas?
+- Quais colunas permitirão criar gráficos úteis?
+- Quais agrupamentos serão possíveis?
+
+SEJA ASSERTIVO:
+- Tome decisões claras baseadas em múltiplas evidências
+- Priorize métricas que realmente importam
+- Garanta que os mapeamentos resultarão em um dashboard útil
+
+DADOS DAS TABELAS:
+${tablesSummary}
+
+Lembre-se: O objetivo é criar um dashboard que funcione PERFEITAMENTE apenas conectando a fonte de dados. Seja preciso, assertivo e pense no resultado final.` }
         ],
       }),
     });
@@ -352,12 +533,25 @@ function analyzeSampleValues(samples: unknown[]): { isNumeric: boolean; isCurren
   const avgValue = numericSamples.reduce((a, b) => a + b, 0) / numericSamples.length;
   const maxValue = Math.max(...numericSamples);
   const minValue = Math.min(...numericSamples);
+  const hasDecimals = numericSamples.some(v => v % 1 !== 0);
 
-  // Check if values look like currency (typically > 10, can have decimals)
-  const isCurrency = avgValue > 10 && numericSamples.some(v => v % 1 !== 0);
+  // Enhanced currency detection
+  // Currency: values > 10, often have decimals, typically in hundreds/thousands
+  const isCurrency = avgValue > 10 && (
+    hasDecimals || 
+    avgValue > 100 || 
+    (avgValue > 50 && maxValue > 200) // Large values even if integer
+  );
 
-  // Check if values look like percentages (0-100 or 0-1 range)
-  const isPercentage = (maxValue <= 100 && minValue >= 0) || (maxValue <= 1 && minValue >= 0);
+  // Enhanced percentage detection
+  // Percentage: 0-100 range OR 0-1 range, often with decimals
+  const isPercentage = (
+    (maxValue <= 100 && minValue >= 0 && avgValue <= 100) ||
+    (maxValue <= 1 && minValue >= 0 && avgValue <= 1)
+  ) && (
+    hasDecimals || // Percentages often have decimals
+    (maxValue <= 100 && minValue >= 0 && avgValue < 50) // Low values in 0-100 range
+  );
 
   return {
     isNumeric: true,
@@ -417,55 +611,121 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
       // Skip IDs and technical fields
       if (/^id$|^uuid$|^pk$|_id$|_uuid$/i.test(name) && type.includes('uuid')) continue;
 
-      // Lead/count metrics - improved detection
-      if (/total|count|quantidade|leads|clientes|users|registros|qtd/i.test(name) || 
-          (name.includes('_30d') || name.includes('_60d') || name.includes('_total'))) {
-        const isNewLeads = /new|novo|novos/i.test(name);
-        const confidence = sampleAnalysis.isNumeric 
-          ? (sampleAnalysis.numericValue && sampleAnalysis.numericValue > 0 && sampleAnalysis.numericValue < 1000000 ? 95 : 90)
-          : 85;
+      // Lead/count metrics - enhanced detection with multiple patterns
+      const isCountPattern = /total|count|quantidade|leads|clientes|users|registros|qtd|numero|num/i.test(name) || 
+          (name.includes('_30d') || name.includes('_60d') || name.includes('_total') || name.includes('_count'));
+      
+      if (isCountPattern) {
+        const isNewLeads = /new|novo|novos|recent|recente|latest|ultimo/i.test(name);
+        const isTotalLeads = /total|total_leads|total_lead/i.test(name);
+        
+        let confidence = 85;
+        let targetMetric = 'total_leads';
+        
+        // Determine metric type
+        if (isNewLeads) {
+          targetMetric = 'new_leads';
+          confidence = 92;
+        } else if (isTotalLeads) {
+          targetMetric = 'total_leads';
+          confidence = 95;
+        } else if (/lead/i.test(name)) {
+          targetMetric = 'total_leads';
+          confidence = 90;
+        }
+        
+        // Boost confidence based on value analysis
+        if (sampleAnalysis.isNumeric) {
+          if (sampleAnalysis.numericValue && sampleAnalysis.numericValue > 0 && sampleAnalysis.numericValue < 1000000) {
+            confidence = Math.min(98, confidence + 5);
+          }
+          // If values are integers and reasonable counts, boost confidence
+          if (!sampleAnalysis.isCurrency && !sampleAnalysis.isPercentage && 
+              sampleAnalysis.numericValue && sampleAnalysis.numericValue > 0 && sampleAnalysis.numericValue < 10000) {
+            confidence = Math.min(97, confidence + 3);
+          }
+        }
+        
         suggestions.push({
           sourceField: column.name,
           sourceTable: table.name,
-          targetMetric: isNewLeads ? 'new_leads' : 'total_leads',
+          targetMetric,
           transformation: 'number',
           confidence,
-          reason: `${isNewLeads ? 'Novos leads' : 'Total de leads'} identificado pelo nome da coluna${sampleAnalysis.isNumeric ? ` e valores numéricos confirmam (${sampleAnalysis.numericValue?.toFixed(0)} em média)` : ''}`,
+          reason: `${isNewLeads ? 'Novos leads' : 'Total de leads'} identificado: nome "${column.name}"${sampleAnalysis.isNumeric ? ` + valores numéricos confirmam (média: ${sampleAnalysis.numericValue?.toFixed(0)})` : ''}${type.includes('int') ? ' + tipo integer confirma contagem' : ''}`,
         });
       }
 
-      // Revenue/value metrics - improved with sample analysis
-      if (/value|valor|amount|revenue|receita|mrr|spend|gasto|cost|custo|investimento|investment|price|preco/i.test(name) ||
-          (sampleAnalysis.isCurrency && sampleAnalysis.numericValue && sampleAnalysis.numericValue > 10)) {
+      // Revenue/value metrics - enhanced detection with multiple evidence
+      const isMonetaryPattern = /value|valor|amount|revenue|receita|mrr|spend|gasto|cost|custo|investimento|investment|price|preco|ticket|lucro|profit|venda|sale/i.test(name);
+      const isCurrencyByValue = sampleAnalysis.isCurrency && sampleAnalysis.numericValue && sampleAnalysis.numericValue > 10;
+      
+      if (isMonetaryPattern || isCurrencyByValue) {
         let targetMetric = 'revenue';
-        let confidence = 90;
+        let confidence = 88;
         
-        if (/mrr|recurring|recorrente/i.test(name)) {
+        // Determine specific metric type
+        if (/mrr|recurring|recorrente|mensal/i.test(name)) {
           targetMetric = 'mrr';
-          confidence = sampleAnalysis.isCurrency ? 97 : 95;
-        } else if (/spend|gasto|investimento|investment|cost|custo/i.test(name)) {
-          targetMetric = name.includes('cpl') ? 'cpl' : name.includes('cpm') ? 'cpm' : 'investimento';
-          confidence = sampleAnalysis.isCurrency ? 95 : 92;
-        } else if (/revenue|receita/i.test(name)) {
+          confidence = sampleAnalysis.isCurrency ? 98 : 95;
+        } else if (/spend|gasto|investimento|investment|cost|custo|despesa/i.test(name)) {
+          if (/cpl|cost_per_lead/i.test(name)) {
+            targetMetric = 'cpl';
+            confidence = sampleAnalysis.isCurrency ? 96 : 93;
+          } else if (/cpm|cost_per_meeting/i.test(name)) {
+            targetMetric = 'cpm';
+            confidence = sampleAnalysis.isCurrency ? 96 : 93;
+          } else {
+            targetMetric = 'investimento';
+            confidence = sampleAnalysis.isCurrency ? 95 : 92;
+          }
+        } else if (/revenue|receita|faturamento/i.test(name)) {
           targetMetric = 'revenue';
+          confidence = sampleAnalysis.isCurrency ? 97 : 94;
+        } else if (/ticket|ticket_medio|avg_ticket/i.test(name)) {
+          targetMetric = 'avg_ticket';
           confidence = sampleAnalysis.isCurrency ? 96 : 93;
-        } else if (/value|valor|amount|price|preco/i.test(name)) {
+        } else if (/value|valor|amount|price|preco|venda|sale/i.test(name)) {
           targetMetric = 'revenue';
-          confidence = sampleAnalysis.isCurrency ? 94 : 90;
-        } else if (sampleAnalysis.isCurrency) {
-          // Detected as currency by values but name doesn't match
+          confidence = sampleAnalysis.isCurrency ? 95 : 91;
+        } else if (isCurrencyByValue) {
+          // Detected as currency by values but name doesn't match - still likely revenue
           targetMetric = 'revenue';
-          confidence = 88;
+          confidence = 90;
         }
 
-        const transformation = sampleAnalysis.isCurrency || (sampleAnalysis.numericValue && sampleAnalysis.numericValue > 10) ? 'currency' : 'number';
+        // Boost confidence if multiple evidence points match
+        if (isMonetaryPattern && isCurrencyByValue) {
+          confidence = Math.min(99, confidence + 3);
+        }
+        
+        // Ensure transformation is currency for monetary values
+        const transformation = (sampleAnalysis.isCurrency || (sampleAnalysis.numericValue && sampleAnalysis.numericValue > 50)) ? 'currency' : 'number';
+        
+        // Get numeric values for detailed reason
+        const numericVals = samples.filter(v => {
+          if (typeof v === 'number') return true;
+          if (typeof v === 'string') {
+            const cleaned = v.replace(/,/g, '.').replace(/[R$\s%]/g, '');
+            return !isNaN(parseFloat(cleaned));
+          }
+          return false;
+        }).map(v => {
+          if (typeof v === 'number') return v;
+          const cleaned = String(v).replace(/,/g, '.').replace(/[R$\s%]/g, '');
+          return parseFloat(cleaned);
+        }).filter(n => !isNaN(n));
+        
+        const minVal = numericVals.length > 0 ? Math.min(...numericVals) : 0;
+        const maxVal = numericVals.length > 0 ? Math.max(...numericVals) : 0;
+        
         suggestions.push({
           sourceField: column.name,
           sourceTable: table.name,
           targetMetric,
           transformation,
           confidence,
-          reason: `Campo monetário identificado${sampleAnalysis.isCurrency ? ` (valores confirmam: R$ ${sampleAnalysis.numericValue?.toFixed(2)} em média)` : ' (nome sugere valor monetário)'}`,
+          reason: `Campo monetário identificado: nome "${column.name}"${sampleAnalysis.isCurrency && numericVals.length > 0 ? ` + valores confirmam (R$ ${sampleAnalysis.numericValue?.toFixed(2)} em média, min: ${minVal.toFixed(2)}, max: ${maxVal.toFixed(2)})` : ''}${type.includes('numeric') || type.includes('decimal') ? ' + tipo numérico confirma' : ''}`,
         });
       }
 

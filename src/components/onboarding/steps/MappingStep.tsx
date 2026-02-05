@@ -166,17 +166,18 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
     setSuggestionStates({});
     
     try {
+      // Prepare comprehensive data for AI analysis
       const tablesData = tables.map(t => ({
         name: t.name,
         rowCount: t.rowCount,
         columns: t.columns.map(c => ({ 
           name: c.name, 
           type: c.type,
-          // Send more samples for better analysis (5-10 values)
-          sampleValues: c.sampleValues?.slice(0, 10) || [],
+          // Send maximum samples for deep analysis (15-20 values)
+          sampleValues: c.sampleValues?.slice(0, 20) || [],
         })),
-        // Send more sample rows for better context
-        sampleData: t.sampleData?.slice(0, 5) || [],
+        // Send more sample rows for better context understanding (10 rows)
+        sampleData: t.sampleData?.slice(0, 10) || [],
       }));
 
       const { data, error } = await supabase.functions.invoke('suggest-mappings', {

@@ -90,61 +90,73 @@ export class DataProfiler {
         const recommendations: RecommendedWidget[] = [];
         const sorted = [...profiledColumns].sort((a, b) => b.relevance - a.relevance);
 
-        // 1. Metric Cards (Available for all plans, but more for higher tiers)
-        const metricsCount = plan === 5 ? 6 : plan >= 3 ? 4 : 2;
+        // 1. Metric Cards - All metrics available for all plans
         const metrics = sorted.filter(c => c.type === 'number');
-        metrics.slice(0, metricsCount).forEach(metric => {
+        metrics.forEach(metric => {
             recommendations.push({
                 type: 'metric_card',
                 title: `Total de ${metric.name}`,
                 description: `Visão consolidada baseada na coluna ${metric.name}.`,
                 config: { metric: metric.name, aggregation: 'sum' },
-                width: plan >= 3 ? 2 : 3,
+                width: 2,
                 height: 1
             });
         });
 
-        // 2. Charts (Plan-based complexity)
+        // 2. Charts - All chart types available for all plans
         const dateCol = sorted.find(c => c.type === 'date');
         const valueCol = sorted.find(c => c.type === 'number');
 
         if (dateCol && valueCol) {
+            // Add both area and line charts
             recommendations.push({
-                type: plan >= 4 ? 'area_chart' : 'line_chart',
-                title: `Tendência de ${valueCol.name}`,
-                description: `Evolução temporal de ${valueCol.name}.`,
+                type: 'area_chart',
+                title: `Tendência de ${valueCol.name} (Área)`,
+                description: `Evolução temporal de ${valueCol.name} com preenchimento gradiente.`,
+                config: { metric: valueCol.name, dataSource: dateCol.name },
+                width: 6,
+                height: 2
+            });
+            recommendations.push({
+                type: 'line_chart',
+                title: `Tendência de ${valueCol.name} (Linha)`,
+                description: `Evolução temporal de ${valueCol.name} em linha.`,
                 config: { metric: valueCol.name, dataSource: dateCol.name },
                 width: 6,
                 height: 2
             });
         }
 
-        // 3. Category distribution (Plan filter)
-        if (plan >= 2) {
-            const categoryCol = sorted.find(c => c.type === 'category' || c.type === 'string');
-            if (categoryCol) {
-                recommendations.push({
-                    type: plan >= 4 ? 'bar_chart' : 'pie_chart',
-                    title: `Distribuição por ${categoryCol.name}`,
-                    description: `Análise de segmentos por ${categoryCol.name}.`,
-                    config: { metric: 'count', dataSource: categoryCol.name },
-                    width: plan === 5 ? 4 : 6,
-                    height: 2
-                });
-            }
-        }
-
-        // 4. Premium AI Insights (Plan >= 3)
-        if (plan >= 3) {
+        // 3. Category distribution - Available for all plans
+        const categoryCol = sorted.find(c => c.type === 'category' || c.type === 'string');
+        if (categoryCol) {
             recommendations.push({
-                type: 'insight_card',
-                title: 'Análise de Inteligência',
-                description: 'Insights automáticos gerados pelo cérebro da plataforma.',
-                config: {},
-                width: 12,
+                type: 'bar_chart',
+                title: `Distribuição por ${categoryCol.name} (Barras)`,
+                description: `Análise de segmentos por ${categoryCol.name} em barras.`,
+                config: { metric: 'count', dataSource: categoryCol.name },
+                width: 6,
+                height: 2
+            });
+            recommendations.push({
+                type: 'pie_chart',
+                title: `Distribuição por ${categoryCol.name} (Pizza)`,
+                description: `Análise de segmentos por ${categoryCol.name} em pizza.`,
+                config: { metric: 'count', dataSource: categoryCol.name },
+                width: 6,
                 height: 2
             });
         }
+
+        // 4. AI Insights - Available for all plans
+        recommendations.push({
+            type: 'insight_card',
+            title: 'Análise de Inteligência',
+            description: 'Insights automáticos gerados pelo cérebro da plataforma.',
+            config: {},
+            width: 12,
+            height: 2
+        });
 
         return recommendations;
     }

@@ -26,17 +26,7 @@ interface RecommendationResponse {
   error?: string;
 }
 
-// Widget plan restrictions
-const WIDGET_PLAN_RESTRICTIONS: Record<WidgetType, number> = {
-  metric_card: 1,
-  area_chart: 1,
-  bar_chart: 1,
-  table: 1,
-  line_chart: 2,
-  pie_chart: 2,
-  funnel: 2,
-  insight_card: 3,
-};
+// Widget plan restrictions - REMOVED: All widgets available for all plans
 
 export function useWidgetRecommendations({
   orgId,
@@ -77,13 +67,8 @@ export function useWidgetRecommendations({
         throw new Error(data?.error || 'Erro ao buscar recomendações');
       }
 
-      // Filter recommendations by plan
-      const filteredRecommendations = data.recommendations.filter(
-        (rec) => WIDGET_PLAN_RESTRICTIONS[rec.type as WidgetType] <= plan
-      );
-
-      // Sort by score (highest first)
-      return filteredRecommendations.sort((a, b) => b.score - a.score);
+      // Sort by score (highest first) - No plan restrictions
+      return data.recommendations.sort((a, b) => b.score - a.score);
     },
     enabled: enabled && mappings.length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -171,41 +156,38 @@ export function generateLocalRecommendations(
       basedOn: 'Dados temporais detectados no mapeamento',
     });
 
-    if (plan >= 2) {
-      recommendations.push({
-        type: 'line_chart',
-        title: 'Tendência de Conversões',
-        description: 'Linha mostrando a evolução das conversões ao longo do tempo.',
-        score: 82,
-        config: {
-          showGrid: true,
-          animate: true,
-          curveType: 'smooth',
-        },
-        basedOn: 'Dados temporais detectados no mapeamento',
-      });
-    }
+    // Line chart - available for all plans
+    recommendations.push({
+      type: 'line_chart',
+      title: 'Tendência de Conversões',
+      description: 'Linha mostrando a evolução das conversões ao longo do tempo.',
+      score: 82,
+      config: {
+        showGrid: true,
+        animate: true,
+        curveType: 'smooth',
+      },
+      basedOn: 'Dados temporais detectados no mapeamento',
+    });
   }
 
-  // Categorical charts
+  // Categorical charts - available for all plans
   if (metricTypes.has('lead_source')) {
-    if (plan >= 2) {
-      recommendations.push({
-        type: 'pie_chart',
-        title: 'Distribuição por Origem',
-        description: 'Gráfico de pizza mostrando a proporção de leads por canal de aquisição.',
-        score: 87,
-        config: {
-          showLabels: true,
-          innerRadius: 60,
-        },
-        basedOn: 'Mapeamento detectado: lead_source (dados categóricos)',
-      });
-    }
+    recommendations.push({
+      type: 'pie_chart',
+      title: 'Distribuição por Origem',
+      description: 'Gráfico de pizza mostrando a proporção de leads por canal de aquisição.',
+      score: 87,
+      config: {
+        showLabels: true,
+        innerRadius: 60,
+      },
+      basedOn: 'Mapeamento detectado: lead_source (dados categóricos)',
+    });
   }
 
-  // Funnel
-  if (plan >= 2 && (metricTypes.has('funnel_stage') || (metricTypes.has('total_leads') && metricTypes.has('conversions')))) {
+  // Funnel - available for all plans
+  if (metricTypes.has('funnel_stage') || (metricTypes.has('total_leads') && metricTypes.has('conversions'))) {
     recommendations.push({
       type: 'funnel',
       title: 'Funil de Vendas',
@@ -245,22 +227,18 @@ export function generateLocalRecommendations(
     basedOn: 'Widget padrão: tabela de dados detalhados',
   });
 
-  // AI Insight (plan 3+)
-  if (plan >= 3) {
-    recommendations.push({
-      type: 'insight_card',
-      title: 'Insights IA',
-      description: 'Análises e recomendações inteligentes geradas automaticamente por IA.',
-      score: 75,
-      config: {
-        animate: true,
-      },
-      basedOn: 'Funcionalidade IA disponível no plano',
-    });
-  }
+  // AI Insight - available for all plans
+  recommendations.push({
+    type: 'insight_card',
+    title: 'Insights IA',
+    description: 'Análises e recomendações inteligentes geradas automaticamente por IA.',
+    score: 75,
+    config: {
+      animate: true,
+    },
+    basedOn: 'Funcionalidade IA disponível para todos os planos',
+  });
 
-  // Filter by plan and sort
-  return recommendations
-    .filter((rec) => WIDGET_PLAN_RESTRICTIONS[rec.type] <= plan)
-    .sort((a, b) => b.score - a.score);
+  // Sort by score - No plan restrictions
+  return recommendations.sort((a, b) => b.score - a.score);
 }
