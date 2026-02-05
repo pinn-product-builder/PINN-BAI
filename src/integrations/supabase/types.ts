@@ -450,6 +450,50 @@ export type Database = {
           },
         ]
       }
+      saved_custom_metrics: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_label: string
+          id: string
+          metric_name: string
+          org_id: string | null
+          transformation: string | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_label: string
+          id?: string
+          metric_name: string
+          org_id?: string | null
+          transformation?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_label?: string
+          id?: string
+          metric_name?: string
+          org_id?: string | null
+          transformation?: string | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_custom_metrics_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       selected_tables: {
         Row: {
           column_types: Json | null
