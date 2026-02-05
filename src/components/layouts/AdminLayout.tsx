@@ -9,6 +9,7 @@ import {
   LogOut,
   Activity,
   LayoutDashboard,
+  Gauge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,7 @@ const navItems = [
   { path: '/admin/hq', label: 'Pinn Command', icon: LayoutDashboard },
   { path: '/admin/organizations', label: 'Organizações', icon: Building2 },
   { path: '/admin/templates', label: 'Templates', icon: LayoutTemplate },
+  { path: '/admin/custom-metrics', label: 'Métricas', icon: Gauge },
   { path: '/admin/users', label: 'Usuários', icon: Users },
   { path: '/admin/activity', label: 'Atividade', icon: Activity },
   { path: '/admin/settings', label: 'Configurações', icon: Settings },
