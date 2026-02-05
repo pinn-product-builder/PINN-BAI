@@ -107,8 +107,8 @@ const WidgetRecommendationList = ({
 
   if (isError) {
     return (
-      <div className="text-center py-8 px-4 bg-red-500/5 rounded-lg border border-red-500/20">
-        <XCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+      <div className="text-center py-8 px-4 bg-destructive/5 rounded-lg border border-destructive/20">
+        <XCircle className="w-10 h-10 text-destructive mx-auto mb-3" />
         <h3 className="font-medium text-foreground mb-1">Erro ao carregar recomendações</h3>
         <p className="text-sm text-muted-foreground mb-4">
           Não foi possível analisar seus dados. Tente novamente.
@@ -151,7 +151,7 @@ const WidgetRecommendationList = ({
             size="sm"
             onClick={acceptAll}
             disabled={stats.pending === 0 && stats.rejected === 0}
-            className="text-green-600 hover:text-green-700 hover:bg-green-500/10"
+            className="text-success hover:text-success hover:bg-success/10"
           >
             <CheckCircle2 className="w-4 h-4 mr-1" />
             Aceitar Todos
@@ -161,7 +161,7 @@ const WidgetRecommendationList = ({
             size="sm"
             onClick={rejectAll}
             disabled={stats.accepted === 0 && stats.pending === 0}
-            className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
           >
             <XCircle className="w-4 h-4 mr-1" />
             Limpar
@@ -172,19 +172,19 @@ const WidgetRecommendationList = ({
       {/* Stats */}
       <div className="flex items-center gap-4 text-sm">
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-green-500" />
+          <div className="w-2 h-2 rounded-full bg-success" />
           <span className="text-muted-foreground">
             Aceitos: <strong className="text-foreground">{stats.accepted}</strong>
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-amber-500" />
+          <div className="w-2 h-2 rounded-full bg-warning" />
           <span className="text-muted-foreground">
             Pendentes: <strong className="text-foreground">{stats.pending}</strong>
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-red-500" />
+          <div className="w-2 h-2 rounded-full bg-destructive" />
           <span className="text-muted-foreground">
             Rejeitados: <strong className="text-foreground">{stats.rejected}</strong>
           </span>
@@ -210,16 +210,16 @@ const WidgetRecommendationList = ({
         <div className={cn(
           'p-4 rounded-lg border flex items-start gap-3',
           stats.accepted === 0 
-            ? 'bg-red-500/5 border-red-500/20' 
-            : 'bg-amber-500/5 border-amber-500/20'
+            ? 'bg-destructive/5 border-destructive/20' 
+            : 'bg-warning/5 border-warning/20'
         )}>
           <div className={cn(
             'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
-            stats.accepted === 0 ? 'bg-red-500/10' : 'bg-amber-500/10'
+            stats.accepted === 0 ? 'bg-destructive/10' : 'bg-warning/10'
           )}>
             <span className={cn(
               'text-sm font-bold',
-              stats.accepted === 0 ? 'text-red-600' : 'text-amber-600'
+              stats.accepted === 0 ? 'text-destructive' : 'text-warning'
             )}>
               {stats.accepted}
             </span>
@@ -227,7 +227,7 @@ const WidgetRecommendationList = ({
           <div>
             <p className={cn(
               'text-sm font-medium',
-              stats.accepted === 0 ? 'text-red-700' : 'text-amber-700'
+              stats.accepted === 0 ? 'text-destructive' : 'text-warning'
             )}>
               {stats.accepted === 0 
                 ? 'Nenhum widget selecionado' 

@@ -40,32 +40,32 @@ const INTEGRATION_TYPES = [
     name: 'Supabase',
     description: 'Banco de dados PostgreSQL',
     icon: Database,
-    color: 'text-emerald-500',
-    bgColor: 'bg-emerald-500/10',
+    color: 'text-success',
+    bgColor: 'bg-success/10',
   },
   {
     type: 'google_sheets' as IntegrationType,
     name: 'Google Sheets',
     description: 'Planilha do Google',
     icon: FileSpreadsheet,
-    color: 'text-green-500',
-    bgColor: 'bg-green-500/10',
+    color: 'text-success',
+    bgColor: 'bg-success/10',
   },
   {
     type: 'csv' as IntegrationType,
     name: 'Upload CSV',
     description: 'Arquivo local',
     icon: FileUp,
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-500/10',
+    color: 'text-info',
+    bgColor: 'bg-info/10',
   },
   {
     type: 'api' as IntegrationType,
     name: 'API Externa',
     description: 'REST API endpoint',
     icon: Globe,
-    color: 'text-purple-500',
-    bgColor: 'bg-purple-500/10',
+    color: 'text-accent',
+    bgColor: 'bg-accent/10',
   },
 ];
 
@@ -422,14 +422,14 @@ const IntegrationStep = ({ integration, onUpdate }: IntegrationStepProps) => {
         </div>
 
         {/* Connection Status */}
-        <div className="p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+        <div className="p-4 bg-success/10 rounded-lg border border-success/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <Check className="w-5 h-5 text-emerald-500" />
+              <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center">
+                <Check className="w-5 h-5 text-success" />
               </div>
               <div>
-                <p className="font-medium text-emerald-600">
+                <p className="font-medium text-success">
                   {integration.name} conectado com sucesso!
                 </p>
                 <p className="text-sm text-muted-foreground">

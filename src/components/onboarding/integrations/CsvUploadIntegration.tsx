@@ -62,9 +62,9 @@ const CsvUploadIntegration = ({ onConnect, isConnecting }: CsvUploadIntegrationP
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="p-4 bg-blue-500/5 rounded-lg border border-blue-500/20">
+      <div className="p-4 bg-info/5 rounded-lg border border-info/20">
         <div className="flex items-start gap-3">
-          <FileUp className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+          <FileUp className="w-5 h-5 text-info shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-foreground">Upload de Arquivo CSV</p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -97,8 +97,8 @@ const CsvUploadIntegration = ({ onConnect, isConnecting }: CsvUploadIntegrationP
         
         {file ? (
           <div className="flex items-center justify-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <File className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
+              <File className="w-5 h-5 text-info" />
             </div>
             <div className="text-left">
               <p className="font-medium text-foreground">{file.name}</p>
@@ -170,7 +170,7 @@ const CsvUploadIntegration = ({ onConnect, isConnecting }: CsvUploadIntegrationP
         <Button
           type="submit"
           disabled={!file || isConnecting}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+          className="bg-info hover:bg-info/90 text-info-foreground"
         >
           {isConnecting ? (
             <>

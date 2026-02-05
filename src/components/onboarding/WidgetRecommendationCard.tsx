@@ -42,9 +42,9 @@ const WIDGET_ICONS: Record<WidgetType, React.ComponentType<{ className?: string 
 };
 
 const getScoreColor = (score: number): string => {
-  if (score >= 90) return 'bg-green-500/10 text-green-600 border-green-500/30';
-  if (score >= 80) return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
-  if (score >= 70) return 'bg-amber-500/10 text-amber-600 border-amber-500/30';
+  if (score >= 90) return 'bg-success/10 text-success border-success/30';
+  if (score >= 80) return 'bg-info/10 text-info border-info/30';
+  if (score >= 70) return 'bg-warning/10 text-warning border-warning/30';
   return 'bg-muted text-muted-foreground';
 };
 
@@ -52,26 +52,26 @@ const getStatusStyles = (status: RecommendationStatus) => {
   switch (status) {
     case 'accepted':
       return {
-        border: 'border-green-500/50 bg-green-500/5',
-        badge: 'bg-green-500 text-white',
+        border: 'border-success/50 bg-success/5',
+        badge: 'bg-success text-success-foreground',
         badgeText: 'Aceito',
       };
     case 'rejected':
       return {
-        border: 'border-red-500/30 bg-muted/50 opacity-60',
-        badge: 'bg-red-500/20 text-red-600',
+        border: 'border-destructive/30 bg-muted/50 opacity-60',
+        badge: 'bg-destructive/20 text-destructive',
         badgeText: 'Rejeitado',
       };
     case 'customized':
       return {
-        border: 'border-blue-500/50 bg-blue-500/5',
-        badge: 'bg-blue-500 text-white',
+        border: 'border-info/50 bg-info/5',
+        badge: 'bg-info text-info-foreground',
         badgeText: 'Customizado',
       };
     default:
       return {
-        border: 'border-amber-500/30 bg-amber-500/5',
-        badge: 'bg-amber-500/20 text-amber-700',
+        border: 'border-warning/30 bg-warning/5',
+        badge: 'bg-warning/20 text-warning',
         badgeText: 'Pendente',
       };
   }
@@ -101,12 +101,12 @@ const WidgetRecommendationCard = ({
         {/* Icon */}
         <div className={cn(
           'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
-          status === 'accepted' ? 'bg-green-500/10' : 
+          status === 'accepted' ? 'bg-success/10' : 
           status === 'rejected' ? 'bg-muted' : 'bg-accent/10'
         )}>
           <Icon className={cn(
             'w-5 h-5',
-            status === 'accepted' ? 'text-green-600' :
+            status === 'accepted' ? 'text-success' :
             status === 'rejected' ? 'text-muted-foreground' : 'text-accent'
           )} />
         </div>
@@ -164,7 +164,7 @@ const WidgetRecommendationCard = ({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+                className="h-8 w-8 p-0 text-success hover:text-success hover:bg-success/10"
                 onClick={onAccept}
               >
                 <Check className="w-4 h-4" />
@@ -173,7 +173,7 @@ const WidgetRecommendationCard = ({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={onReject}
               >
                 <X className="w-4 h-4" />
@@ -183,7 +183,7 @@ const WidgetRecommendationCard = ({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 w-8 p-0 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                  className="h-8 w-8 p-0 text-info hover:text-info hover:bg-info/10"
                   onClick={onCustomize}
                 >
                   <Settings className="w-4 h-4" />
@@ -197,7 +197,7 @@ const WidgetRecommendationCard = ({
             <Button
               size="sm"
               variant="ghost"
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-red-500"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
               onClick={onReject}
             >
               Remover
@@ -208,7 +208,7 @@ const WidgetRecommendationCard = ({
             <Button
               size="sm"
               variant="ghost"
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-green-600"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-success"
               onClick={onAccept}
             >
               Restaurar

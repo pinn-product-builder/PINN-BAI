@@ -97,17 +97,27 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
         rowHeight = 0;
       }
 
+      // Find relevant mappings for this widget based on basedOn field
+      const relevantMappings = mappings.filter(m => 
+        rec.basedOn.toLowerCase().includes(m.targetMetric.toLowerCase()) ||
+        rec.basedOn.toLowerCase().includes(m.sourceTable.toLowerCase())
+      );
+
+      // If no specific match, use all mappings (widget will use first table)
+      const widgetMappings = relevantMappings.length > 0 ? relevantMappings : mappings.slice(0, 1);
+
       const widget: DashboardWidgetConfig = {
         id: `widget-${rec.type}-${index}`,
         type: rec.type as DashboardWidgetType,
         title: rec.title,
         description: rec.description,
         position: { x: xPos, y: yPos, ...size },
-        dataMapping: mappings.filter(m => 
-          rec.basedOn.toLowerCase().includes(m.targetMetric.toLowerCase())
-        ),
+        dataMapping: widgetMappings,
         config: {
           ...rec.config,
+          // Include data source from mapping for dynamic dashboard
+          dataSource: widgetMappings[0]?.sourceTable || null,
+          metric: widgetMappings[0]?.targetMetric || null,
           animate: true,
           showTooltip: true,
         },
@@ -137,11 +147,11 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
       {/* Header */}
       <div>
         <h2 className="text-xl font-semibold text-foreground mb-2">
-          Preview do Dashboard
+          Pré-visualização do Dashboard
         </h2>
         <p className="text-muted-foreground">
-          Baseado nos seus mapeamentos, sugerimos os widgets mais adequados. 
-          Aceite, rejeite ou customize cada recomendação.
+          Baseado nos mapeamentos, sugerimos os widgets mais adequados. 
+          Cada gráfico está vinculado à sua tabela de origem.
         </p>
       </div>
 
@@ -159,16 +169,16 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
       {widgets.length > 0 && (
         <>
           <div className="flex items-center justify-between pt-4 border-t">
-            <div className="flex items-center gap-2 p-3 flex-1 bg-amber-500/10 rounded-lg border border-amber-500/20">
-              <Eye className="w-4 h-4 text-amber-500 shrink-0" />
-              <p className="text-sm text-amber-600">
-                <strong>Preview com dados simulados</strong> - Os gráficos serão atualizados com dados reais após a integração.
+            <div className="flex items-center gap-2 p-3 flex-1 bg-warning/10 rounded-lg border border-warning/20">
+              <Eye className="w-4 h-4 text-warning shrink-0" />
+              <p className="text-sm text-warning">
+                <strong>Pré-visualização com dados simulados</strong> — Os gráficos serão atualizados com dados reais após a integração.
               </p>
             </div>
             
             <div className="flex items-center gap-2 ml-4">
               <Label htmlFor="show-preview" className="text-sm text-muted-foreground">
-                Mostrar Preview
+                Mostrar Pré-visualização
               </Label>
               <Switch
                 id="show-preview"
@@ -184,7 +194,7 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
               <div className="p-4 border-b bg-card flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-accent" />
-                  <span className="font-medium">Dashboard Preview</span>
+                  <span className="font-medium text-foreground">Pré-visualização do Dashboard</span>
                 </div>
                 <Badge variant="outline">{widgets.length} widgets</Badge>
               </div>
