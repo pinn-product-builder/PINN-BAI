@@ -27,9 +27,9 @@ const GoogleSheetsIntegration = ({ onConnect, isConnecting }: GoogleSheetsIntegr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="p-4 bg-green-500/5 rounded-lg border border-green-500/20">
+      <div className="p-4 bg-success/5 rounded-lg border border-success/20">
         <div className="flex items-start gap-3">
-          <FileSpreadsheet className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+          <FileSpreadsheet className="w-5 h-5 text-success shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-foreground">Conectar ao Google Sheets</p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -95,7 +95,7 @@ const GoogleSheetsIntegration = ({ onConnect, isConnecting }: GoogleSheetsIntegr
         <Button
           type="submit"
           disabled={!isValid || isConnecting}
-          className="bg-green-600 hover:bg-green-700 text-white"
+          className="bg-success hover:bg-success/90 text-success-foreground"
         >
           {isConnecting ? (
             <>

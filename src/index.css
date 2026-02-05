@@ -17,9 +17,9 @@
     --card: 0 0% 5%;
     --card-foreground: 0 0% 100%;
 
-    /* Popover/Dropdown surfaces */
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    /* Popover/Dropdown surfaces - Same as card for consistency */
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 100%;
 
     /* Primary - Pinn Luminous Orange */
     --primary: 25 100% 50%;
@@ -27,12 +27,12 @@
     --primary-foreground: 0 0% 100%;
 
     /* Secondary - Slate Gray */
-    --secondary: 215 20% 94%;
-    --secondary-foreground: 222 47% 20%;
+    --secondary: 222 47% 15%;
+    --secondary-foreground: 210 40% 96%;
 
     /* Muted - Subtle backgrounds */
-    --muted: 215 20% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 222 47% 12%;
+    --muted-foreground: 215 20% 65%;
 
     /* Accent - Pinn Amber Glow */
     --accent: 38 100% 50%;
@@ -55,10 +55,10 @@
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
-    /* Borders and inputs */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
+    /* Borders and inputs - Darker for dark theme */
+    --border: 222 47% 18%;
+    --input: 222 47% 18%;
+    --ring: 38 100% 50%;
 
     --radius: 0.5rem;
 
