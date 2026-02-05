@@ -306,7 +306,38 @@ export const useApplyTemplate = () => {
       // Create widgets based on template with injected dataSource
       const widgetsToCreate = templateWidgets.map((tw, index) => {
         const templateMetric = (tw.config as Record<string, unknown>)?.metric as string | undefined;
-        const mapping = templateMetric && metricMappings ? metricMappings[templateMetric] : null;
+        let mapping = templateMetric && metricMappings ? metricMappings[templateMetric] : null;
+        
+        // If no mapping found, try to infer from widget title
+        if (!mapping && tw.title) {
+          const titleLower = tw.title.toLowerCase();
+          
+          // Try to find matching mapping by target metric name
+          const matchingMapping = Object.entries(metricMappings || {}).find(([targetMetric]) => {
+            const metricLower = targetMetric.toLowerCase();
+            return (
+              titleLower.includes(metricLower) ||
+              (titleLower.includes('lead') && metricLower.includes('lead')) ||
+              (titleLower.includes('receita') && metricLower.includes('revenue')) ||
+              (titleLower.includes('revenue') && metricLower.includes('revenue')) ||
+              (titleLower.includes('convers') && metricLower.includes('conversion')) ||
+              (titleLower.includes('taxa') && metricLower.includes('rate'))
+            );
+          });
+          
+          if (matchingMapping) {
+            mapping = matchingMapping[1];
+            console.log('[useTemplates] Found mapping by title match:', tw.title, '->', matchingMapping[0]);
+          }
+        }
+        
+        // Log for debugging
+        console.log('[useTemplates] Creating widget:', {
+          title: tw.title,
+          templateMetric,
+          mapping: mapping ? { field: mapping.field, aggregation: mapping.aggregation } : null,
+          availableMappings: Object.keys(metricMappings || {}),
+        });
 
         return {
           dashboard_id: dashboardId,
@@ -323,6 +354,8 @@ export const useApplyTemplate = () => {
               metric: mapping.field,
               aggregation: mapping.aggregation,
             }),
+            // Store target metric for reference
+            ...(templateMetric && { targetMetric: templateMetric }),
           },
           description: tw.description || null,
         };

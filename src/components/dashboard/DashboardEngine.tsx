@@ -248,16 +248,48 @@ const WidgetRenderer = ({
   
   // Calculate metric value for metric cards
   const calculateMetricValue = (): number | undefined => {
-    if (rawData.length === 0) return undefined;
+    if (rawData.length === 0) {
+      console.warn('[DashboardEngine] No data available for metric calculation');
+      return undefined;
+    }
     
     const metricField = config.metric;
     const aggregation = config.aggregation || 'count';
     
+    console.log('[DashboardEngine] Calculating metric:', {
+      metricField,
+      aggregation,
+      dataRows: rawData.length,
+      availableFields: Object.keys(rawData[0] || {}),
+    });
+    
     // If no metric field specified, try to find numeric columns
     if (!metricField) {
-      // Try common metric field names
-      const commonFields = ['value', 'total', 'count', 'amount', 'valor', 'total_leads', 'revenue', 'receita', 'leads', 'conversions'];
-      const foundField = commonFields.find(field => 
+      console.warn('[DashboardEngine] No metric field specified, trying to find numeric columns');
+      
+      // Try common metric field names (prioritize by widget title if available)
+      const widgetTitle = widget.title?.toLowerCase() || '';
+      const commonFields = [
+        // Try to match based on widget title
+        ...(widgetTitle.includes('lead') ? ['total_leads', 'leads', 'new_leads', 'lead_count', 'id'] : []),
+        ...(widgetTitle.includes('receita') || widgetTitle.includes('revenue') ? ['revenue', 'receita', 'valor', 'value', 'amount', 'total_value'] : []),
+        ...(widgetTitle.includes('convers') ? ['conversions', 'conversao', 'converted', 'conversion_count'] : []),
+        ...(widgetTitle.includes('taxa') || widgetTitle.includes('rate') ? ['conversion_rate', 'rate', 'taxa', 'percent'] : []),
+        // Generic fields
+        'value', 'total', 'count', 'amount', 'valor', 'total_leads', 'revenue', 'receita', 'leads', 'conversions',
+      ];
+      
+      // Also check all numeric columns in the data
+      const firstRow = rawData[0];
+      const numericFields = Object.keys(firstRow || {}).filter(key => {
+        const val = firstRow[key];
+        return val !== undefined && val !== null && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
+      });
+      
+      // Combine and deduplicate
+      const allFields = [...new Set([...commonFields, ...numericFields])];
+      
+      const foundField = allFields.find(field => 
         rawData.some(row => {
           const val = row[field];
           return val !== undefined && val !== null && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
@@ -265,6 +297,7 @@ const WidgetRenderer = ({
       );
       
       if (foundField) {
+        console.log('[DashboardEngine] Found field:', foundField);
         const values = rawData
           .map((row) => {
             const val = row[foundField];
@@ -273,25 +306,81 @@ const WidgetRenderer = ({
           })
           .filter((v): v is number => v !== null && !isNaN(v));
         
-        if (values.length === 0) return undefined;
+        if (values.length === 0) {
+          console.warn('[DashboardEngine] No valid numeric values found in field:', foundField);
+          return aggregation === 'count' ? rawData.length : undefined;
+        }
         
+        let result = 0;
         switch (aggregation) {
           case 'sum':
-            return values.reduce((a, b) => a + b, 0);
+            result = values.reduce((a, b) => a + b, 0);
+            break;
           case 'avg':
-            return values.reduce((a, b) => a + b, 0) / values.length;
+            result = values.reduce((a, b) => a + b, 0) / values.length;
+            break;
           case 'min':
-            return Math.min(...values);
+            result = Math.min(...values);
+            break;
           case 'max':
-            return Math.max(...values);
+            result = Math.max(...values);
+            break;
           case 'count':
           default:
-            return values.length;
+            result = values.length;
         }
+        console.log('[DashboardEngine] Calculated value:', result, 'from', values.length, 'values');
+        return result;
       }
       
       // Fallback to count of rows
+      console.log('[DashboardEngine] No field found, using row count:', rawData.length);
       return rawData.length;
+    }
+    
+    // Check if field exists in data
+    if (!rawData[0] || !(metricField in rawData[0])) {
+      console.warn('[DashboardEngine] Metric field not found in data:', metricField, 'Available fields:', Object.keys(rawData[0] || {}));
+      
+      // Try case-insensitive match
+      const firstRow = rawData[0] || {};
+      const matchingField = Object.keys(firstRow).find(key => 
+        key.toLowerCase() === metricField.toLowerCase()
+      );
+      
+      if (matchingField) {
+        console.log('[DashboardEngine] Found case-insensitive match:', matchingField);
+        // Use the matching field
+        const values = rawData
+          .map((row) => {
+            const val = row[matchingField];
+            if (val === null || val === undefined) return null;
+            return typeof val === 'number' ? val : parseFloat(String(val));
+          })
+          .filter((v): v is number => v !== null && !isNaN(v));
+        
+        if (values.length > 0) {
+          switch (aggregation) {
+            case 'sum':
+              return values.reduce((a, b) => a + b, 0);
+            case 'avg':
+              return values.reduce((a, b) => a + b, 0) / values.length;
+            case 'min':
+              return Math.min(...values);
+            case 'max':
+              return Math.max(...values);
+            case 'count':
+            default:
+              return values.length;
+          }
+        }
+      }
+      
+      // If still not found and aggregation is count, return total rows
+      if (aggregation === 'count') {
+        return rawData.length;
+      }
+      return undefined;
     }
     
     // Extract values from the specified metric field
@@ -304,25 +393,34 @@ const WidgetRenderer = ({
       .filter((v): v is number => v !== null && !isNaN(v));
 
     if (values.length === 0) {
+      console.warn('[DashboardEngine] No numeric values found in field:', metricField);
       // If no numeric values found, return count of rows that have the field
       const rowsWithField = rawData.filter(row => row[metricField] !== undefined && row[metricField] !== null);
       return aggregation === 'count' ? rowsWithField.length : undefined;
     }
 
+    let result = 0;
     switch (aggregation) {
       case 'sum':
-        return values.reduce((a, b) => a + b, 0);
+        result = values.reduce((a, b) => a + b, 0);
+        break;
       case 'avg':
-        return values.reduce((a, b) => a + b, 0) / values.length;
+        result = values.reduce((a, b) => a + b, 0) / values.length;
+        break;
       case 'min':
-        return Math.min(...values);
+        result = Math.min(...values);
+        break;
       case 'max':
-        return Math.max(...values);
+        result = Math.max(...values);
+        break;
       case 'count':
       default:
         // For count, return number of non-null values
-        return values.length;
+        result = values.length;
     }
+    
+    console.log('[DashboardEngine] Calculated metric value:', result, 'from field:', metricField, 'with aggregation:', aggregation);
+    return result;
   };
   
   // Get metric label for display (estilo do print)
