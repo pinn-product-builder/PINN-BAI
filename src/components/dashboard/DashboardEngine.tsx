@@ -126,13 +126,15 @@ const WidgetWrapper = ({
   sourceTable, 
   onRefresh,
   onRemove,
-  isRefreshing
+  isRefreshing,
+  error
 }: { 
   children: React.ReactNode; 
   sourceTable?: string;
   onRefresh?: () => void;
   onRemove?: () => void;
   isRefreshing?: boolean;
+  error?: string | null;
 }) => (
   <div className="relative group animate-fade-up h-full">
     {sourceTable && (
@@ -167,7 +169,29 @@ const WidgetWrapper = ({
         </Button>
       )}
     </div>
+    {error && (
+      <div className="absolute inset-0 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center justify-center z-20">
+        <div className="text-center p-4">
+          <AlertCircle className="w-6 h-6 text-destructive mx-auto mb-2" />
+          <p className="text-xs text-destructive font-medium">Erro ao carregar dados</p>
+          <p className="text-[10px] text-destructive/70 mt-1 max-w-[200px]">{error}</p>
+        </div>
+      </div>
+    )}
     {children}
+    {/* Source data button at bottom - estilo do print */}
+    {sourceTable && (
+      <div className="absolute bottom-2 left-0 right-0 px-3 z-10">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full h-7 text-[10px] text-muted-foreground hover:text-foreground bg-background/50 backdrop-blur-sm border border-border/50"
+          onClick={onRefresh}
+        >
+          Dados em tempo real de {sourceTable}
+        </Button>
+      </div>
+    )}
   </div>
 );
 
@@ -184,7 +208,7 @@ const WidgetRenderer = ({
   const config = (widget.config || {}) as WidgetConfig;
   const tableName = config.dataSource || config.sourceTable;
   
-  const { data: externalData, isLoading, refetch } = useExternalData(
+  const { data: externalData, isLoading, error, refetch } = useExternalData(
     orgId,
     tableName ? { tableName, limit: 1000 } : undefined
   );
@@ -193,8 +217,13 @@ const WidgetRenderer = ({
   
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refetch();
-    setIsRefreshing(false);
+    try {
+      await refetch();
+    } catch (err) {
+      console.error('Error refreshing widget:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
   
   const handleRemove = () => {
@@ -204,12 +233,51 @@ const WidgetRenderer = ({
   const rawData = externalData?.data || [];
   const chartData = processChartData(rawData, config, widget.type);
   
+  // Extract error message
+  let errorMessage: string | null = null;
+  if (error) {
+    errorMessage = error instanceof Error ? error.message : String(error);
+  } else if (externalData?.error) {
+    errorMessage = typeof externalData.error === 'string' ? externalData.error : 'Erro desconhecido';
+  }
+  
+  // Check if Edge Function returned error
+  if (externalData && !externalData.success && externalData.error) {
+    errorMessage = typeof externalData.error === 'string' ? externalData.error : 'Erro ao buscar dados';
+  }
+  
   // Calculate metric value for metric cards
   const calculateMetricValue = (): number | undefined => {
     if (rawData.length === 0) return undefined;
     
     const metricField = config.metric;
-    if (!metricField) return rawData.length;
+    
+    // If no metric field specified, try to find numeric columns
+    if (!metricField) {
+      // Try common metric field names
+      const commonFields = ['value', 'total', 'count', 'amount', 'valor', 'total_leads', 'revenue', 'receita'];
+      const foundField = commonFields.find(field => 
+        rawData.some(row => row[field] !== undefined && typeof row[field] === 'number')
+      );
+      
+      if (foundField) {
+        const values = rawData
+          .map((row) => {
+            const val = row[foundField];
+            return typeof val === 'number' ? val : parseFloat(String(val)) || 0;
+          })
+          .filter((v) => !isNaN(v));
+        
+        return config.aggregation === 'sum'
+          ? values.reduce((a, b) => a + b, 0)
+          : config.aggregation === 'avg'
+          ? values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0
+          : values.length;
+      }
+      
+      // Fallback to count
+      return rawData.length;
+    }
     
     const values = rawData
       .map((row) => {
@@ -218,19 +286,36 @@ const WidgetRenderer = ({
       })
       .filter((v) => !isNaN(v));
 
+    if (values.length === 0) return undefined;
+
     switch (config.aggregation) {
       case 'sum':
         return values.reduce((a, b) => a + b, 0);
       case 'avg':
-        return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+        return values.reduce((a, b) => a + b, 0) / values.length;
       case 'min':
-        return values.length > 0 ? Math.min(...values) : 0;
+        return Math.min(...values);
       case 'max':
-        return values.length > 0 ? Math.max(...values) : 0;
+        return Math.max(...values);
       case 'count':
       default:
         return values.length;
     }
+  };
+  
+  // Get metric label for display (estilo do print)
+  const getMetricLabel = (): string | undefined => {
+    if (!rawData.length) return undefined;
+    const metricField = config.metric;
+    if (!metricField) {
+      // Try to find the first numeric field
+      const firstRow = rawData[0];
+      const numericField = Object.keys(firstRow).find(key => 
+        typeof firstRow[key] === 'number'
+      );
+      return numericField || undefined;
+    }
+    return metricField;
   };
   
   const wrapperProps = {
@@ -238,17 +323,35 @@ const WidgetRenderer = ({
     onRefresh: tableName ? handleRefresh : undefined,
     onRemove: handleRemove,
     isRefreshing,
+    error: errorMessage,
   };
   
   switch (widget.type) {
     case 'metric_card':
+      const metricValue = calculateMetricValue();
+      // Determine format based on metric name or config
+      let format: 'number' | 'currency' | 'percentage' = 'number';
+      if (config.metric?.toLowerCase().includes('revenue') || 
+          config.metric?.toLowerCase().includes('receita') ||
+          config.metric?.toLowerCase().includes('valor') ||
+          config.metric?.toLowerCase().includes('value')) {
+        format = 'currency';
+      } else if (config.metric?.toLowerCase().includes('rate') || 
+                 config.metric?.toLowerCase().includes('taxa') ||
+                 config.metric?.toLowerCase().includes('percent')) {
+        format = 'percentage';
+      }
+      
       return (
         <WidgetWrapper {...wrapperProps}>
           <MetricCard
             title={widget.title}
-            description={widget.description || ''}
-            value={calculateMetricValue()}
-            isLoading={isLoading}
+            description={widget.description || config.metric || ''}
+            value={metricValue}
+            format={format}
+            isLoading={isLoading && !errorMessage}
+            showSparkline={!!metricValue}
+            metricLabel={getMetricLabel()}
           />
         </WidgetWrapper>
       );
@@ -424,7 +527,8 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
     );
   }
 
-  // Group widgets by type for better layout
+  // Organize widgets in a 3x3 grid layout (estilo do print)
+  // Primeiro, separar widgets por tipo
   const metricWidgets = widgets.filter(w => w.type === 'metric_card');
   const chartWidgets = widgets.filter(w => ['area_chart', 'bar_chart', 'line_chart'].includes(w.type));
   const pieWidgets = widgets.filter(w => w.type === 'pie_chart');
@@ -432,13 +536,18 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   const tableWidgets = widgets.filter(w => w.type === 'table');
   const insightWidgets = widgets.filter(w => w.type === 'insight_card');
 
+  // Layout em grid 3x3 para widgets principais (estilo do print)
+  const allWidgets = [...widgets];
+  const gridWidgets = allWidgets.slice(0, 9); // Primeiros 9 widgets em grid 3x3
+  const remainingWidgets = allWidgets.slice(9);
+
   return (
     <div className="space-y-6 pb-20">
-      {/* Metric Cards Row */}
-      {metricWidgets.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {metricWidgets.map(widget => (
-            <div key={widget.id} className="pt-3">
+      {/* Grid 3x3 Principal - Estilo do Print */}
+      {gridWidgets.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {gridWidgets.map(widget => (
+            <div key={widget.id} className="min-h-[280px]">
               <WidgetRenderer 
                 widget={widget} 
                 orgId={orgId || ''}
@@ -449,76 +558,97 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </div>
       )}
 
-      {/* Main Charts */}
-      {chartWidgets.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {chartWidgets.map(widget => (
-            <div 
-              key={widget.id} 
-              className={`pt-3 ${widget.type === 'area_chart' ? 'lg:col-span-2' : ''}`}
-            >
-              <WidgetRenderer 
-                widget={widget} 
-                orgId={orgId || ''}
-                onRemove={handleDelete}
-              />
+      {/* Widgets Restantes - Layout Flexível */}
+      {remainingWidgets.length > 0 && (
+        <>
+          {/* Metric Cards Adicionais */}
+          {remainingWidgets.filter(w => w.type === 'metric_card').length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {remainingWidgets.filter(w => w.type === 'metric_card').map(widget => (
+                <div key={widget.id} className="min-h-[140px]">
+                  <WidgetRenderer 
+                    widget={widget} 
+                    orgId={orgId || ''}
+                    onRemove={handleDelete}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* Pie Charts and Funnels */}
-      {(pieWidgets.length > 0 || funnelWidgets.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {pieWidgets.map(widget => (
-            <div key={widget.id} className="pt-3">
-              <WidgetRenderer 
-                widget={widget} 
-                orgId={orgId || ''}
-                onRemove={handleDelete}
-              />
+          {/* Charts Adicionais */}
+          {remainingWidgets.filter(w => ['area_chart', 'bar_chart', 'line_chart'].includes(w.type)).length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {remainingWidgets.filter(w => ['area_chart', 'bar_chart', 'line_chart'].includes(w.type)).map(widget => (
+                <div 
+                  key={widget.id} 
+                  className={`min-h-[350px] ${widget.type === 'area_chart' ? 'lg:col-span-2' : ''}`}
+                >
+                  <WidgetRenderer 
+                    widget={widget} 
+                    orgId={orgId || ''}
+                    onRemove={handleDelete}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-          {funnelWidgets.map(widget => (
-            <div key={widget.id} className="pt-3">
-              <WidgetRenderer 
-                widget={widget} 
-                orgId={orgId || ''}
-                onRemove={handleDelete}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* Tables */}
-      {tableWidgets.length > 0 && (
-        <div className="grid grid-cols-1 gap-4">
-          {tableWidgets.map(widget => (
-            <div key={widget.id} className="pt-3">
-              <WidgetRenderer 
-                widget={widget} 
-                orgId={orgId || ''}
-                onRemove={handleDelete}
-              />
+          {/* Funnels e Pie Charts Adicionais */}
+          {(remainingWidgets.filter(w => w.type === 'pie_chart').length > 0 || 
+            remainingWidgets.filter(w => w.type === 'funnel').length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {remainingWidgets.filter(w => w.type === 'pie_chart').map(widget => (
+                <div key={widget.id} className="min-h-[350px]">
+                  <WidgetRenderer 
+                    widget={widget} 
+                    orgId={orgId || ''}
+                    onRemove={handleDelete}
+                  />
+                </div>
+              ))}
+              {remainingWidgets.filter(w => w.type === 'funnel').map(widget => (
+                <div key={widget.id} className="min-h-[350px]">
+                  <WidgetRenderer 
+                    widget={widget} 
+                    orgId={orgId || ''}
+                    onRemove={handleDelete}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* Insights */}
-      {insightWidgets.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {insightWidgets.map(widget => (
-            <div key={widget.id} className="pt-3">
-              <WidgetRenderer 
-                widget={widget} 
-                orgId={orgId || ''}
-                onRemove={handleDelete}
-              />
+          {/* Tables Adicionais */}
+          {remainingWidgets.filter(w => w.type === 'table').length > 0 && (
+            <div className="grid grid-cols-1 gap-4">
+              {remainingWidgets.filter(w => w.type === 'table').map(widget => (
+                <div key={widget.id} className="min-h-[400px]">
+                  <WidgetRenderer 
+                    widget={widget} 
+                    orgId={orgId || ''}
+                    onRemove={handleDelete}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+
+          {/* Insights Adicionais */}
+          {remainingWidgets.filter(w => w.type === 'insight_card').length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {remainingWidgets.filter(w => w.type === 'insight_card').map(widget => (
+                <div key={widget.id} className="min-h-[200px]">
+                  <WidgetRenderer 
+                    widget={widget} 
+                    orgId={orgId || ''}
+                    onRemove={handleDelete}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

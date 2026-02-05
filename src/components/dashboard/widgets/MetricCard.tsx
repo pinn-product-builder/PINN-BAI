@@ -13,6 +13,7 @@ interface MetricCardProps {
   format?: 'number' | 'currency' | 'percentage';
   showSparkline?: boolean;
   isLoading?: boolean;
+  metricLabel?: string; // Label da métrica (ex: "total_leads", "revenue")
 }
 
 // Generate mock sparkline data
@@ -31,6 +32,7 @@ const MetricCard = ({
   format = 'number',
   showSparkline = true,
   isLoading = false,
+  metricLabel,
 }: MetricCardProps) => {
   if (isLoading) {
     return (
@@ -71,12 +73,12 @@ const MetricCard = ({
   const sparklineData = generateSparklineData(displayValue);
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-2">
+    <Card className="overflow-hidden h-full flex flex-col">
+      <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
+          <div className="space-y-2 flex-1">
             <div className="flex items-center gap-1.5">
-              <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+              <h3 className="text-sm font-semibold text-foreground">{title}</h3>
               <Tooltip>
                 <TooltipTrigger>
                   <Info className="w-3.5 h-3.5 text-muted-foreground/50 hover:text-muted-foreground cursor-help" />
@@ -86,16 +88,33 @@ const MetricCard = ({
                 </TooltipContent>
               </Tooltip>
             </div>
-            <p className="text-2xl font-bold text-foreground">
-              {hasValue ? formatDisplayValue(displayValue) : '-'}
-            </p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-3xl font-extrabold text-foreground tracking-tight">
+                {hasValue ? formatDisplayValue(displayValue) : '-'}
+              </p>
+              {hasValue && (
+                <span className="text-xs text-muted-foreground font-medium">
+                  {format === 'currency' ? 'BRL' : format === 'percentage' ? '%' : ''}
+                </span>
+              )}
+            </div>
+            {hasValue && metricLabel && (
+              <p className="text-xs text-muted-foreground font-medium">
+                {value} {metricLabel}
+              </p>
+            )}
+            {hasValue && !metricLabel && description && (
+              <p className="text-xs text-muted-foreground line-clamp-1">
+                {description}
+              </p>
+            )}
           </div>
           
           {previousValue !== undefined && (
             <Badge
               variant="secondary"
               className={cn(
-                "font-medium",
+                "font-medium shrink-0",
                 isPositive && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
                 !isPositive && !isNeutral && "bg-red-500/10 text-red-600 border-red-500/20",
                 isNeutral && "bg-muted text-muted-foreground"
@@ -114,8 +133,8 @@ const MetricCard = ({
         </div>
       </CardHeader>
       
-      {showSparkline && (
-        <CardContent className="pt-0 pb-2">
+      {showSparkline && hasValue && (
+        <CardContent className="pt-0 pb-3 flex-1 flex flex-col justify-end">
           <div className="h-12 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={sparklineData}>

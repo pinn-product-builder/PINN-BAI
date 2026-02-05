@@ -34,26 +34,74 @@ export const useExternalData = <T = Record<string, unknown>>(
         throw new Error('orgId and params are required');
       }
 
-      const { data, error } = await supabase.functions.invoke('fetch-client-data', {
-        body: {
-          orgId,
-          ...params,
-        },
-      });
+      try {
+        const { data, error } = await supabase.functions.invoke('fetch-client-data', {
+          body: {
+            orgId,
+            ...params,
+          },
+        });
 
-      if (error) {
-        throw new Error(error.message);
+        if (error) {
+          console.error('Edge Function error:', error);
+          return {
+            success: false,
+            data: [],
+            count: 0,
+            tableName: params.tableName,
+            error: error.message || 'Erro ao invocar Edge Function',
+          };
+        }
+
+        // Check if response has error
+        if (data && typeof data === 'object' && 'error' in data && data.error) {
+          const errorMsg = typeof data.error === 'string' 
+            ? data.error 
+            : 'Erro desconhecido ao buscar dados';
+          console.error('Data fetch error:', errorMsg);
+          return {
+            success: false,
+            data: [],
+            count: 0,
+            tableName: params.tableName,
+            error: errorMsg,
+          };
+        }
+
+        // Check if response indicates failure
+        if (data && typeof data === 'object' && 'success' in data && !data.success) {
+          const errorMsg = data.error || 'Falha ao buscar dados';
+          return {
+            success: false,
+            data: [],
+            count: 0,
+            tableName: params.tableName,
+            error: typeof errorMsg === 'string' ? errorMsg : 'Erro desconhecido',
+          };
+        }
+
+        return (data as FetchResult<T>) || {
+          success: true,
+          data: [],
+          count: 0,
+          tableName: params.tableName,
+        };
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+        console.error('useExternalData error:', err);
+        return {
+          success: false,
+          data: [],
+          count: 0,
+          tableName: params?.tableName || 'unknown',
+          error: errorMessage,
+        };
       }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      return data as FetchResult<T>;
     },
     enabled: !!orgId && !!params?.tableName && (options?.enabled !== false),
     staleTime: 30000, // Data is fresh for 30 seconds
     refetchOnWindowFocus: false,
+    retry: 1, // Retry once on failure
   });
 };
 

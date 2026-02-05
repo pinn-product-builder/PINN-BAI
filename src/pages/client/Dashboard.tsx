@@ -17,12 +17,15 @@ import {
   Play,
   Monitor,
   Database,
-  Loader2
+  Loader2,
+  TrendingDown
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import DashboardEngine from '@/components/dashboard/DashboardEngine';
 import { Card, CardContent } from '@/components/ui/card';
 import { ReportGenerator } from '@/lib/report-generator';
+import { useDashboardNarrative } from '@/hooks/useDashboardNarrative';
 
 const Dashboard = () => {
   const { orgId } = useParams();
@@ -45,6 +48,9 @@ const Dashboard = () => {
       return data;
     },
   });
+
+  // Generate dynamic narrative
+  const { narrative, isLoading: isLoadingNarrative } = useDashboardNarrative(dashboard?.id, orgId);
 
   const handleExportPDF = async () => {
     if (!dashboard) return;
@@ -84,12 +90,14 @@ const Dashboard = () => {
       description: "A IA está preparando seu resumo executivo em áudio...",
     });
 
+    // Use narrative text or fallback
+    const textToSpeak = narrative?.text || 
+      "Olá! Hoje notamos um crescimento atípico de vinte e dois por cento nos leads provenientes do LinkedIn. Sua taxa de conversão geral está estável, mas o ticket médio subiu para dois mil e quatrocentos reais.";
+
     // Simulate TTS
     setTimeout(() => {
       setIsVoiceActive(false);
-      const utterance = new SpeechSynthesisUtterance(
-        "Olá! Hoje notamos um crescimento atípico de vinte e dois por cento nos leads provenientes do LinkedIn. Sua taxa de conversão geral está estável, mas o ticket médio subiu para dois mil e quatrocentos reais."
-      );
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
       utterance.lang = 'pt-BR';
       window.speechSynthesis.speak(utterance);
     }, 1500);
@@ -161,21 +169,48 @@ const Dashboard = () => {
                 <h3 className="text-2xl font-bold text-foreground">Resumo Narrativo: <span className="text-accent tracking-tight">Destaques do Dia</span></h3>
                 <div className="h-1 w-20 bg-accent mt-1 rounded-full" />
               </div>
-              <p className="text-muted-foreground leading-relaxed text-xl max-w-4xl font-medium">
-                "Olá! Hoje notamos um <span className="text-foreground font-bold underline decoration-accent/30 underline-offset-4">crescimento atípico de 22%</span> nos leads provenientes do LinkedIn.
-                Sua taxa de conversão geral está estável em 12.5%, mas o ticket médio subiu para R$ 2.4k.
-                Recomendamos focar nas campanhas de São Paulo para aproveitar o feriado regional."
-              </p>
-              <div className="flex gap-4">
-                <Button variant="ghost" size="sm" className="text-accent gap-2 font-bold hover:bg-accent/5 rounded-lg" onClick={handleVoiceBriefing}>
-                  <Play className="w-3 h-3 fill-current" />
-                  Ouvir Resumo por IA
-                </Button>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 text-success text-[10px] font-bold uppercase tracking-widest">
-                  <TrendingUp className="w-3 h-3" />
-                  Tendência de Alta
+              {isLoadingNarrative ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Gerando insights...</span>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <p className="text-muted-foreground leading-relaxed text-xl max-w-4xl font-medium">
+                    "{narrative?.highlight ? (
+                      <>
+                        {narrative.text.split(narrative.highlight)[0]}
+                        <span className="text-foreground font-bold underline decoration-accent/30 underline-offset-4">
+                          {narrative.highlight}
+                        </span>
+                        {narrative.text.split(narrative.highlight)[1]}
+                      </>
+                    ) : (
+                      narrative?.text || "Configure seus widgets para ver insights automáticos."
+                    )}"
+                  </p>
+                  <div className="flex gap-4">
+                    <Button variant="ghost" size="sm" className="text-accent gap-2 font-bold hover:bg-accent/5 rounded-lg" onClick={handleVoiceBriefing}>
+                      <Play className="w-3 h-3 fill-current" />
+                      Ouvir Resumo por IA
+                    </Button>
+                    {narrative?.trend && (
+                      <div className={cn(
+                        "flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
+                        narrative.trend === 'up' && "bg-success/10 text-success",
+                        narrative.trend === 'down' && "bg-destructive/10 text-destructive",
+                        narrative.trend === 'stable' && "bg-muted text-muted-foreground"
+                      )}>
+                        {narrative.trend === 'up' && <TrendingUp className="w-3 h-3" />}
+                        {narrative.trend === 'down' && <TrendingDown className="w-3 h-3" />}
+                        {narrative.trend === 'up' && 'Tendência de Alta'}
+                        {narrative.trend === 'down' && 'Tendência de Baixa'}
+                        {narrative.trend === 'stable' && 'Estável'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </CardContent>
