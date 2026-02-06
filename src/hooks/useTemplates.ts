@@ -303,17 +303,31 @@ export const useApplyTemplate = () => {
 
       const templateWidgets = template.widgets as unknown as TemplateWidget[];
 
+      // Get available views from integration or use common ones
+      const availableViews: string[] = [];
+      if (dataSource) {
+        availableViews.push(dataSource);
+      }
+      // Add common views from reference project
+      availableViews.push(
+        'vw_dashboard_kpis_30d_v3',
+        'vw_dashboard_daily_60d_v3',
+        'vw_afonsina_custos_funil_dia',
+        'vw_funnel_current_v3',
+        'leads_v2',
+      );
+
       // Smart mapping function - finds the best mapping for a widget
       const findBestMapping = (widget: TemplateWidget): MetricMapping | null => {
         const templateMetric = (widget.config as Record<string, unknown>)?.metric as string | undefined;
         const titleLower = (widget.title || '').toLowerCase();
         
-        // Priority 1: Direct metric match
+        // Priority 1: Direct metric match from user mappings
         if (templateMetric && metricMappings?.[templateMetric]) {
           return metricMappings[templateMetric];
         }
         
-        // Priority 2: Smart title-based matching with multiple strategies
+        // Priority 2: Smart title-based matching with multiple strategies from user mappings
         if (metricMappings && Object.keys(metricMappings).length > 0) {
           // Strategy 1: Exact metric name in title
           const exactMatch = Object.entries(metricMappings).find(([targetMetric]) => {
@@ -354,6 +368,20 @@ export const useApplyTemplate = () => {
             return metricWords.some(mw => titleWords.some(tw => tw.includes(mw) || mw.includes(tw)));
           });
           if (partialMatch) return partialMatch[1];
+        }
+        
+        // Priority 3: Use reference mappings from Afonsina project
+        // Import reference mappings dynamically to avoid circular dependencies
+        const { findFieldByWidgetTitle } = require('@/lib/referenceMappings');
+        const referenceMapping = findFieldByWidgetTitle(widget.title || '', availableViews, []);
+        
+        if (referenceMapping) {
+          console.log('[useTemplates] Using reference mapping for widget:', widget.title, referenceMapping);
+          return {
+            field: referenceMapping.fieldName,
+            aggregation: referenceMapping.aggregation as 'sum' | 'avg' | 'count',
+            sourceTable: referenceMapping.viewName,
+          };
         }
         
         return null;
