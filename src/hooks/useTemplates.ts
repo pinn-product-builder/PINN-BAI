@@ -387,9 +387,13 @@ export const useApplyTemplate = () => {
         return null;
       };
       
+      // Check if this is the Afonsina Executive template - if so, ALWAYS use exact mapping
+      const isAfonsinaTemplate = templateId === 'afonsina-executive-template' || 
+                                 template.name?.toLowerCase().includes('afonsina') ||
+                                 template.name?.toLowerCase().includes('executiva');
+      
       // Create widgets based on template with smart mapping
       const widgetsToCreate = templateWidgets.map((tw, index) => {
-        const mapping = findBestMapping(tw);
         const templateMetric = (tw.config as Record<string, unknown>)?.metric as string | undefined;
         
         // Determine format based on widget title/config
@@ -403,40 +407,69 @@ export const useApplyTemplate = () => {
           format = tw.config.format as 'number' | 'currency' | 'percentage';
         }
         
-        // Use mapping's sourceTable if available, otherwise fallback to dataSource
-        const widgetTable = (mapping as any)?.sourceTable || dataSource || null;
-        
         const widgetConfig: Record<string, unknown> = {
           ...tw.config,
-          dataSource: widgetTable, // Each widget can use its own table
-          sourceTable: widgetTable, // Also set sourceTable for consistency
           format,
         };
         
-        // Apply mapping if found
-        if (mapping) {
-          widgetConfig.metric = mapping.field;
-          widgetConfig.aggregation = mapping.aggregation;
-          widgetConfig.targetMetric = templateMetric || Object.keys(metricMappings || {}).find(
-            k => metricMappings![k] === mapping
-          ) || null;
-          
-          // Ensure sourceTable is set from mapping
-          if ((mapping as any).sourceTable) {
-            widgetConfig.dataSource = (mapping as any).sourceTable;
-            widgetConfig.sourceTable = (mapping as any).sourceTable;
-          }
-        } else {
-          // Priority 1: Try EXACT Afonsina mapping (most accurate - replicates original dashboard)
+        // PRIORITY 1: If Afonsina template, ALWAYS use exact mapping (ignore user mappings)
+        if (isAfonsinaTemplate) {
           const { findExactMapping, createWidgetConfigFromExactMapping } = require('@/lib/afonsinaExactMapping');
           const exactMapping = findExactMapping(tw.title || '');
           
           if (exactMapping) {
-            console.log('[useTemplates] Using EXACT Afonsina mapping for:', tw.title, exactMapping);
+            console.log('[useTemplates] [AFONSINA TEMPLATE] Using EXACT mapping for:', tw.title, exactMapping);
             const exactConfig = createWidgetConfigFromExactMapping(exactMapping, index);
             Object.assign(widgetConfig, exactConfig);
             widgetConfig.format = exactMapping.format || format;
           } else {
+            console.warn('[useTemplates] [AFONSINA TEMPLATE] No exact mapping found for:', tw.title, '- using fallback');
+            // Fallback to widget config
+            const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
+            const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
+            if (afonsinaConfig) {
+              widgetConfig.metric = afonsinaConfig.metricField;
+              widgetConfig.aggregation = afonsinaConfig.aggregation;
+              widgetConfig.dataSource = afonsinaConfig.viewName;
+              widgetConfig.sourceTable = afonsinaConfig.viewName;
+              widgetConfig.format = afonsinaConfig.format || format;
+              if (afonsinaConfig.groupBy) {
+                widgetConfig.groupBy = afonsinaConfig.groupBy;
+              }
+            }
+          }
+        } else {
+          // For other templates, use user mappings if available
+          const mapping = findBestMapping(tw);
+          const widgetTable = (mapping as any)?.sourceTable || dataSource || null;
+          
+          widgetConfig.dataSource = widgetTable;
+          widgetConfig.sourceTable = widgetTable;
+          
+          // Apply mapping if found
+          if (mapping) {
+            widgetConfig.metric = mapping.field;
+            widgetConfig.aggregation = mapping.aggregation;
+            widgetConfig.targetMetric = templateMetric || Object.keys(metricMappings || {}).find(
+              k => metricMappings![k] === mapping
+            ) || null;
+            
+            // Ensure sourceTable is set from mapping
+            if ((mapping as any).sourceTable) {
+              widgetConfig.dataSource = (mapping as any).sourceTable;
+              widgetConfig.sourceTable = (mapping as any).sourceTable;
+            }
+          } else {
+            // Priority 1: Try EXACT Afonsina mapping (most accurate - replicates original dashboard)
+            const { findExactMapping, createWidgetConfigFromExactMapping } = require('@/lib/afonsinaExactMapping');
+            const exactMapping = findExactMapping(tw.title || '');
+            
+            if (exactMapping) {
+              console.log('[useTemplates] Using EXACT Afonsina mapping for:', tw.title, exactMapping);
+              const exactConfig = createWidgetConfigFromExactMapping(exactMapping, index);
+              Object.assign(widgetConfig, exactConfig);
+              widgetConfig.format = exactMapping.format || format;
+            } else {
             // Priority 2: Try Afonsina widget config (fallback)
             const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
             const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
@@ -477,9 +510,15 @@ export const useApplyTemplate = () => {
         console.log('[useTemplates] Creating widget:', {
           title: tw.title,
           type: tw.type,
+          isAfonsinaTemplate,
+          finalConfig: {
+            metric: widgetConfig.metric,
+            aggregation: widgetConfig.aggregation,
+            dataSource: widgetConfig.dataSource,
+            sourceTable: widgetConfig.sourceTable,
+            format: widgetConfig.format,
+          },
           templateMetric,
-          mapping: mapping ? { field: mapping.field, aggregation: mapping.aggregation } : 'NOT FOUND',
-          format,
           availableMappings: Object.keys(metricMappings || {}),
         });
 
