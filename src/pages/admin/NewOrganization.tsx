@@ -88,16 +88,25 @@ const NewOrganization = () => {
       });
 
       if (createUserError) {
+        console.error('[NewOrganization] create-org-admin error:', createUserError);
         // Rollback: delete org and dashboard if user creation fails
         await supabase.from('dashboards').delete().eq('id', dash.id);
         await supabase.from('organizations').delete().eq('id', org.id);
-        throw new Error(createUserError.message || 'Erro ao criar usuário admin');
+        const errorMessage = createUserError.message || createUserError.toString() || 'Erro ao criar usuário admin';
+        console.error('[NewOrganization] Error details:', { createUserError, errorMessage });
+        throw new Error(`Erro ao criar usuário admin: ${errorMessage}`);
       }
 
       if (createUserResult?.error) {
+        console.error('[NewOrganization] create-org-admin result error:', createUserResult.error);
+        // Rollback: delete org and dashboard if user creation fails
         await supabase.from('dashboards').delete().eq('id', dash.id);
         await supabase.from('organizations').delete().eq('id', org.id);
-        throw new Error(createUserResult.error);
+        const errorMsg = typeof createUserResult.error === 'string' 
+          ? createUserResult.error 
+          : JSON.stringify(createUserResult.error);
+        console.error('[NewOrganization] Error details:', { createUserResult, errorMsg });
+        throw new Error(`Erro ao criar usuário admin: ${errorMsg}`);
       }
 
       toast({
