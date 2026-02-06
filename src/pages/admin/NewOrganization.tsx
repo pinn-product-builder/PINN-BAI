@@ -78,14 +78,43 @@ const NewOrganization = () => {
       if (dashError) throw dashError;
 
       // 3. Create admin user via edge function
-      const { data: createUserResult, error: createUserError } = await supabase.functions.invoke('create-org-admin', {
-        body: {
+      // Ensure we have a valid session before calling the edge function
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('[NewOrganization] No valid session found:', sessionError);
+        throw new Error('Você precisa estar autenticado para criar uma organização. Faça login novamente.');
+      }
+
+      console.log('[NewOrganization] Calling create-org-admin with session:', { 
+        hasSession: !!session, 
+        userId: session.user?.id 
+      });
+
+      // Use fetch directly to ensure Authorization header is sent
+      const SUPABASE_URL = "https://bkgwzxrutzmmxmxzfhmw.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrZ3d6eHJ1dHptbXhteHpmaG13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjc2ODUsImV4cCI6MjA4NTcwMzY4NX0.QlOjmLhKmpiOYr_qm-IDLoSjhE7Z18YKlmin5SFht90";
+      
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/create-org-admin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
           email: formData.adminEmail,
           password: formData.adminPassword,
           fullName: formData.adminName,
           orgId: org.id,
-        },
+        }),
       });
+
+      const createUserResult = await response.json();
+      const createUserError = !response.ok ? { 
+        message: createUserResult.error || `HTTP ${response.status}: ${response.statusText}`,
+        status: response.status 
+      } : null;
 
       if (createUserError) {
         console.error('[NewOrganization] create-org-admin error:', createUserError);
