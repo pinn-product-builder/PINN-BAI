@@ -427,21 +427,31 @@ export const useApplyTemplate = () => {
             widgetConfig.sourceTable = (mapping as any).sourceTable;
           }
         } else {
-          // Priority 1: Try Afonsina widget config (most accurate)
-          const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
-          const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
+          // Priority 1: Try EXACT Afonsina mapping (most accurate - replicates original dashboard)
+          const { findExactMapping, createWidgetConfigFromExactMapping } = require('@/lib/afonsinaExactMapping');
+          const exactMapping = findExactMapping(tw.title || '');
           
-          if (afonsinaConfig) {
-            console.log('[useTemplates] Using Afonsina widget config for:', tw.title, afonsinaConfig);
-            widgetConfig.metric = afonsinaConfig.metricField;
-            widgetConfig.aggregation = afonsinaConfig.aggregation;
-            widgetConfig.dataSource = afonsinaConfig.viewName;
-            widgetConfig.sourceTable = afonsinaConfig.viewName;
-            widgetConfig.format = afonsinaConfig.format || format;
-            if (afonsinaConfig.groupBy) {
-              widgetConfig.groupBy = afonsinaConfig.groupBy;
-            }
+          if (exactMapping) {
+            console.log('[useTemplates] Using EXACT Afonsina mapping for:', tw.title, exactMapping);
+            const exactConfig = createWidgetConfigFromExactMapping(exactMapping, index);
+            Object.assign(widgetConfig, exactConfig);
+            widgetConfig.format = exactMapping.format || format;
           } else {
+            // Priority 2: Try Afonsina widget config (fallback)
+            const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
+            const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
+            
+            if (afonsinaConfig) {
+              console.log('[useTemplates] Using Afonsina widget config for:', tw.title, afonsinaConfig);
+              widgetConfig.metric = afonsinaConfig.metricField;
+              widgetConfig.aggregation = afonsinaConfig.aggregation;
+              widgetConfig.dataSource = afonsinaConfig.viewName;
+              widgetConfig.sourceTable = afonsinaConfig.viewName;
+              widgetConfig.format = afonsinaConfig.format || format;
+              if (afonsinaConfig.groupBy) {
+                widgetConfig.groupBy = afonsinaConfig.groupBy;
+              }
+            } else {
             // Priority 2: Try reference mappings as fallback
             const { findFieldByWidgetTitle } = require('@/lib/referenceMappings');
             const referenceMapping = findFieldByWidgetTitle(tw.title || '', availableViews, []);
