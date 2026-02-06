@@ -420,10 +420,47 @@ export const useApplyTemplate = () => {
           widgetConfig.targetMetric = templateMetric || Object.keys(metricMappings || {}).find(
             k => metricMappings![k] === mapping
           ) || null;
+          
+          // Ensure sourceTable is set from mapping
+          if ((mapping as any).sourceTable) {
+            widgetConfig.dataSource = (mapping as any).sourceTable;
+            widgetConfig.sourceTable = (mapping as any).sourceTable;
+          }
         } else {
-          // If no mapping found, try to use template metric as fallback
-          if (templateMetric) {
-            widgetConfig.targetMetric = templateMetric;
+          // Priority 1: Try Afonsina widget config (most accurate)
+          const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
+          const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
+          
+          if (afonsinaConfig) {
+            console.log('[useTemplates] Using Afonsina widget config for:', tw.title, afonsinaConfig);
+            widgetConfig.metric = afonsinaConfig.metricField;
+            widgetConfig.aggregation = afonsinaConfig.aggregation;
+            widgetConfig.dataSource = afonsinaConfig.viewName;
+            widgetConfig.sourceTable = afonsinaConfig.viewName;
+            widgetConfig.format = afonsinaConfig.format || format;
+            if (afonsinaConfig.groupBy) {
+              widgetConfig.groupBy = afonsinaConfig.groupBy;
+            }
+          } else {
+            // Priority 2: Try reference mappings as fallback
+            const { findFieldByWidgetTitle } = require('@/lib/referenceMappings');
+            const referenceMapping = findFieldByWidgetTitle(tw.title || '', availableViews, []);
+            
+            if (referenceMapping) {
+              console.log('[useTemplates] Using reference mapping as fallback for widget:', tw.title, referenceMapping);
+              widgetConfig.metric = referenceMapping.fieldName;
+              widgetConfig.aggregation = referenceMapping.aggregation;
+              widgetConfig.dataSource = referenceMapping.viewName;
+              widgetConfig.sourceTable = referenceMapping.viewName;
+            } else {
+              // Last resort: try to use template metric as fallback (but warn)
+              if (templateMetric) {
+                console.warn('[useTemplates] No mapping found for widget:', tw.title, 'using template metric:', templateMetric);
+                widgetConfig.targetMetric = templateMetric;
+              } else {
+                console.warn('[useTemplates] No mapping found for widget:', tw.title, 'and no template metric available');
+              }
+            }
           }
         }
         
