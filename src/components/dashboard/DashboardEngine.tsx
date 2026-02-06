@@ -762,9 +762,12 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  console.log('[DashboardEngine] Component mounted:', { dashboardId, orgId });
+
   const { data: widgets, isLoading } = useQuery({
     queryKey: ['dashboard-widgets', dashboardId],
     queryFn: async () => {
+      console.log('[DashboardEngine] Fetching widgets for dashboard:', dashboardId);
       const { data, error } = await supabase
         .from('dashboard_widgets')
         .select('*')
@@ -772,7 +775,21 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         .eq('is_visible', true)
         .order('position', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[DashboardEngine] Error fetching widgets:', error);
+        throw error;
+      }
+      
+      console.log('[DashboardEngine] Widgets loaded:', {
+        count: data?.length || 0,
+        widgets: data?.map((w: any) => ({
+          id: w.id,
+          title: w.title,
+          type: w.type,
+          tableName: w.config?.dataSource || w.config?.sourceTable || 'NOT SET',
+        })),
+      });
+      
       return (data as any) as DashboardWidget[];
     },
     enabled: !!dashboardId,
@@ -819,7 +836,14 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
     );
   }
 
+  console.log('[DashboardEngine] Render check:', {
+    isLoading,
+    widgetsCount: widgets?.length || 0,
+    hasWidgets: !!(widgets && widgets.length > 0),
+  });
+
   if (!widgets || widgets.length === 0) {
+    console.warn('[DashboardEngine] No widgets found!', { dashboardId, widgets });
     return (
       <Card className="p-12 border-dashed flex flex-col items-center justify-center text-center gap-4 bg-muted/20 rounded-3xl">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
