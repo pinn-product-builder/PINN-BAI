@@ -572,15 +572,58 @@ const WidgetRenderer = ({
         // Use the matching field instead of the configured one
         metricField = matchingField;
       } else {
-        // If still not found, log available fields for debugging
-        console.error('[DashboardEngine] Could not find metric field:', metricField, 'Available fields:', availableFields, 'Widget title:', widget.title);
+        // If still not found, try one more time: search ALL available fields for numeric values
+        // and match based on widget title
+        console.warn('[DashboardEngine] No direct match found, searching all numeric fields...');
         
-        // If aggregation is count, return total rows (but log warning)
-        if (aggregation === 'count') {
-          console.warn('[DashboardEngine] Using row count as fallback for count aggregation');
-          return rawData.length;
+        const numericFields = availableFields.filter(key => {
+          // Skip IDs, dates, and technical fields
+          if (/^id$|^uuid$|^pk$|_id$|_uuid$|date|_at$|created|updated/i.test(key)) return false;
+          const val = firstRow[key];
+          return val !== undefined && val !== null && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
+        });
+        
+        // Try to find a field that matches the widget title
+        if (numericFields.length > 0) {
+          const titleBasedMatch = numericFields.find(field => {
+            const fieldLower = field.toLowerCase();
+            if (widgetTitle.includes('receita') || widgetTitle.includes('revenue') || widgetTitle.includes('investimento')) {
+              return fieldLower.includes('spend') || fieldLower.includes('custo') || fieldLower.includes('receita') || fieldLower.includes('revenue') || fieldLower.includes('valor') || fieldLower.includes('investimento');
+            }
+            if (widgetTitle.includes('convers') && !widgetTitle.includes('taxa')) {
+              return fieldLower.includes('meeting') || fieldLower.includes('convers') || fieldLower.includes('reuniao') || fieldLower.includes('done');
+            }
+            if (widgetTitle.includes('taxa') || widgetTitle.includes('rate')) {
+              return fieldLower.includes('rate') || fieldLower.includes('taxa') || fieldLower.includes('conv_') || fieldLower.includes('cpl') || fieldLower.includes('cp_');
+            }
+            if (widgetTitle.includes('novos') || widgetTitle.includes('new')) {
+              return fieldLower.includes('new') || fieldLower.includes('leads') || fieldLower.includes('entrada');
+            }
+            if (widgetTitle.includes('lead')) {
+              return fieldLower.includes('lead') || fieldLower.includes('entrada');
+            }
+            return false;
+          });
+          
+          if (titleBasedMatch) {
+            console.log('[DashboardEngine] Found title-based match in numeric fields:', titleBasedMatch);
+            metricField = titleBasedMatch;
+          } else {
+            // Last resort: use first numeric field (but log warning)
+            console.warn('[DashboardEngine] Using first available numeric field as fallback:', numericFields[0]);
+            metricField = numericFields[0];
+          }
+        } else {
+          // If still not found, log available fields for debugging
+          console.error('[DashboardEngine] Could not find metric field:', metricField, 'Available fields:', availableFields, 'Widget title:', widget.title);
+          
+          // If aggregation is count, return total rows (but log warning)
+          if (aggregation === 'count') {
+            console.warn('[DashboardEngine] Using row count as fallback for count aggregation');
+            return rawData.length;
+          }
+          return undefined;
         }
-        return undefined;
       }
     }
     
