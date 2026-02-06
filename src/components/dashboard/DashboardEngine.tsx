@@ -54,10 +54,21 @@ const processChartData = (
   
   // If no groupBy, create a single aggregated value
   if (!groupBy) {
-    const values = rawData.map(row => {
-      const val = row[metric];
-      return typeof val === 'number' ? val : parseFloat(String(val)) || 1;
-    });
+    // Filter out invalid values (null, undefined, NaN)
+    const values = rawData
+      .map(row => {
+        const val = row[metric];
+        if (val === null || val === undefined) return null;
+        if (typeof val === 'number') return isNaN(val) ? null : val;
+        const parsed = parseFloat(String(val));
+        return isNaN(parsed) ? null : parsed;
+      })
+      .filter((v): v is number => v !== null);
+    
+    if (values.length === 0) {
+      console.warn('[processChartData] No valid values found for metric:', metric);
+      return [];
+    }
     
     const aggregatedValue = aggregation === 'sum'
       ? values.reduce((a, b) => a + b, 0)
@@ -87,12 +98,25 @@ const processChartData = (
       }
     }
     
-    const value = typeof row[metric] === 'number'
-      ? row[metric] as number
-      : parseFloat(String(row[metric])) || 1;
+    const val = row[metric];
+    let value: number | null = null;
     
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(value);
+    if (val !== null && val !== undefined) {
+      if (typeof val === 'number' && !isNaN(val)) {
+        value = val;
+      } else {
+        const parsed = parseFloat(String(val));
+        if (!isNaN(parsed)) {
+          value = parsed;
+        }
+      }
+    }
+    
+    // Only add valid values
+    if (value !== null) {
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(value);
+    }
   });
   
   // Apply aggregation
@@ -269,25 +293,47 @@ const WidgetRenderer = ({
       
       // Try common metric field names (prioritize by widget title if available)
       const widgetTitle = widget.title?.toLowerCase() || '';
+      const targetMetric = config.targetMetric?.toLowerCase() || '';
+      
+      // Build field suggestions based on widget title and target metric
       const commonFields = [
         // Try to match based on widget title
-        ...(widgetTitle.includes('lead') ? ['total_leads', 'leads', 'new_leads', 'lead_count', 'id'] : []),
-        ...(widgetTitle.includes('receita') || widgetTitle.includes('revenue') ? ['revenue', 'receita', 'valor', 'value', 'amount', 'total_value'] : []),
-        ...(widgetTitle.includes('convers') ? ['conversions', 'conversao', 'converted', 'conversion_count'] : []),
-        ...(widgetTitle.includes('taxa') || widgetTitle.includes('rate') ? ['conversion_rate', 'rate', 'taxa', 'percent'] : []),
-        // Generic fields
+        ...(widgetTitle.includes('lead') ? ['total_leads', 'leads_total', 'leads', 'new_leads', 'lead_count', 'leads_total_30d', 'leads_new'] : []),
+        ...(widgetTitle.includes('receita') || widgetTitle.includes('revenue') || targetMetric.includes('revenue') ? 
+          ['revenue', 'receita', 'valor', 'value', 'amount', 'total_value', 'spend_30d', 'custo_total', 'spend', 'total_spent_usd'] : []),
+        ...(widgetTitle.includes('convers') || targetMetric.includes('convers') ? 
+          ['conversions', 'conversao', 'converted', 'conversion_count', 'meetings_done', 'reuniao_realizada_total'] : []),
+        ...(widgetTitle.includes('taxa') || widgetTitle.includes('rate') || targetMetric.includes('rate') ? 
+          ['conversion_rate', 'rate', 'taxa', 'percent', 'conv_lead_to_meeting_30d', 'taxa_entrada', 'taxa_atendimento'] : []),
+        ...(widgetTitle.includes('reuni') || targetMetric.includes('meeting') ? 
+          ['meetings_scheduled', 'meetings_done', 'reuniao_agendada_total', 'reuniao_realizada_total', 'meetings_total_30d'] : []),
+        ...(widgetTitle.includes('mensagem') || targetMetric.includes('msg') ? 
+          ['msg_in', 'msg_in_total', 'msg_in_30d', 'mensagens', 'message'] : []),
+        ...(widgetTitle.includes('ligacao') || widgetTitle.includes('chamada') || targetMetric.includes('call') ? 
+          ['calls_done', 'calls_answered', 'calls_total', 'ligacoes'] : []),
+        // Generic fields - prioritize columns with _total suffix (aggregated views)
+        'custo_total', 'leads_total', 'entrada_total', 'reuniao_agendada_total', 'reuniao_realizada_total',
         'value', 'total', 'count', 'amount', 'valor', 'total_leads', 'revenue', 'receita', 'leads', 'conversions',
       ];
       
       // Also check all numeric columns in the data
       const firstRow = rawData[0];
       const numericFields = Object.keys(firstRow || {}).filter(key => {
+        // Skip IDs and technical fields
+        if (/^id$|^uuid$|^pk$|_id$|_uuid$/i.test(key)) return false;
         const val = firstRow[key];
         return val !== undefined && val !== null && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
       });
       
-      // Combine and deduplicate
-      const allFields = [...new Set([...commonFields, ...numericFields])];
+      // Prioritize fields with common suffixes that indicate metrics
+      const prioritizedFields = numericFields.sort((a, b) => {
+        const aScore = (a.includes('_total') ? 10 : 0) + (a.includes('_30d') || a.includes('_60d') || a.includes('_7d') ? 5 : 0);
+        const bScore = (b.includes('_total') ? 10 : 0) + (b.includes('_30d') || b.includes('_60d') || b.includes('_7d') ? 5 : 0);
+        return bScore - aScore;
+      });
+      
+      // Combine and deduplicate - prioritize common fields first, then numeric fields
+      const allFields = [...new Set([...commonFields, ...prioritizedFields, ...numericFields])];
       
       const foundField = allFields.find(field => 
         rawData.some(row => {
@@ -344,20 +390,43 @@ const WidgetRenderer = ({
       
       // Try case-insensitive match
       const firstRow = rawData[0] || {};
-      const matchingField = Object.keys(firstRow).find(key => 
+      const availableFields = Object.keys(firstRow);
+      
+      // Try exact case-insensitive match first
+      let matchingField = availableFields.find(key => 
         key.toLowerCase() === metricField.toLowerCase()
       );
       
+      // If not found, try partial matches (e.g., "leads_total" matches "total_leads")
+      if (!matchingField) {
+        const metricLower = metricField.toLowerCase();
+        matchingField = availableFields.find(key => {
+          const keyLower = key.toLowerCase();
+          return keyLower.includes(metricLower) || metricLower.includes(keyLower);
+        });
+      }
+      
+      // If still not found, try to find fields with similar patterns
+      if (!matchingField && metricField.includes('_')) {
+        const parts = metricField.split('_');
+        matchingField = availableFields.find(key => {
+          const keyLower = key.toLowerCase();
+          return parts.some(part => keyLower.includes(part.toLowerCase()));
+        });
+      }
+      
       if (matchingField) {
-        console.log('[DashboardEngine] Found case-insensitive match:', matchingField);
+        console.log('[DashboardEngine] Found matching field:', matchingField, 'for requested:', metricField);
         // Use the matching field
         const values = rawData
           .map((row) => {
-            const val = row[matchingField];
+            const val = row[matchingField!];
             if (val === null || val === undefined) return null;
-            return typeof val === 'number' ? val : parseFloat(String(val));
+            if (typeof val === 'number') return isNaN(val) ? null : val;
+            const parsed = parseFloat(String(val));
+            return isNaN(parsed) ? null : parsed;
           })
-          .filter((v): v is number => v !== null && !isNaN(v));
+          .filter((v): v is number => v !== null);
         
         if (values.length > 0) {
           switch (aggregation) {
@@ -376,8 +445,12 @@ const WidgetRenderer = ({
         }
       }
       
-      // If still not found and aggregation is count, return total rows
+      // If still not found, log available fields for debugging
+      console.error('[DashboardEngine] Could not find metric field:', metricField, 'Available fields:', availableFields);
+      
+      // If aggregation is count, return total rows (but log warning)
       if (aggregation === 'count') {
+        console.warn('[DashboardEngine] Using row count as fallback for count aggregation');
         return rawData.length;
       }
       return undefined;
@@ -388,15 +461,26 @@ const WidgetRenderer = ({
       .map((row) => {
         const val = row[metricField];
         if (val === null || val === undefined) return null;
-        return typeof val === 'number' ? val : parseFloat(String(val));
+        if (typeof val === 'number') return isNaN(val) ? null : val;
+        const parsed = parseFloat(String(val));
+        return isNaN(parsed) ? null : parsed;
       })
-      .filter((v): v is number => v !== null && !isNaN(v));
+      .filter((v): v is number => v !== null);
 
     if (values.length === 0) {
       console.warn('[DashboardEngine] No numeric values found in field:', metricField);
       // If no numeric values found, return count of rows that have the field
       const rowsWithField = rawData.filter(row => row[metricField] !== undefined && row[metricField] !== null);
       return aggregation === 'count' ? rowsWithField.length : undefined;
+    }
+
+    // For views aggregated (usually single row with pre-aggregated values), 
+    // if we have only one row and aggregation is sum/count, just return the value
+    // This handles cases like vw_dashboard_kpis_30d_v3 which has one row with all KPIs
+    if (rawData.length === 1 && (aggregation === 'sum' || aggregation === 'count')) {
+      const singleValue = values[0];
+      console.log('[DashboardEngine] Single row detected (likely aggregated view), returning value directly:', singleValue);
+      return singleValue;
     }
 
     let result = 0;
@@ -419,7 +503,7 @@ const WidgetRenderer = ({
         result = values.length;
     }
     
-    console.log('[DashboardEngine] Calculated metric value:', result, 'from field:', metricField, 'with aggregation:', aggregation);
+    console.log('[DashboardEngine] Calculated metric value:', result, 'from field:', metricField, 'with aggregation:', aggregation, 'from', values.length, 'values');
     return result;
   };
   
