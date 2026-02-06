@@ -747,13 +747,27 @@ const WidgetRenderer = ({
         if (metricName.includes('revenue') || 
             metricName.includes('receita') ||
             metricName.includes('valor') ||
-            metricName.includes('value')) {
+            metricName.includes('value') ||
+            metricName.includes('spend') ||
+            metricName.includes('custo') ||
+            metricName.includes('investimento')) {
           format = 'currency';
         } else if (metricName.includes('rate') || 
                    metricName.includes('taxa') ||
-                   metricName.includes('percent')) {
+                   metricName.includes('percent') ||
+                   metricName.includes('conv_') ||
+                   metricName.includes('cpl') ||
+                   metricName.includes('cp_')) {
           format = 'percentage';
         }
+      }
+      
+      // Also check widget title for format hints
+      const widgetTitleLower = widget.title?.toLowerCase() || '';
+      if (widgetTitleLower.includes('taxa') || widgetTitleLower.includes('rate') || widgetTitleLower.includes('conversão')) {
+        format = 'percentage';
+      } else if (widgetTitleLower.includes('receita') || widgetTitleLower.includes('investimento') || widgetTitleLower.includes('custo') || widgetTitleLower.includes('cpl')) {
+        format = 'currency';
       }
       
       return (
