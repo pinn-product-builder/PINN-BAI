@@ -43,9 +43,21 @@ const processChartData = (
   config: WidgetConfig,
   widgetType: string
 ): any[] => {
-  if (!rawData || rawData.length === 0) return [];
+  if (!rawData || rawData.length === 0) {
+    console.warn('[processChartData] No data provided', { widgetType, config });
+    return [];
+  }
   
   const { metric = 'value', groupBy, aggregation = 'count' } = config;
+  
+  console.log('[processChartData] Processing:', {
+    widgetType,
+    metric,
+    groupBy,
+    aggregation,
+    dataRows: rawData.length,
+    firstRowKeys: Object.keys(rawData[0] || {}),
+  });
   
   // For tables, return raw data
   if (widgetType === 'table') {
@@ -255,6 +267,24 @@ const WidgetRenderer = ({
   };
   
   const rawData = externalData?.data || [];
+  
+  // Debug logging
+  console.log(`[WidgetRenderer] ${widget.title} (${widget.type}):`, {
+    tableName,
+    hasData: rawData.length > 0,
+    dataCount: rawData.length,
+    firstRow: rawData[0] || null,
+    config: {
+      metric: config.metric,
+      aggregation: config.aggregation,
+      targetMetric: config.targetMetric,
+      dataSource: config.dataSource,
+      sourceTable: config.sourceTable,
+    },
+    externalDataSuccess: externalData?.success,
+    externalDataError: externalData?.error,
+  });
+  
   const chartData = processChartData(rawData, config, widget.type);
   
   // Extract error message
