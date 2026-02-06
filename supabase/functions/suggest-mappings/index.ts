@@ -228,13 +228,21 @@ METODOLOGIA DE ANÁLISE (SIGA RIGOROSAMENTE):
 
 ETAPA 1: ANÁLISE ESTRUTURAL DAS TABELAS
 1. Analise TODAS as tabelas disponíveis - NÃO se limite a uma única tabela:
-   - Views agregadas (vw_*, view_*) têm PRIORIDADE MÁXIMA
+   - Views agregadas (vw_*, view_*, v3_*) têm PRIORIDADE MÁXIMA - estas já têm dados processados e prontos para dashboards
+   - Views com padrões específicos são muito valiosas:
+     * vw_dashboard_* ou vw_*_dashboard_* → KPIs e métricas agregadas
+     * vw_*_daily_* ou v*_*_daily_* → Séries temporais diárias
+     * vw_*_kpis_* → Métricas de performance
+     * vw_*_funil_* ou vw_*_funnel_* → Dados de funil de vendas
+     * vw_*_calls_* ou v3_*_calls_* → Dados de ligações/chamadas
+     * vw_*_msg_* ou vw_*_message_* → Dados de mensagens
    - Tabelas com "dashboard", "kpi", "summary", "metrics" no nome são importantes
    - Tabelas com MAIS registros e MAIS colunas numéricas são valiosas
    - Tabelas que parecem ser a "fonte da verdade" do negócio devem ser incluídas
    - EVITE tabelas de log, audit, ou transacionais muito granulares
    - IMPORTANTE: Crie mapeamentos de MÚLTIPLAS tabelas para um dashboard completo
    - Cada tabela pode contribuir com métricas diferentes e complementares
+   - Views agregadas geralmente têm colunas com sufixo _total, _30d, _60d, _7d que indicam métricas prontas
 
 2. Analise o CONTEXTO DO NEGÓCIO de CADA tabela:
    - O que cada tabela representa? (leads, vendas, usuários, produtos, reuniões, mensagens?)
@@ -245,16 +253,19 @@ ETAPA 1: ANÁLISE ESTRUTURAL DAS TABELAS
 ETAPA 2: ANÁLISE PROFUNDA DAS COLUNAS (para cada coluna):
 
 A) ANÁLISE DO NOME (case-insensitive, múltiplos padrões):
-   - Contagens: total, count, quantidade, qtd, leads, clientes, users, usuarios, registros, numero, num
-   - Valores monetários: value, valor, amount, revenue, receita, mrr, spend, gasto, cost, custo, investimento, price, preco, ticket, lucro, profit
-   - Taxas: rate, taxa, percent, conv, cpl, cpm, ctr, ratio, proporcao, porcentagem
-   - Datas: date, data, created, updated, timestamp, day, dia, hora, time, quando, inicio, fim
-   - Status/Estágios: status, stage, etapa, fase, state, estado, situacao, fase_atual
-   - Origens: source, origem, canal, channel, utm, medium, campaign, fonte, aquisicao
-   - Conversões: conversion, conversao, converted, convertido, convertido_em
-   - Mensagens: message, mensagem, msg, mensagens, chat, texto
-   - Reuniões: meeting, reuniao, reunioes, agendada, scheduled, call
-   - Novos/Recentes: new, novo, novos, recent, recente, latest, ultimo
+   - Contagens: total, count, quantidade, qtd, leads, clientes, users, usuarios, registros, numero, num, _total (sufixo)
+   - Valores monetários: value, valor, amount, revenue, receita, mrr, spend, gasto, cost, custo, investimento, price, preco, ticket, lucro, profit, spent, _usd (sufixo)
+   - Taxas: rate, taxa, percent, conv, cpl, cpm, ctr, ratio, proporcao, porcentagem, conversion_rate
+   - Datas: date, data, created, updated, timestamp, day, dia, hora, time, quando, inicio, fim, started_at, ended_at
+   - Status/Estágios: status, stage, etapa, fase, state, estado, situacao, fase_atual, stage_name, stage_key
+   - Origens: source, origem, canal, channel, utm, medium, campaign, fonte, aquisicao, anuncio, ad_name
+   - Conversões: conversion, conversao, converted, convertido, convertido_em, conv_lead_to_meeting, conv_msg_to_meeting
+   - Mensagens: message, mensagem, msg, mensagens, chat, texto, msg_in, msg_in_total, msg_in_30d
+   - Reuniões: meeting, reuniao, reunioes, agendada, scheduled, call, meetings_scheduled, meetings_done, meetings_cancelled, reuniao_agendada_total, reuniao_realizada_total
+   - Novos/Recentes: new, novo, novos, recent, recente, latest, ultimo, leads_new
+   - Entradas/Funil: entrada, entrada_total, entradas, funil, funnel, leads_total, entrada_total
+   - Ligações/Chamadas: calls, calls_done, calls_answered, calls_total, ligacoes, chamadas, total_minutes, avg_minutes
+   - Custos específicos: custo_total, custo_por_reuniao, cpl, cpm_meeting, cp_meeting, cost_per_call
 
 B) ANÁLISE DOS VALORES (use TODAS as amostras e estatísticas):
    - Valores numéricos GRANDES (>100) com decimais → currency (ex: 1250.50, 2500.00, 10000.99)
@@ -277,11 +288,20 @@ C) ANÁLISE DO TIPO DE DADO:
    - timestamp, date, datetime → date (SEMPRE)
    - boolean → conversion (se nome sugere) ou status
 
-D) ANÁLISE DE RELACIONAMENTOS:
-   - Se há coluna "created_date" + coluna numérica → pode ser evolução temporal
-   - Se há coluna "status" + coluna numérica → pode ser funil
-   - Se há coluna "source" + coluna numérica → pode ser análise por origem
+D) ANÁLISE DE RELACIONAMENTOS E PADRÕES ESPECÍFICOS:
+   - Se há coluna "created_date" ou "day" ou "dia" + coluna numérica → pode ser evolução temporal
+   - Se há coluna "status" ou "stage" + coluna numérica → pode ser funil
+   - Se há coluna "source" ou "anuncio" + coluna numérica → pode ser análise por origem
    - Se há múltiplas colunas monetárias → identifique qual é receita vs custo
+   - Padrões específicos de nomenclatura brasileira:
+     * Colunas com sufixo _total (ex: leads_total, custo_total, entrada_total) → são contagens/valores agregados
+     * Colunas com sufixo _30d, _60d, _7d (ex: msg_in_30d, leads_total_30d) → métricas de período específico
+     * Colunas como "reuniao_agendada_total", "reuniao_realizada_total" → reuniões agendadas vs realizadas
+     * Colunas como "entrada_total" ou "kommo_lead_id" → indicam entrada no funil (quando kommo_lead_id não é null = entrada)
+     * Colunas como "custo_total", "custo_por_reuniao_agendada" → custos e métricas financeiras
+     * Colunas como "calls_done", "calls_answered", "total_minutes", "total_spent_usd" → métricas de ligações
+     * Colunas como "msg_in_total", "msg_in_30d" → mensagens recebidas
+   - Views agregadas geralmente têm colunas já calculadas (ex: cpl, taxa_entrada, conv_lead_to_meeting) → mapeie diretamente
 
 ETAPA 3: DECISÃO ASSERTIVA DE MAPEAMENTO
 1. Para cada coluna, avalie TODAS as evidências:
@@ -322,15 +342,22 @@ REGRAS DE QUALIDADE E ASSERTIVIDADE:
    - Evite mapeamentos redundantes (não mapeie a mesma coluna 2x)
 
 3. ORDENAÇÃO POR RELEVÂNCIA (KPIs primeiro):
-   - revenue/receita (mais importante para executivos)
-   - total_leads (essencial para vendas)
-   - conversions (essencial para performance)
-   - conversion_rate (importante para análise)
+   - revenue/receita/spend/custo (mais importante para executivos)
+   - total_leads/leads_total (essencial para vendas)
+   - conversions/conversao (essencial para performance)
+   - conversion_rate/conv_lead_to_meeting (importante para análise)
+   - cpl/custo_por_lead (importante para eficiência)
+   - cpm_meeting/custo_por_reunião (importante para ROI)
+   - meetings_scheduled/reuniao_agendada (importante para pipeline)
+   - meetings_done/reuniao_realizada (importante para conversão)
+   - msg_in/mensagens (importante para engajamento)
+   - calls_done/ligacoes (importante para VAPI)
    - mrr (importante para SaaS)
-   - new_leads (importante para crescimento)
-   - created_date (essencial para gráficos temporais)
-   - lead_source (importante para análise de canais)
-   - funnel_stage (importante para funis)
+   - new_leads/leads_new (importante para crescimento)
+   - day/dia/created_date (essencial para gráficos temporais)
+   - lead_source/anuncio (importante para análise de canais)
+   - funnel_stage/stage_name (importante para funis)
+   - entrada_total/entradas (importante para funil)
    - outros...
 
 4. REASON (justificativa) - Seja DETALHADO e ESPECÍFICO:
@@ -593,11 +620,15 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
     let score = table.rowCount > 0 ? 10 : 0;
     
     // Views and dashboard tables get highest priority
-    if (/^vw_|^view_|dashboard|kpi|metrics|summary|agg/i.test(name)) score += 40;
-    if (/lead|cliente|customer|user/i.test(name)) score += 25;
+    if (/^vw_|^view_|^v3_|^v\d+_/i.test(name)) score += 50; // Views agregadas têm máxima prioridade
+    if (/dashboard|kpi|metrics|summary|agg/i.test(name)) score += 40;
+    if (/funil|funnel|custos|costs/i.test(name)) score += 30; // Views de funil são muito importantes
+    if (/calls|ligacoes|chamadas|vapi/i.test(name)) score += 25; // Dados de ligações
+    if (/msg|message|mensagem|kommo/i.test(name)) score += 25; // Dados de mensagens
+    if (/lead|cliente|customer|user/i.test(name)) score += 20;
     if (/sale|venda|revenue|order|pedido/i.test(name)) score += 20;
     if (/daily|diario|dia|day/i.test(name)) score += 15;
-    if (/30d|60d|month|mes/i.test(name)) score += 10;
+    if (/30d|60d|7d|90d|month|mes/i.test(name)) score += 10;
     
     // Bonus for tables with many numeric columns
     const numericCols = table.columns.filter(c => {
@@ -633,7 +664,8 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
 
       // Lead/count metrics - enhanced detection with multiple patterns
       const isCountPattern = /total|count|quantidade|leads|clientes|users|registros|qtd|numero|num/i.test(name) || 
-          (name.includes('_30d') || name.includes('_60d') || name.includes('_total') || name.includes('_count'));
+          (name.includes('_30d') || name.includes('_60d') || name.includes('_7d') || name.includes('_total') || name.includes('_count')) ||
+          (name.endsWith('_total') || name.endsWith('_30d') || name.endsWith('_60d') || name.endsWith('_7d'));
       
       if (isCountPattern) {
         const isNewLeads = /new|novo|novos|recent|recente|latest|ultimo/i.test(name);
@@ -677,7 +709,8 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
       }
 
       // Revenue/value metrics - enhanced detection with multiple evidence
-      const isMonetaryPattern = /value|valor|amount|revenue|receita|mrr|spend|gasto|cost|custo|investimento|investment|price|preco|ticket|lucro|profit|venda|sale/i.test(name);
+      const isMonetaryPattern = /value|valor|amount|revenue|receita|mrr|spend|gasto|cost|custo|investimento|investment|price|preco|ticket|lucro|profit|venda|sale|spent|_usd/i.test(name) ||
+          (name.includes('custo_') || name.includes('spend_') || name.endsWith('_usd'));
       const isCurrencyByValue = sampleAnalysis.isCurrency && sampleAnalysis.numericValue && sampleAnalysis.numericValue > 10;
       
       if (isMonetaryPattern || isCurrencyByValue) {
@@ -789,29 +822,51 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
         });
       }
 
-      // Messages metrics
-      if (/msg|message|mensagem|mensagens/i.test(name)) {
+      // Messages metrics - enhanced detection
+      if (/msg|message|mensagem|mensagens/i.test(name) || name.includes('msg_in') || name.includes('msg_out')) {
+        const isMsgIn = /msg_in|mensagem.*entrada|mensagem.*recebida/i.test(name);
+        const isMsgOut = /msg_out|mensagem.*saida|mensagem.*enviada/i.test(name);
         suggestions.push({
           sourceField: column.name,
           sourceTable: table.name,
-          targetMetric: 'mensagens',
+          targetMetric: isMsgIn ? 'mensagens_recebidas' : isMsgOut ? 'mensagens_enviadas' : 'mensagens',
           transformation: 'number',
-          confidence: 90,
-          reason: 'Campo de mensagens identificado',
+          confidence: 92,
+          reason: `Campo de mensagens ${isMsgIn ? 'recebidas' : isMsgOut ? 'enviadas' : ''} identificado`,
         });
       }
 
-      // Meetings metrics
-      if (/meeting|reuniao|reunioes|agendada|cancelada/i.test(name)) {
-        const isCancelled = /cancel|cancelada/i.test(name);
-        const isScheduled = /agend|scheduled/i.test(name);
+      // Meetings metrics - enhanced detection with specific patterns
+      if (/meeting|reuniao|reunioes|agendada|cancelada|realizada/i.test(name) || 
+          name.includes('reuniao_') || name.includes('meetings_')) {
+        const isCancelled = /cancel|cancelada|cancelled/i.test(name);
+        const isScheduled = /agend|scheduled|agendada/i.test(name);
+        const isDone = /realizada|done|realizada/i.test(name);
+        const isTotal = name.includes('_total') || name.includes('total_');
+        
+        let targetMetric = 'reuniões';
+        let confidence = 90;
+        
+        if (isCancelled) {
+          targetMetric = 'reuniões_canceladas';
+          confidence = 95;
+        } else if (isDone) {
+          targetMetric = 'reuniões_realizadas';
+          confidence = 95;
+        } else if (isScheduled) {
+          targetMetric = 'reuniões_agendadas';
+          confidence = 95;
+        }
+        
+        if (isTotal) confidence = Math.min(98, confidence + 3);
+        
         suggestions.push({
           sourceField: column.name,
           sourceTable: table.name,
-          targetMetric: isCancelled ? 'reuniões_canceladas' : isScheduled ? 'reuniões_agendadas' : 'reuniões',
+          targetMetric,
           transformation: 'number',
-          confidence: 92,
-          reason: `Reuniões ${isCancelled ? 'canceladas' : isScheduled ? 'agendadas' : ''} identificadas`,
+          confidence,
+          reason: `Reuniões ${isCancelled ? 'canceladas' : isDone ? 'realizadas' : isScheduled ? 'agendadas' : ''} identificadas${isTotal ? ' (coluna agregada)' : ''}`,
         });
       }
 
@@ -854,15 +909,88 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
         });
       }
 
-      // Conversions
-      if (/conversion|conversao|convertido|convert/i.test(name)) {
+      // Conversions and conversion rates - enhanced detection
+      if (/conversion|conversao|convertido|convert|conv_/i.test(name)) {
+        const isRate = /rate|taxa|percent|ratio/i.test(name) || name.includes('conv_');
+        const isLeadToMeeting = /lead.*meeting|lead.*reuniao/i.test(name);
+        const isMsgToMeeting = /msg.*meeting|mensagem.*reuniao/i.test(name);
+        
+        let targetMetric = 'conversions';
+        let transformation: string = 'number';
+        let confidence = 93;
+        
+        if (isRate) {
+          transformation = 'percentage';
+          if (isLeadToMeeting) {
+            targetMetric = 'conversion_rate';
+            confidence = 96;
+          } else if (isMsgToMeeting) {
+            targetMetric = 'conv_msg_to_meeting';
+            confidence = 96;
+          } else {
+            targetMetric = 'conversion_rate';
+            confidence = 94;
+          }
+        }
+        
         suggestions.push({
           sourceField: column.name,
           sourceTable: table.name,
-          targetMetric: 'conversions',
-          transformation: 'number',
-          confidence: 93,
-          reason: 'Campo de conversões identificado',
+          targetMetric,
+          transformation: transformation as any,
+          confidence,
+          reason: `Campo de ${isRate ? 'taxa de conversão' : 'conversões'} identificado${isLeadToMeeting ? ' (lead para reunião)' : isMsgToMeeting ? ' (mensagem para reunião)' : ''}`,
+        });
+      }
+      
+      // Entradas no funil - specific pattern
+      if (/entrada|entradas|kommo_lead_id/i.test(name)) {
+        const isKommoLeadId = name === 'kommo_lead_id';
+        suggestions.push({
+          sourceField: column.name,
+          sourceTable: table.name,
+          targetMetric: isKommoLeadId ? 'entradas' : 'entradas',
+          transformation: isKommoLeadId ? 'none' : 'number',
+          confidence: isKommoLeadId ? 85 : 92,
+          reason: isKommoLeadId 
+            ? 'Campo kommo_lead_id identificado - quando não é null, indica entrada no funil'
+            : 'Campo de entradas no funil identificado',
+        });
+      }
+      
+      // Calls/VAPI metrics - enhanced detection
+      if (/call|calls|ligacao|ligacoes|chamada|chamadas/i.test(name)) {
+        const isDone = /done|realizada|total/i.test(name);
+        const isAnswered = /answered|atendida|atendidas/i.test(name);
+        const isMinutes = /minutes|minutos|min/i.test(name);
+        const isSpent = /spent|custo|cost/i.test(name);
+        
+        let targetMetric = 'calls';
+        let transformation: string = 'number';
+        let confidence = 90;
+        
+        if (isDone) {
+          targetMetric = 'calls_done';
+          confidence = 95;
+        } else if (isAnswered) {
+          targetMetric = 'calls_answered';
+          confidence = 95;
+        } else if (isMinutes) {
+          targetMetric = isMinutes && name.includes('avg') ? 'avg_minutes' : 'total_minutes';
+          confidence = 94;
+        } else if (isSpent) {
+          targetMetric = 'total_spent';
+          transformation = 'currency';
+          confidence = 95;
+        }
+        
+        suggestions.push({
+          sourceField: column.name,
+          sourceTable: table.name,
+          targetMetric,
+          transformation: transformation as any,
+          confidence,
+          reason: `Campo de ${isDone ? 'ligações realizadas' : isAnswered ? 'ligações atendidas' : isMinutes ? 'minutos' : isSpent ? 'custo' : 'ligações'} identificado`,
         });
       }
 
