@@ -656,11 +656,25 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
       const samples = column.sampleValues || [];
       const sampleAnalysis = analyzeSampleValues(samples);
       
-      // Skip IDs and technical fields
-      if (/^id$|^uuid$|^pk$|_id$|_uuid$/i.test(column.name) && (type.includes('uuid') || type.includes('serial'))) continue;
+      // Skip IDs and technical fields - NEVER map IDs as metrics (only for count aggregation)
+      // IDs should NEVER be mapped to metrics like total_leads, new_leads, etc.
+      if (/^id$|^uuid$|^pk$|_id$|_uuid$/i.test(column.name)) {
+        // Only allow if it's explicitly for count aggregation and the target metric is count-related
+        // But even then, prefer actual metric fields
+        continue; // Skip all IDs - they're not metrics
+      }
 
-      // Skip IDs and technical fields
-      if (/^id$|^uuid$|^pk$|_id$|_uuid$/i.test(name) && type.includes('uuid')) continue;
+      // Skip date/timestamp fields as metrics - they should only be used for groupBy in charts
+      // Dates should NEVER be mapped to metrics like total_leads, new_leads, etc.
+      if (type.includes('date') || type.includes('timestamp') || 
+          name.includes('date') || name.includes('created_at') || name.includes('updated_at') ||
+          name.includes('day') || name.includes('dia') || name.includes('hora') || name.includes('time') ||
+          name.includes('timestamp') || name.includes('_at') || name.includes('_ts') ||
+          name.includes('event_day') || name.includes('day_brt') || name.includes('started_at') ||
+          name.includes('ended_at') || name.includes('last_event_ts')) {
+        // Dates are ONLY for groupBy in charts, NOT for metrics
+        continue; // Skip all date fields as metrics
+      }
 
       // Lead/count metrics - enhanced detection with multiple patterns
       const isCountPattern = /total|count|quantidade|leads|clientes|users|registros|qtd|numero|num/i.test(name) || 
