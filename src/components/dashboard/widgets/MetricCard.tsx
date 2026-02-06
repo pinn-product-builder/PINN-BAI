@@ -45,6 +45,19 @@ const MetricCard = ({
     );
   }
 
+  // Show error state if value is undefined and we're not loading
+  if (value === undefined && !isLoading) {
+    return (
+      <Card className="overflow-hidden h-full flex items-center justify-center min-h-[120px] border-destructive/20">
+        <div className="flex flex-col items-center gap-2 text-center px-4">
+          <Database className="w-5 h-5 text-destructive/60" />
+          <span className="text-xs text-destructive/80">Sem dados disponíveis</span>
+          <span className="text-[10px] text-muted-foreground">Verifique a configuração do widget</span>
+        </div>
+      </Card>
+    );
+  }
+
   const hasValue = value !== undefined;
   const displayValue = value ?? 0;
   const percentChange = previousValue && displayValue

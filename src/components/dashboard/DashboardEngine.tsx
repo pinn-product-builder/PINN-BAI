@@ -268,12 +268,20 @@ const WidgetRenderer = ({
   
   const rawData = externalData?.data || [];
   
-  // Debug logging
+  // Debug logging - sempre logar para debug
+  if (!tableName) {
+    console.warn(`[WidgetRenderer] ${widget.title} (${widget.type}): NO TABLE NAME configured!`, {
+      config: config,
+      widgetId: widget.id,
+    });
+  }
+  
   console.log(`[WidgetRenderer] ${widget.title} (${widget.type}):`, {
-    tableName,
+    tableName: tableName || 'NOT SET',
     hasData: rawData.length > 0,
     dataCount: rawData.length,
     firstRow: rawData[0] || null,
+    availableFields: rawData[0] ? Object.keys(rawData[0]) : [],
     config: {
       metric: config.metric,
       aggregation: config.aggregation,
@@ -283,6 +291,8 @@ const WidgetRenderer = ({
     },
     externalDataSuccess: externalData?.success,
     externalDataError: externalData?.error,
+    isLoading,
+    hasError: !!error,
   });
   
   const chartData = processChartData(rawData, config, widget.type);
