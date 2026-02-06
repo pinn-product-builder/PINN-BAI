@@ -466,12 +466,22 @@ const WidgetRenderer = ({
     let shouldIgnoreConfiguredField = false;
     if (metricField) {
       const metricLower = metricField.toLowerCase();
-      if (widgetTitle.includes('receita') || widgetTitle.includes('revenue') || widgetTitle.includes('investimento')) {
+      
+      // Always ignore date fields as metrics (they're for grouping, not aggregation)
+      if (metricLower.includes('date') || metricLower.includes('_at') || metricLower.includes('created') || metricLower.includes('updated')) {
+        shouldIgnoreConfiguredField = true;
+        console.warn('[DashboardEngine] Ignoring date field as metric:', metricField, 'for widget:', widget.title);
+      }
+      // Check if field matches widget purpose
+      else if (widgetTitle.includes('receita') || widgetTitle.includes('revenue') || widgetTitle.includes('investimento')) {
         shouldIgnoreConfiguredField = !metricLower.includes('spend') && !metricLower.includes('custo') && !metricLower.includes('receita') && !metricLower.includes('revenue') && !metricLower.includes('valor') && !metricLower.includes('investimento');
       } else if (widgetTitle.includes('convers') && !widgetTitle.includes('taxa')) {
-        shouldIgnoreConfiguredField = !metricLower.includes('meeting') && !metricLower.includes('convers') && !metricLower.includes('reuniao');
+        shouldIgnoreConfiguredField = !metricLower.includes('meeting') && !metricLower.includes('convers') && !metricLower.includes('reuniao') && !metricLower.includes('done');
       } else if (widgetTitle.includes('taxa') || widgetTitle.includes('rate')) {
-        shouldIgnoreConfiguredField = !metricLower.includes('rate') && !metricLower.includes('taxa') && !metricLower.includes('conv_');
+        shouldIgnoreConfiguredField = !metricLower.includes('rate') && !metricLower.includes('taxa') && !metricLower.includes('conv_') && !metricLower.includes('cpl') && !metricLower.includes('cp_');
+      } else if (widgetTitle.includes('novos') || widgetTitle.includes('new')) {
+        // For "Novos Leads", ignore date fields and non-lead fields
+        shouldIgnoreConfiguredField = metricLower.includes('date') || metricLower.includes('_at') || (!metricLower.includes('lead') && !metricLower.includes('new') && !metricLower.includes('entrada'));
       }
     }
     
@@ -524,7 +534,12 @@ const WidgetRenderer = ({
         }
         if (widgetTitle.includes('lead') || targetMetric.includes('lead')) {
           // Campos reais para leads
-          titleBasedFields.push('leads_total_30d', 'leads_30d', 'total_leads', 'leads_total', 'new_leads', 'leads_new', 'lead_count', 'entradas_30d');
+          if (widgetTitle.includes('novos') || widgetTitle.includes('new')) {
+            // Para "Novos Leads", priorizar campos específicos de novos leads
+            titleBasedFields.push('new_leads', 'leads_new', 'leads_30d', 'entradas_30d', 'leads_total_30d', 'total_leads', 'leads_total', 'lead_count');
+          } else {
+            titleBasedFields.push('leads_total_30d', 'leads_30d', 'total_leads', 'leads_total', 'new_leads', 'leads_new', 'lead_count', 'entradas_30d');
+          }
         }
         if (widgetTitle.includes('taxa') || widgetTitle.includes('rate') || targetMetric.includes('rate')) {
           // Campos reais para taxas
