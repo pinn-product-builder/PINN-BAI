@@ -348,13 +348,32 @@ const WidgetRenderer = ({
           .map((row) => {
             const val = row[foundField];
             if (val === null || val === undefined) return null;
-            return typeof val === 'number' ? val : parseFloat(String(val));
+            if (typeof val === 'number') return isNaN(val) ? null : val;
+            const parsed = parseFloat(String(val));
+            return isNaN(parsed) ? null : parsed;
           })
-          .filter((v): v is number => v !== null && !isNaN(v));
+          .filter((v): v is number => v !== null);
         
         if (values.length === 0) {
           console.warn('[DashboardEngine] No valid numeric values found in field:', foundField);
+          // For aggregated views with single row, try to return the value anyway
+          if (rawData.length === 1) {
+            const singleVal = rawData[0][foundField];
+            if (singleVal !== null && singleVal !== undefined) {
+              const parsed = typeof singleVal === 'number' ? singleVal : parseFloat(String(singleVal));
+              if (!isNaN(parsed)) {
+                console.log('[DashboardEngine] Using single value from aggregated view:', parsed);
+                return parsed;
+              }
+            }
+          }
           return aggregation === 'count' ? rawData.length : undefined;
+        }
+        
+        // For single row (aggregated view), return the value directly
+        if (rawData.length === 1 && values.length === 1) {
+          console.log('[DashboardEngine] Single row aggregated view, returning value directly:', values[0]);
+          return values[0];
         }
         
         let result = 0;
