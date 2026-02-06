@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Organization } from '@/lib/types';
@@ -11,14 +12,29 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { profile } = useAuth();
+    const { profile, roles, isPlatformAdmin } = useAuth();
+    const location = useLocation();
     const [organization, setOrganization] = useState<Organization | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Check if we're in admin context
+    const isAdminContext = location.pathname.startsWith('/admin') || isPlatformAdmin;
+
     useEffect(() => {
         const fetchOrg = async () => {
+            // If admin context OR platform admin, always use admin theme (black/orange)
+            // Never apply organization colors to admin
+            if (isAdminContext || isPlatformAdmin) {
+                setOrganization(null);
+                resetToAdminTheme();
+                setIsLoading(false);
+                return;
+            }
+
+            // Only apply organization colors for client users (not admin)
             if (!profile?.org_id) {
                 setOrganization(null);
+                resetToAdminTheme();
                 setIsLoading(false);
                 return;
             }
@@ -32,12 +48,35 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (!error && data) {
                 setOrganization(data as unknown as Organization);
                 applyTheme(data);
+            } else {
+                resetToAdminTheme();
             }
             setIsLoading(false);
         };
 
         fetchOrg();
-    }, [profile?.org_id]);
+    }, [profile?.org_id, isAdminContext, isPlatformAdmin, location.pathname]);
+
+    // Reset to admin theme (black and orange)
+    const resetToAdminTheme = () => {
+        const root = document.documentElement;
+        
+        // Admin theme: Black background, Orange accents
+        // Reset to default values from index.css
+        root.style.removeProperty('--accent');
+        root.style.removeProperty('--ring');
+        root.style.removeProperty('--sidebar-primary');
+        root.style.removeProperty('--sidebar-background');
+        root.style.removeProperty('--chart-1');
+        root.style.removeProperty('font-family');
+        
+        // Ensure admin uses orange (not blue)
+        // Primary orange: 25 100% 50% (#ff6900)
+        root.style.setProperty('--accent', '38 100% 50%'); // Amber glow
+        root.style.setProperty('--ring', '38 100% 50%'); // Orange ring
+        root.style.setProperty('--sidebar-primary', '25 100% 50%'); // Luminous orange
+        root.style.setProperty('--chart-1', '25 100% 50%'); // Orange for charts
+    };
 
     const applyTheme = (org: any) => {
         const root = document.documentElement;
