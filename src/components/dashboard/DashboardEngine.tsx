@@ -486,8 +486,42 @@ const WidgetRenderer = ({
         });
       }
       
+      // If still not found, use widget title to find better field
+      if (!matchingField) {
+        const widgetTitle = widget.title?.toLowerCase() || '';
+        const targetMetric = config.targetMetric?.toLowerCase() || '';
+        
+        // Build smart field suggestions based on widget title
+        const titleBasedFields: string[] = [];
+        
+        if (widgetTitle.includes('receita') || widgetTitle.includes('revenue') || targetMetric.includes('revenue')) {
+          titleBasedFields.push('spend_30d', 'custo_total', 'receita', 'revenue', 'valor', 'value', 'amount', 'total_spent_usd', 'investimento');
+        }
+        if (widgetTitle.includes('convers') || targetMetric.includes('convers')) {
+          titleBasedFields.push('conversions', 'conversao', 'converted', 'meetings_done', 'reuniao_realizada_total', 'conversion_count');
+        }
+        if (widgetTitle.includes('lead') || targetMetric.includes('lead')) {
+          titleBasedFields.push('leads_total_30d', 'total_leads', 'leads_total', 'new_leads', 'leads_new', 'lead_count');
+        }
+        if (widgetTitle.includes('taxa') || widgetTitle.includes('rate') || targetMetric.includes('rate')) {
+          titleBasedFields.push('conversion_rate', 'rate', 'taxa', 'conv_lead_to_meeting_30d', 'taxa_entrada', 'taxa_atendimento');
+        }
+        
+        // Try to find any of these fields in available fields
+        matchingField = titleBasedFields.find(field => 
+          availableFields.some(af => af.toLowerCase().includes(field.toLowerCase()) || field.toLowerCase().includes(af.toLowerCase()))
+        );
+        
+        if (matchingField) {
+          // Find the actual field name in availableFields
+          matchingField = availableFields.find(af => 
+            af.toLowerCase().includes(matchingField!.toLowerCase()) || matchingField!.toLowerCase().includes(af.toLowerCase())
+          ) || matchingField;
+        }
+      }
+      
       if (matchingField) {
-        console.log('[DashboardEngine] Found matching field:', matchingField, 'for requested:', metricField);
+        console.log('[DashboardEngine] Found matching field:', matchingField, 'for requested:', metricField, '(based on widget title:', widget.title, ')');
         // Use the matching field
         const values = rawData
           .map((row) => {
@@ -500,6 +534,12 @@ const WidgetRenderer = ({
           .filter((v): v is number => v !== null);
         
         if (values.length > 0) {
+          // For single row (aggregated view), return value directly
+          if (rawData.length === 1 && values.length === 1) {
+            console.log('[DashboardEngine] Single row aggregated view, returning value directly:', values[0]);
+            return values[0];
+          }
+          
           switch (aggregation) {
             case 'sum':
               return values.reduce((a, b) => a + b, 0);
@@ -517,7 +557,7 @@ const WidgetRenderer = ({
       }
       
       // If still not found, log available fields for debugging
-      console.error('[DashboardEngine] Could not find metric field:', metricField, 'Available fields:', availableFields);
+      console.error('[DashboardEngine] Could not find metric field:', metricField, 'Available fields:', availableFields, 'Widget title:', widget.title);
       
       // If aggregation is count, return total rows (but log warning)
       if (aggregation === 'count') {
@@ -759,7 +799,7 @@ const WidgetRenderer = ({
 
 const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   // Log básico que sempre aparece
-  console.log('🚀 DashboardEngine STARTED', dashboardId);
+  console.log('[DashboardEngine] STARTED', dashboardId);
   
   const { orgId } = useParams();
   const queryClient = useQueryClient();

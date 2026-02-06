@@ -231,7 +231,7 @@ const Dashboard = () => {
 
         {dashboard?.id ? (
           <>
-            {console.log('📊 Rendering DashboardEngine with dashboardId:', dashboard.id)}
+            {console.log('[Dashboard] Rendering DashboardEngine with dashboardId:', dashboard.id)}
             <DashboardEngine dashboardId={dashboard.id} />
           </>
         ) : (
