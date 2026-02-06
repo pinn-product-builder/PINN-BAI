@@ -379,8 +379,20 @@ const WidgetRenderer = ({
         return result;
       }
       
-      // Fallback to count of rows
-      console.log('[DashboardEngine] No field found, using row count:', rawData.length);
+      // Fallback: if it's a single row (aggregated view), try to get first numeric value
+      if (rawData.length === 1) {
+        const firstRow = rawData[0];
+        const firstNumericValue = Object.values(firstRow).find(val => 
+          val !== null && val !== undefined && typeof val === 'number' && !isNaN(val)
+        ) as number | undefined;
+        if (firstNumericValue !== undefined) {
+          console.log('[DashboardEngine] Using first numeric value from single row:', firstNumericValue);
+          return firstNumericValue;
+        }
+      }
+      
+      // Last resort: count of rows (but log warning)
+      console.warn('[DashboardEngine] No field found, using row count as fallback:', rawData.length);
       return rawData.length;
     }
     
@@ -475,12 +487,14 @@ const WidgetRenderer = ({
     }
 
     // For views aggregated (usually single row with pre-aggregated values), 
-    // if we have only one row and aggregation is sum/count, just return the value
+    // if we have only one row, return the value directly (it's already aggregated)
     // This handles cases like vw_dashboard_kpis_30d_v3 which has one row with all KPIs
-    if (rawData.length === 1 && (aggregation === 'sum' || aggregation === 'count')) {
+    if (rawData.length === 1) {
       const singleValue = values[0];
-      console.log('[DashboardEngine] Single row detected (likely aggregated view), returning value directly:', singleValue);
-      return singleValue;
+      if (singleValue !== null && singleValue !== undefined && !isNaN(singleValue)) {
+        console.log('[DashboardEngine] Single row detected (likely aggregated view), returning value directly:', singleValue);
+        return singleValue;
+      }
     }
 
     let result = 0;
