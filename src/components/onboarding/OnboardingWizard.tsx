@@ -39,7 +39,7 @@ export interface OnboardingWizardState {
   integration: DataIntegration | null;
   mappings: DataMapping[];
   selectedWidgets: DashboardWidgetConfig[];
-  primaryTable: string | null; // Primary table for external data source
+  primaryTable: string | null; // Primary table (informative/fallback only - widgets use their own sourceTable from mappings)
   isComplete: boolean;
 }
 
@@ -145,24 +145,28 @@ const OnboardingWizard = () => {
 
       // 2. Apply template if selected
       if (state.selectedTemplateId && state.selectedTemplate) {
-        // Get primary table from state or first selected table
+        // Get primary table from state or first mapping's table (informative only - widgets use their own tables)
+        // Since widgets can use multiple tables, we use the first mapping's table as a fallback
+        const firstMappingTable = state.mappings[0]?.sourceTable;
         const dataSource = state.primaryTable 
+          || firstMappingTable
           || state.integration?.tables?.[0]?.name 
           || null;
 
-        // Build metric mappings from the mapping step
+        // Build metric mappings from the mapping step - each mapping includes its sourceTable
         const metricMappings = state.mappings.reduce((acc, m) => ({
           ...acc,
           [m.targetMetric]: {
             field: m.sourceField,
             aggregation: m.aggregation || 'count',
+            sourceTable: m.sourceTable, // Include sourceTable for each mapping
           },
-        }), {} as Record<string, { field: string; aggregation: string }>);
+        }), {} as Record<string, { field: string; aggregation: string; sourceTable?: string }>);
 
         await applyTemplate.mutateAsync({
           templateId: state.selectedTemplateId,
           dashboardId: dashboard.id,
-          dataSource: dataSource || undefined,
+          dataSource: dataSource || undefined, // Fallback for backward compatibility
           metricMappings: Object.keys(metricMappings).length > 0 ? metricMappings : undefined,
         });
       } 

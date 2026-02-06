@@ -227,17 +227,20 @@ TRANSFORMAÇÕES DISPONÍVEIS (escolha baseado no tipo e conteúdo):
 METODOLOGIA DE ANÁLISE (SIGA RIGOROSAMENTE):
 
 ETAPA 1: ANÁLISE ESTRUTURAL DAS TABELAS
-1. Identifique a TABELA PRINCIPAL (primaryTable):
+1. Analise TODAS as tabelas disponíveis - NÃO se limite a uma única tabela:
    - Views agregadas (vw_*, view_*) têm PRIORIDADE MÁXIMA
-   - Tabelas com "dashboard", "kpi", "summary", "metrics" no nome
-   - Tabelas com MAIS registros e MAIS colunas numéricas
-   - Tabelas que parecem ser a "fonte da verdade" do negócio
+   - Tabelas com "dashboard", "kpi", "summary", "metrics" no nome são importantes
+   - Tabelas com MAIS registros e MAIS colunas numéricas são valiosas
+   - Tabelas que parecem ser a "fonte da verdade" do negócio devem ser incluídas
    - EVITE tabelas de log, audit, ou transacionais muito granulares
+   - IMPORTANTE: Crie mapeamentos de MÚLTIPLAS tabelas para um dashboard completo
+   - Cada tabela pode contribuir com métricas diferentes e complementares
 
-2. Analise o CONTEXTO DO NEGÓCIO:
-   - O que esta tabela representa? (leads, vendas, usuários, produtos?)
-   - Quais são as métricas mais importantes para este tipo de negócio?
-   - Quais colunas são essenciais para um dashboard executivo?
+2. Analise o CONTEXTO DO NEGÓCIO de CADA tabela:
+   - O que cada tabela representa? (leads, vendas, usuários, produtos, reuniões, mensagens?)
+   - Quais são as métricas mais importantes que cada tabela pode fornecer?
+   - Quais colunas de cada tabela são essenciais para um dashboard executivo completo?
+   - Pense em como diferentes tabelas podem se complementar no dashboard final
 
 ETAPA 2: ANÁLISE PROFUNDA DAS COLUNAS (para cada coluna):
 
@@ -336,12 +339,15 @@ REGRAS DE QUALIDADE E ASSERTIVIDADE:
    - Explique por que esta métrica é útil no dashboard
    - Exemplo PERFEITO: "Coluna 'total_revenue' (tipo: numeric) com valores entre R$ 1.250-5.000 (média: R$ 2.450) e decimais confirma receita total. Nome explícito + valores monetários + tipo numérico = mapeamento perfeito para métrica 'revenue' com transformação 'currency'."
 
-5. PRIMARY TABLE (tabela principal) - Seja ESTRATÉGICO:
-   - Views agregadas (vw_*, view_*) têm PRIORIDADE ABSOLUTA
-   - Tabelas com mais KPIs mapeados
-   - Tabelas com mais registros (dados completos)
-   - Tabelas que parecem ser a "fonte da verdade"
+5. MÚLTIPLAS TABELAS - Seja ESTRATÉGICO:
+   - IMPORTANTE: Crie mapeamentos de VÁRIAS tabelas, não apenas uma
+   - Views agregadas (vw_*, view_*) têm PRIORIDADE ABSOLUTA - mas não se limite a elas
+   - Tabelas com mais KPIs mapeados devem ser incluídas
+   - Tabelas com mais registros (dados completos) são valiosas
+   - Tabelas que parecem ser a "fonte da verdade" devem ser incluídas
+   - Diferentes tabelas podem fornecer métricas complementares (ex: uma tabela para leads, outra para vendas, outra para reuniões)
    - EVITE tabelas de log, audit, ou muito granulares
+   - O objetivo é criar um dashboard COMPLETO usando dados de MÚLTIPLAS fontes
 
 6. ESPECIFICIDADE - Escolha SEMPRE a métrica mais específica:
    - "total_leads" > "total" genérico
@@ -369,9 +375,16 @@ FORMATO DE RESPOSTA (JSON válido, sem markdown):
       "reason": "Explicação clara e específica do porquê este mapeamento é correto"
     }
   ],
-  "primaryTable": "nome_da_tabela_principal",
-  "summary": "Resumo executivo em 1-2 frases das sugestões geradas"
-}`;
+  "primaryTable": "nome_da_tabela_mais_relevante_ou_primeira",
+  "summary": "Resumo executivo em 1-2 frases das sugestões geradas. Mencione quantas tabelas diferentes foram utilizadas."
+}
+
+IMPORTANTE: 
+- Crie mapeamentos de MÚLTIPLAS tabelas (não apenas uma)
+- Cada mapeamento deve especificar sua própria sourceTable
+- O campo "primaryTable" é apenas informativo (pode ser a primeira ou mais relevante), mas os widgets usarão a sourceTable de cada mapeamento individual
+- Quanto mais tabelas você analisar e mapear, mais completo será o dashboard gerado
+`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -383,23 +396,27 @@ FORMATO DE RESPOSTA (JSON válido, sem markdown):
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Analise PROFUNDAMENTE estas tabelas e crie mapeamentos PERFEITOS e ASSERTIVOS para um dashboard executivo.
+          { role: "user", content: `Analise PROFUNDAMENTE estas tabelas e crie mapeamentos PERFEITOS e ASSERTIVOS para um dashboard executivo COMPLETO.
 
 PENSE NO DASHBOARD FINAL:
 - Como os dados serão visualizados?
 - Quais métricas são mais importantes para decisões executivas?
 - Quais colunas permitirão criar gráficos úteis?
 - Quais agrupamentos serão possíveis?
+- Como diferentes tabelas podem se complementar?
 
-SEJA ASSERTIVO:
+SEJA ASSERTIVO E COMPLETO:
 - Tome decisões claras baseadas em múltiplas evidências
 - Priorize métricas que realmente importam
 - Garanta que os mapeamentos resultarão em um dashboard útil
+- IMPORTANTE: Analise e mapeie MÚLTIPLAS tabelas, não apenas uma
+- Cada tabela pode contribuir com métricas diferentes e complementares
+- Um dashboard completo precisa de dados de várias fontes
 
 DADOS DAS TABELAS:
 ${tablesSummary}
 
-Lembre-se: O objetivo é criar um dashboard que funcione PERFEITAMENTE apenas conectando a fonte de dados. Seja preciso, assertivo e pense no resultado final.` }
+Lembre-se: O objetivo é criar um dashboard COMPLETO que funcione PERFEITAMENTE usando dados de MÚLTIPLAS tabelas. Cada widget pode usar uma tabela diferente. Seja preciso, assertivo e pense no resultado final com dados de várias fontes.` }
         ],
       }),
     });
@@ -467,11 +484,14 @@ Lembre-se: O objetivo é criar um dashboard que funcione PERFEITAMENTE apenas co
           throw new Error('No valid suggestions found');
         }
         
+        // Count unique tables used in suggestions
+        const uniqueTables = new Set(validSuggestions.map(s => s.sourceTable));
+        
         result = {
           success: true,
           suggestions: validSuggestions,
-          primaryTable: parsed.primaryTable || tables[0]?.name || '',
-          summary: parsed.summary || `IA identificou ${validSuggestions.length} mapeamentos relevantes`,
+          primaryTable: parsed.primaryTable || tables[0]?.name || '', // Informative only
+          summary: parsed.summary || `IA identificou ${validSuggestions.length} mapeamentos relevantes de ${uniqueTables.size} tabela(s) diferentes`,
           method: 'ai',
         };
       } else {
@@ -567,7 +587,7 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
   let primaryTable = tables[0]?.name || '';
   let maxScore = 0;
 
-  // Find best primary table with improved scoring
+  // Find best primary table with improved scoring (for reference only, not a limitation)
   for (const table of tables) {
     const name = table.name.toLowerCase();
     let score = table.rowCount > 0 ? 10 : 0;
@@ -592,7 +612,7 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
     }
   }
 
-  // Map columns to metrics with improved analysis
+  // Map columns to metrics with improved analysis - ANALYSE ALL TABLES, not just one
   for (const table of tables) {
     const columnsToAnalyze = selectedColumns?.[table.name] || table.columns.map(c => c.name);
     
@@ -885,11 +905,14 @@ function heuristicMappings(tables: TableInfo[], selectedColumns?: Record<string,
     })
     .slice(0, 20);
 
+  // Count unique tables used
+  const uniqueTables = new Set(sortedSuggestions.map(s => s.sourceTable));
+  
   return {
     success: true,
     suggestions: sortedSuggestions,
-    primaryTable,
-    summary: `Identificados ${sortedSuggestions.length} mapeamentos relevantes via análise heurística avançada`,
+    primaryTable, // Informative only, widgets will use sourceTable from each mapping
+    summary: `Identificados ${sortedSuggestions.length} mapeamentos relevantes de ${uniqueTables.size} tabela(s) diferentes via análise heurística avançada`,
     method: 'heuristic',
   };
 }

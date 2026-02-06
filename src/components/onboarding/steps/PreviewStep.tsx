@@ -106,7 +106,10 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
       // If no specific match, use all mappings (widget will use first table)
       const widgetMappings = relevantMappings.length > 0 ? relevantMappings : mappings.slice(0, 1);
 
+      // Use the first mapping's table, but each widget can have its own table
       const firstMapping = widgetMappings[0];
+      const widgetTable = firstMapping?.sourceTable || null;
+      
       const widget: DashboardWidgetConfig = {
         id: `widget-${rec.type}-${index}`,
         type: rec.type as DashboardWidgetType,
@@ -116,9 +119,9 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
         dataMapping: widgetMappings,
         config: {
           ...rec.config,
-          // Include data source from mapping for dynamic dashboard
-          dataSource: firstMapping?.sourceTable || null,
-          sourceTable: firstMapping?.sourceTable || null,
+          // Include data source from mapping for dynamic dashboard - each widget uses its own table
+          dataSource: widgetTable,
+          sourceTable: widgetTable,
           // Use sourceField (actual column name) not targetMetric
           metric: firstMapping?.sourceField || null,
           // Include aggregation from mapping
@@ -160,7 +163,7 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
         </h2>
         <p className="text-muted-foreground">
           Baseado nos mapeamentos, sugerimos os widgets mais adequados. 
-          Cada gráfico está vinculado à sua tabela de origem.
+          Cada gráfico está vinculado à sua própria tabela de origem - o dashboard suporta múltiplas fontes de dados.
         </p>
       </div>
 

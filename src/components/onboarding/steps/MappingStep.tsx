@@ -223,13 +223,14 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
         setAiSummary(data.summary || '');
         setAiMethod(data.method || 'ai');
         
-        // Update primary table if AI suggests one
+        // Update selected table for preview if AI suggests one (informative only)
         if (data.primaryTable && data.primaryTable !== selectedTable) {
           const primaryTableExists = tables.some(t => t.name === data.primaryTable);
           if (primaryTableExists) {
             handleTableChange(data.primaryTable);
           }
         }
+        // Note: Each mapping already has its own sourceTable, so we don't need to force a single primary table
         
         // Auto-accept all valid suggestions
         const newStates: Record<number, SuggestionState> = {};
@@ -395,7 +396,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
     const newMapping: DataMapping = {
       id: `mapping-${Date.now()}`,
       sourceField: '',
-      sourceTable: selectedTable,
+      sourceTable: selectedTable || tables[0]?.name || '', // Use selected table or first available
       targetMetric: 'total_leads',
       transformation: 'none',
     };
@@ -433,8 +434,11 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
     onUpdate(mappings.filter(m => m.id !== id));
   };
 
-  const getSampleValues = (columnName: string): unknown[] => {
-    const column = columns.find(c => c.name === columnName);
+  const getSampleValues = (columnName: string, tableName?: string): unknown[] => {
+    const targetTable = tableName 
+      ? tables.find(t => t.name === tableName) 
+      : currentTable;
+    const column = targetTable?.columns.find(c => c.name === columnName);
     return column?.sampleValues || [];
   };
 
@@ -794,13 +798,13 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
 
           {/* Manual Mapping Tab */}
           <TabsContent value="manual" className="mt-4 space-y-4">
-            {/* Table Selection */}
+            {/* Table Selection - Now Optional/Informative */}
             {tables.length > 0 && (
               <div className="space-y-2">
-                <Label>Tabela Principal (DataSource)</Label>
+                <Label>Tabela Principal (Opcional - cada mapeamento pode usar uma tabela diferente)</Label>
                 <Select value={selectedTable} onValueChange={handleTableChange}>
                   <SelectTrigger className="max-w-xs">
-                    <SelectValue placeholder="Selecione uma tabela" />
+                    <SelectValue placeholder="Selecione uma tabela para preview" />
                   </SelectTrigger>
                   <SelectContent>
                     {tables.map(table => (
@@ -811,7 +815,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Esta tabela será usada como fonte de dados para os widgets do dashboard
+                  Esta seleção é apenas para preview. Cada mapeamento pode usar uma tabela diferente - o dashboard suporta múltiplas fontes de dados.
                 </p>
               </div>
             )}
@@ -888,21 +892,55 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
               ) : (
                 <ScrollArea className="h-[400px] pr-2">
                   <div className="space-y-3">
-                    {mappings.map((mapping) => (
+                    {mappings.map((mapping) => {
+                      // Get columns from the mapping's source table, or fallback to selected table
+                      const mappingTable = tables.find(t => t.name === mapping.sourceTable) || currentTable;
+                      const mappingColumns = mappingTable?.columns || [];
+                      
+                      return (
                       <Card key={mapping.id} className="p-4">
                         <div className="flex items-center gap-4">
+                          {/* Source Table Selection */}
+                          <div className="w-48 space-y-1">
+                            <Label className="text-xs text-muted-foreground">Tabela Origem</Label>
+                            <Select
+                              value={mapping.sourceTable || selectedTable}
+                              onValueChange={(value) => {
+                                updateMapping(mapping.id, { sourceTable: value, sourceField: '' }); // Clear field when table changes
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione a tabela" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {tables.map(table => (
+                                  <SelectItem key={table.name} value={table.name}>
+                                    <div className="flex items-center gap-2">
+                                      <Database className="w-3 h-3" />
+                                      <span>{table.name}</span>
+                                      <Badge variant="outline" className="text-[10px]">
+                                        {table.rowCount.toLocaleString()}
+                                      </Badge>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
                           {/* Source Field */}
                           <div className="flex-1 space-y-1">
                             <Label className="text-xs text-muted-foreground">Campo Origem</Label>
                             <Select
                               value={mapping.sourceField}
                               onValueChange={(value) => updateMapping(mapping.id, { sourceField: value })}
+                              disabled={!mapping.sourceTable && !selectedTable}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Selecione o campo" />
+                                <SelectValue placeholder={mapping.sourceTable || selectedTable ? "Selecione o campo" : "Selecione a tabela primeiro"} />
                               </SelectTrigger>
                               <SelectContent>
-                                {columns.map(col => (
+                                {mappingColumns.map(col => (
                                   <SelectItem key={col.name} value={col.name}>
                                     <div className="flex items-center gap-2">
                                       <span>{col.name}</span>
@@ -914,9 +952,9 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                                 ))}
                               </SelectContent>
                             </Select>
-                            {mapping.sourceField && (
+                            {mapping.sourceField && mappingTable && (
                               <div className="flex gap-1 mt-1">
-                                {getSampleValues(mapping.sourceField).slice(0, 2).map((val, i) => (
+                                {mappingTable.columns.find(c => c.name === mapping.sourceField)?.sampleValues?.slice(0, 2).map((val, i) => (
                                   <span key={i} className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                                     {String(val)}
                                   </span>
@@ -1045,7 +1083,8 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                           </Button>
                         </div>
                       </Card>
-                    ))}
+                    );
+                    })}
                   </div>
                 </ScrollArea>
               )}
@@ -1058,8 +1097,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                 <div>
                   <p className="text-sm font-medium text-foreground">Dica</p>
                   <p className="text-sm text-muted-foreground">
-                    Mapeie pelo menos 2 campos para gerar um dashboard básico. Quanto mais campos mapeados,
-                    mais completo será o dashboard gerado.
+                    Mapeie pelo menos 2 campos para gerar um dashboard básico. Você pode usar múltiplas tabelas - cada mapeamento pode vir de uma tabela diferente para criar um dashboard completo e abrangente.
                   </p>
                 </div>
               </div>

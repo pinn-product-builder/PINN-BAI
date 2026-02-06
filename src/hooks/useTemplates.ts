@@ -375,9 +375,13 @@ export const useApplyTemplate = () => {
           format = tw.config.format as 'number' | 'currency' | 'percentage';
         }
         
+        // Use mapping's sourceTable if available, otherwise fallback to dataSource
+        const widgetTable = (mapping as any)?.sourceTable || dataSource || null;
+        
         const widgetConfig: Record<string, unknown> = {
           ...tw.config,
-          dataSource: dataSource || null,
+          dataSource: widgetTable, // Each widget can use its own table
+          sourceTable: widgetTable, // Also set sourceTable for consistency
           format,
         };
         
