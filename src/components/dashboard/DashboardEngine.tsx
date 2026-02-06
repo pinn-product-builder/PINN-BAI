@@ -758,6 +758,9 @@ const WidgetRenderer = ({
 };
 
 const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
+  // Log básico que sempre aparece
+  console.log('🚀 DashboardEngine STARTED', dashboardId);
+  
   const { orgId } = useParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();

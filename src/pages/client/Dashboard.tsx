@@ -230,7 +230,10 @@ const Dashboard = () => {
         </div>
 
         {dashboard?.id ? (
-          <DashboardEngine dashboardId={dashboard.id} />
+          <>
+            {console.log('📊 Rendering DashboardEngine with dashboardId:', dashboard.id)}
+            <DashboardEngine dashboardId={dashboard.id} />
+          </>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map(i => (
