@@ -80,12 +80,23 @@ export const useExternalData = <T = Record<string, unknown>>(
           };
         }
 
-        return (data as FetchResult<T>) || {
+        const result = (data as FetchResult<T>) || {
           success: true,
           data: [],
           count: 0,
           tableName: params.tableName,
         };
+        
+        // Debug logging
+        console.log('[useExternalData] Response for table:', params.tableName, {
+          success: result.success,
+          dataCount: result.data?.length || 0,
+          firstRow: result.data?.[0] || null,
+          availableFields: result.data?.[0] ? Object.keys(result.data[0]) : [],
+          error: result.error,
+        });
+        
+        return result;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
         console.error('useExternalData error:', err);

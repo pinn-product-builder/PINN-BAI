@@ -317,7 +317,7 @@ const WidgetRenderer = ({
       return undefined;
     }
     
-    const metricField = config.metric;
+    let metricField = config.metric;
     const aggregation = config.aggregation || 'count';
     
     console.log('[DashboardEngine] Calculating metric:', {
@@ -456,20 +456,42 @@ const WidgetRenderer = ({
     }
     
     // Check if field exists in data
-    if (!rawData[0] || !(metricField in rawData[0])) {
-      console.warn('[DashboardEngine] Metric field not found in data:', metricField, 'Available fields:', Object.keys(rawData[0] || {}));
-      
-      // Try case-insensitive match
-      const firstRow = rawData[0] || {};
-      const availableFields = Object.keys(firstRow);
+    const firstRow = rawData[0] || {};
+    const availableFields = Object.keys(firstRow);
+    const widgetTitle = widget.title?.toLowerCase() || '';
+    const targetMetric = config.targetMetric?.toLowerCase() || '';
+    
+    // Smart validation: check if the configured field makes sense for the widget title
+    // If widget is about "Receita" but field is "total_leads", ignore the configured field
+    let shouldIgnoreConfiguredField = false;
+    if (metricField) {
+      const metricLower = metricField.toLowerCase();
+      if (widgetTitle.includes('receita') || widgetTitle.includes('revenue') || widgetTitle.includes('investimento')) {
+        shouldIgnoreConfiguredField = !metricLower.includes('spend') && !metricLower.includes('custo') && !metricLower.includes('receita') && !metricLower.includes('revenue') && !metricLower.includes('valor') && !metricLower.includes('investimento');
+      } else if (widgetTitle.includes('convers') && !widgetTitle.includes('taxa')) {
+        shouldIgnoreConfiguredField = !metricLower.includes('meeting') && !metricLower.includes('convers') && !metricLower.includes('reuniao');
+      } else if (widgetTitle.includes('taxa') || widgetTitle.includes('rate')) {
+        shouldIgnoreConfiguredField = !metricLower.includes('rate') && !metricLower.includes('taxa') && !metricLower.includes('conv_');
+      }
+    }
+    
+    let matchingField: string | undefined = undefined;
+    
+    // If field doesn't exist OR doesn't make sense for the widget, find a better one
+    if (!rawData[0] || !(metricField in rawData[0]) || shouldIgnoreConfiguredField) {
+      if (shouldIgnoreConfiguredField) {
+        console.warn('[DashboardEngine] Configured field does not match widget title:', metricField, 'Widget:', widget.title, 'Available fields:', availableFields);
+      } else {
+        console.warn('[DashboardEngine] Metric field not found in data:', metricField, 'Available fields:', availableFields);
+      }
       
       // Try exact case-insensitive match first
-      let matchingField = availableFields.find(key => 
-        key.toLowerCase() === metricField.toLowerCase()
+      matchingField = availableFields.find(key => 
+        key.toLowerCase() === metricField?.toLowerCase()
       );
       
       // If not found, try partial matches (e.g., "leads_total" matches "total_leads")
-      if (!matchingField) {
+      if (!matchingField && metricField) {
         const metricLower = metricField.toLowerCase();
         matchingField = availableFields.find(key => {
           const keyLower = key.toLowerCase();
@@ -478,7 +500,7 @@ const WidgetRenderer = ({
       }
       
       // If still not found, try to find fields with similar patterns
-      if (!matchingField && metricField.includes('_')) {
+      if (!matchingField && metricField?.includes('_')) {
         const parts = metricField.split('_');
         matchingField = availableFields.find(key => {
           const keyLower = key.toLowerCase();
@@ -486,84 +508,70 @@ const WidgetRenderer = ({
         });
       }
       
-      // If still not found, use widget title to find better field
-      if (!matchingField) {
-        const widgetTitle = widget.title?.toLowerCase() || '';
-        const targetMetric = config.targetMetric?.toLowerCase() || '';
-        
+      // Use widget title to find better field (ALWAYS try this if configured field doesn't make sense)
+      if (!matchingField || shouldIgnoreConfiguredField) {
         // Build smart field suggestions based on widget title
+        // Using actual field names from vw_dashboard_kpis_30d_v3 and vw_dashboard_daily_60d_v3
         const titleBasedFields: string[] = [];
         
-        if (widgetTitle.includes('receita') || widgetTitle.includes('revenue') || targetMetric.includes('revenue')) {
-          titleBasedFields.push('spend_30d', 'custo_total', 'receita', 'revenue', 'valor', 'value', 'amount', 'total_spent_usd', 'investimento');
+        if (widgetTitle.includes('receita') || widgetTitle.includes('revenue') || widgetTitle.includes('investimento') || targetMetric.includes('revenue') || targetMetric.includes('spend')) {
+          // Campos reais das views para receita/investimento
+          titleBasedFields.push('spend_30d', 'spend_total_30d', 'custo_total', 'custo_30d', 'receita', 'revenue', 'valor', 'value', 'amount', 'total_spent_usd', 'investimento');
         }
-        if (widgetTitle.includes('convers') || targetMetric.includes('convers')) {
-          titleBasedFields.push('conversions', 'conversao', 'converted', 'meetings_done', 'reuniao_realizada_total', 'conversion_count');
+        if (widgetTitle.includes('convers') && !widgetTitle.includes('taxa') || targetMetric.includes('convers') && !targetMetric.includes('rate')) {
+          // Campos reais para conversões (reuniões realizadas)
+          titleBasedFields.push('meetings_done', 'meetings_done_30d', 'reuniao_realizada_total', 'conversions', 'conversao', 'converted', 'conversion_count');
         }
         if (widgetTitle.includes('lead') || targetMetric.includes('lead')) {
-          titleBasedFields.push('leads_total_30d', 'total_leads', 'leads_total', 'new_leads', 'leads_new', 'lead_count');
+          // Campos reais para leads
+          titleBasedFields.push('leads_total_30d', 'leads_30d', 'total_leads', 'leads_total', 'new_leads', 'leads_new', 'lead_count', 'entradas_30d');
         }
         if (widgetTitle.includes('taxa') || widgetTitle.includes('rate') || targetMetric.includes('rate')) {
-          titleBasedFields.push('conversion_rate', 'rate', 'taxa', 'conv_lead_to_meeting_30d', 'taxa_entrada', 'taxa_atendimento');
+          // Campos reais para taxas
+          titleBasedFields.push('conv_lead_to_meeting_30d', 'taxa_entrada_30d', 'taxa_entrada', 'conversion_rate', 'rate', 'taxa', 'taxa_atendimento', 'cpl_30d', 'cp_meeting_booked_30d');
+        }
+        if (widgetTitle.includes('reuni') || targetMetric.includes('meeting')) {
+          // Campos reais para reuniões
+          titleBasedFields.push('meetings_scheduled_30d', 'meetings_booked_30d', 'meetings_done_30d', 'meetings_done', 'reuniao_agendada_total', 'reuniao_realizada_total');
+        }
+        if (widgetTitle.includes('mensagem') || widgetTitle.includes('msg') || targetMetric.includes('msg')) {
+          // Campos reais para mensagens
+          titleBasedFields.push('msg_in_30d', 'msg_in_total', 'msg_in', 'mensagens', 'message');
         }
         
         // Try to find any of these fields in available fields
-        matchingField = titleBasedFields.find(field => 
+        const foundField = titleBasedFields.find(field => 
           availableFields.some(af => af.toLowerCase().includes(field.toLowerCase()) || field.toLowerCase().includes(af.toLowerCase()))
         );
         
-        if (matchingField) {
+        if (foundField) {
           // Find the actual field name in availableFields
           matchingField = availableFields.find(af => 
-            af.toLowerCase().includes(matchingField!.toLowerCase()) || matchingField!.toLowerCase().includes(af.toLowerCase())
-          ) || matchingField;
+            af.toLowerCase().includes(foundField.toLowerCase()) || foundField.toLowerCase().includes(af.toLowerCase())
+          ) || foundField;
         }
       }
       
       if (matchingField) {
         console.log('[DashboardEngine] Found matching field:', matchingField, 'for requested:', metricField, '(based on widget title:', widget.title, ')');
-        // Use the matching field
-        const values = rawData
-          .map((row) => {
-            const val = row[matchingField!];
-            if (val === null || val === undefined) return null;
-            if (typeof val === 'number') return isNaN(val) ? null : val;
-            const parsed = parseFloat(String(val));
-            return isNaN(parsed) ? null : parsed;
-          })
-          .filter((v): v is number => v !== null);
+        // Use the matching field instead of the configured one
+        metricField = matchingField;
+      } else {
+        // If still not found, log available fields for debugging
+        console.error('[DashboardEngine] Could not find metric field:', metricField, 'Available fields:', availableFields, 'Widget title:', widget.title);
         
-        if (values.length > 0) {
-          // For single row (aggregated view), return value directly
-          if (rawData.length === 1 && values.length === 1) {
-            console.log('[DashboardEngine] Single row aggregated view, returning value directly:', values[0]);
-            return values[0];
-          }
-          
-          switch (aggregation) {
-            case 'sum':
-              return values.reduce((a, b) => a + b, 0);
-            case 'avg':
-              return values.reduce((a, b) => a + b, 0) / values.length;
-            case 'min':
-              return Math.min(...values);
-            case 'max':
-              return Math.max(...values);
-            case 'count':
-            default:
-              return values.length;
-          }
+        // If aggregation is count, return total rows (but log warning)
+        if (aggregation === 'count') {
+          console.warn('[DashboardEngine] Using row count as fallback for count aggregation');
+          return rawData.length;
         }
+        return undefined;
       }
-      
-      // If still not found, log available fields for debugging
-      console.error('[DashboardEngine] Could not find metric field:', metricField, 'Available fields:', availableFields, 'Widget title:', widget.title);
-      
-      // If aggregation is count, return total rows (but log warning)
-      if (aggregation === 'count') {
-        console.warn('[DashboardEngine] Using row count as fallback for count aggregation');
-        return rawData.length;
-      }
+    }
+    
+    // Now use metricField (either original or the matching one) to calculate the value
+    if (!metricField || !rawData[0] || !(metricField in rawData[0])) {
+      console.error('[DashboardEngine] Final metric field not available:', metricField, 'Available fields:', Object.keys(rawData[0] || {}));
       return undefined;
     }
     
