@@ -762,128 +762,240 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
     );
   }
 
-  // Organize widgets in a 3x3 grid layout (estilo do print)
-  // Primeiro, separar widgets por tipo
-  const metricWidgets = widgets.filter(w => w.type === 'metric_card');
-  const chartWidgets = widgets.filter(w => ['area_chart', 'bar_chart', 'line_chart'].includes(w.type));
-  const pieWidgets = widgets.filter(w => w.type === 'pie_chart');
-  const funnelWidgets = widgets.filter(w => w.type === 'funnel');
-  const tableWidgets = widgets.filter(w => w.type === 'table');
-  const insightWidgets = widgets.filter(w => w.type === 'insight_card');
+  // Layout premium inspirado nos templates Pinn (hero KPIs + seções bem definidas)
+  // Ordena widgets pela posição definida no template
+  const sortedWidgets = [...widgets].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
-  // Layout em grid 3x3 para widgets principais (estilo do print)
-  const allWidgets = [...widgets];
-  const gridWidgets = allWidgets.slice(0, 9); // Primeiros 9 widgets em grid 3x3
-  const remainingWidgets = allWidgets.slice(9);
+  // Agrupamentos por tipo
+  const metricWidgets = sortedWidgets.filter(w => w.type === 'metric_card');
+  const timeSeriesCharts = sortedWidgets.filter(w => ['area_chart', 'line_chart'].includes(w.type));
+  const barCharts = sortedWidgets.filter(w => w.type === 'bar_chart');
+  const pieCharts = sortedWidgets.filter(w => w.type === 'pie_chart');
+  const funnelWidgets = sortedWidgets.filter(w => w.type === 'funnel');
+  const tableWidgets = sortedWidgets.filter(w => w.type === 'table');
+  const insightWidgets = sortedWidgets.filter(w => w.type === 'insight_card');
+
+  // KPIs principais (hero) - até 4 cards no topo
+  const heroMetrics = metricWidgets.slice(0, 4);
+  const secondaryMetrics = metricWidgets.slice(4);
+
+  // Marca widgets já usados para evitar duplicação em "outras visões"
+  const usedIds = new Set<string>([
+    ...heroMetrics,
+    ...secondaryMetrics,
+    ...timeSeriesCharts,
+    ...barCharts,
+    ...pieCharts,
+    ...funnelWidgets,
+    ...tableWidgets,
+    ...insightWidgets,
+  ].map(w => w.id));
+
+  const otherWidgets = sortedWidgets.filter(w => !usedIds.has(w.id));
+
+  // Helper para mapear "size" do template em col-span responsivo
+  const sizeToCols = (size?: string | null) => {
+    switch (size) {
+      case 'small':
+        return 'lg:col-span-3'; // 1/4
+      case 'medium':
+        return 'lg:col-span-6'; // 1/2
+      case 'large':
+        return 'lg:col-span-8'; // 2/3
+      case 'full':
+        return 'lg:col-span-12'; // full
+      default:
+        return 'lg:col-span-4'; // fallback agradável
+    }
+  };
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* Grid 3x3 Principal - Estilo do Print */}
-      {gridWidgets.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {gridWidgets.map(widget => (
-            <div key={widget.id} className="min-h-[280px]">
-              <WidgetRenderer 
-                widget={widget} 
-                orgId={orgId || ''}
-                onRemove={handleDelete}
-              />
-            </div>
-          ))}
-        </div>
+    <div className="space-y-10 pb-24">
+      {/* Hero KPIs no topo */}
+      {heroMetrics.length > 0 && (
+        <section>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-[0.18em]">
+              Visão Geral
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {heroMetrics.map(widget => (
+              <div key={widget.id} className="min-h-[140px]">
+                <WidgetRenderer 
+                  widget={widget} 
+                  orgId={orgId || ''}
+                  onRemove={handleDelete}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
-      {/* Widgets Restantes - Layout Flexível */}
-      {remainingWidgets.length > 0 && (
-        <>
-          {/* Metric Cards Adicionais */}
-          {remainingWidgets.filter(w => w.type === 'metric_card').length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {remainingWidgets.filter(w => w.type === 'metric_card').map(widget => (
-                <div key={widget.id} className="min-h-[140px]">
-                  <WidgetRenderer 
-                    widget={widget} 
-                    orgId={orgId || ''}
-                    onRemove={handleDelete}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Métricas secundárias em grid fluido */}
+      {secondaryMetrics.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
+              KPIs Secundários
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {secondaryMetrics.map(widget => (
+              <div key={widget.id} className="min-h-[130px]">
+                <WidgetRenderer 
+                  widget={widget} 
+                  orgId={orgId || ''}
+                  onRemove={handleDelete}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-          {/* Charts Adicionais */}
-          {remainingWidgets.filter(w => ['area_chart', 'bar_chart', 'line_chart'].includes(w.type)).length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {remainingWidgets.filter(w => ['area_chart', 'bar_chart', 'line_chart'].includes(w.type)).map(widget => (
-                <div 
-                  key={widget.id} 
-                  className={`min-h-[350px] ${widget.type === 'area_chart' ? 'lg:col-span-2' : ''}`}
-                >
-                  <WidgetRenderer 
-                    widget={widget} 
-                    orgId={orgId || ''}
-                    onRemove={handleDelete}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Seção de evolução ao longo do tempo (linha/área) */}
+      {timeSeriesCharts.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
+              Evolução no Tempo
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {timeSeriesCharts.map(widget => (
+              <div 
+                key={widget.id} 
+                className={`min-h-[320px] ${widget.type === 'area_chart' ? 'lg:col-span-2' : ''}`}
+              >
+                <WidgetRenderer 
+                  widget={widget} 
+                  orgId={orgId || ''}
+                  onRemove={handleDelete}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-          {/* Funnels e Pie Charts Adicionais */}
-          {(remainingWidgets.filter(w => w.type === 'pie_chart').length > 0 || 
-            remainingWidgets.filter(w => w.type === 'funnel').length > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {remainingWidgets.filter(w => w.type === 'pie_chart').map(widget => (
-                <div key={widget.id} className="min-h-[350px]">
-                  <WidgetRenderer 
-                    widget={widget} 
-                    orgId={orgId || ''}
-                    onRemove={handleDelete}
-                  />
-                </div>
-              ))}
-              {remainingWidgets.filter(w => w.type === 'funnel').map(widget => (
-                <div key={widget.id} className="min-h-[350px]">
-                  <WidgetRenderer 
-                    widget={widget} 
-                    orgId={orgId || ''}
-                    onRemove={handleDelete}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Distribuição por origem / comparativos (barras, pizza, funil) */}
+      {(barCharts.length > 0 || pieCharts.length > 0 || funnelWidgets.length > 0) && (
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
+              Distribuição & Funil
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {barCharts.map(widget => (
+              <div 
+                key={widget.id} 
+                className={`min-h-[320px] ${sizeToCols(widget.size)}`}
+              >
+                <WidgetRenderer 
+                  widget={widget} 
+                  orgId={orgId || ''}
+                  onRemove={handleDelete}
+                />
+              </div>
+            ))}
+            {pieCharts.map(widget => (
+              <div 
+                key={widget.id} 
+                className={`min-h-[320px] ${sizeToCols(widget.size)}`}
+              >
+                <WidgetRenderer 
+                  widget={widget} 
+                  orgId={orgId || ''}
+                  onRemove={handleDelete}
+                />
+              </div>
+            ))}
+            {funnelWidgets.map(widget => (
+              <div 
+                key={widget.id} 
+                className={`min-h-[320px] ${sizeToCols(widget.size)}`}
+              >
+                <WidgetRenderer 
+                  widget={widget} 
+                  orgId={orgId || ''}
+                  onRemove={handleDelete}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-          {/* Tables Adicionais */}
-          {remainingWidgets.filter(w => w.type === 'table').length > 0 && (
-            <div className="grid grid-cols-1 gap-4">
-              {remainingWidgets.filter(w => w.type === 'table').map(widget => (
-                <div key={widget.id} className="min-h-[400px]">
-                  <WidgetRenderer 
-                    widget={widget} 
-                    orgId={orgId || ''}
-                    onRemove={handleDelete}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Tabelas em largura quase total */}
+      {tableWidgets.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
+              Detalhamento
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            {tableWidgets.map(widget => (
+              <div key={widget.id} className="min-h-[420px]">
+                <WidgetRenderer 
+                  widget={widget} 
+                  orgId={orgId || ''}
+                  onRemove={handleDelete}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-          {/* Insights Adicionais */}
-          {remainingWidgets.filter(w => w.type === 'insight_card').length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {remainingWidgets.filter(w => w.type === 'insight_card').map(widget => (
-                <div key={widget.id} className="min-h-[200px]">
-                  <WidgetRenderer 
-                    widget={widget} 
-                    orgId={orgId || ''}
-                    onRemove={handleDelete}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+      {/* Cartas de insight da IA */}
+      {insightWidgets.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justifyBetween gap-2">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
+              Insights da IA
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {insightWidgets.map(widget => (
+              <div key={widget.id} className="min-h-[220px]">
+                <WidgetRenderer 
+                  widget={widget} 
+                  orgId={orgId || ''}
+                  onRemove={handleDelete}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Widgets extras em um grid premium responsivo usando o size do template */}
+      {otherWidgets.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
+              Outras Visões
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {otherWidgets.map(widget => (
+              <div 
+                key={widget.id} 
+                className={`min-h-[260px] ${sizeToCols(widget.size)}`}
+              >
+                <WidgetRenderer 
+                  widget={widget} 
+                  orgId={orgId || ''}
+                  onRemove={handleDelete}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );
