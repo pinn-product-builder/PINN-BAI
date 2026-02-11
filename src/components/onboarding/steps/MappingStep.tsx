@@ -76,6 +76,27 @@ const TRANSFORMATIONS: { value: TransformationType; label: string }[] = [
   { value: 'text', label: 'Texto' },
 ];
 
+const AGGREGATIONS: { value: string; label: string; description: string }[] = [
+  { value: 'count', label: 'Contagem', description: 'Conta o número de registros' },
+  { value: 'sum', label: 'Soma', description: 'Soma todos os valores' },
+  { value: 'avg', label: 'Média', description: 'Calcula a média dos valores' },
+  { value: 'min', label: 'Mínimo', description: 'Menor valor encontrado' },
+  { value: 'max', label: 'Máximo', description: 'Maior valor encontrado' },
+];
+
+/** Infere a agregação padrão a partir do tipo de transformação e do targetMetric */
+const inferAggregation = (transformation: string, targetMetric: string): string => {
+  const m = targetMetric.toLowerCase();
+  // Valores monetários → soma
+  if (['revenue', 'mrr', 'investimento', 'cpl', 'cpm', 'ltv', 'cac', 'avg_ticket'].some(t => m.includes(t))) return 'sum';
+  if (transformation === 'currency') return 'sum';
+  // Taxas e percentuais → média
+  if (['rate', 'taxa', 'percent', 'growth'].some(t => m.includes(t))) return 'avg';
+  if (transformation === 'percentage') return 'avg';
+  // Contadores padrão
+  return 'count';
+};
+
 const TARGET_METRICS: { value: string; label: string; description: string }[] = [
   { value: 'total_leads', label: 'Total de Leads', description: 'Número total de leads no período' },
   { value: 'new_leads', label: 'Novos Leads', description: 'Leads capturados recentemente' },
@@ -241,28 +262,14 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
         
         // If auto-apply, create mappings immediately with aggregation
         if (autoApply) {
-          const autoMappings: DataMapping[] = validSuggestions.map((suggestion: MappingSuggestion, idx: number) => {
-            // Determine aggregation based on metric type
-            let aggregation = 'count';
-            if (['revenue', 'mrr', 'investimento', 'cpl', 'cpm', 'ltv', 'cac', 'avg_ticket'].includes(suggestion.targetMetric)) {
-              aggregation = 'sum';
-            } else if (['conversion_rate', 'growth_rate', 'ctr'].includes(suggestion.targetMetric)) {
-              aggregation = 'avg';
-            } else if (suggestion.targetMetric.includes('_rate') || suggestion.targetMetric.includes('taxa')) {
-              aggregation = 'avg';
-            } else if (['total_leads', 'new_leads', 'conversions', 'active_users', 'mensagens', 'reuniões'].includes(suggestion.targetMetric)) {
-              aggregation = 'count';
-            }
-            
-            return {
-              id: `mapping-ai-${Date.now()}-${idx}`,
-              sourceField: suggestion.sourceField,
-              sourceTable: suggestion.sourceTable,
-              targetMetric: suggestion.targetMetric,
-              transformation: suggestion.transformation,
-              aggregation,
-            };
-          });
+          const autoMappings: DataMapping[] = validSuggestions.map((suggestion: MappingSuggestion, idx: number) => ({
+            id: `mapping-ai-${Date.now()}-${idx}`,
+            sourceField: suggestion.sourceField,
+            sourceTable: suggestion.sourceTable,
+            targetMetric: suggestion.targetMetric,
+            transformation: suggestion.transformation,
+            aggregation: inferAggregation(suggestion.transformation, suggestion.targetMetric),
+          }));
           onUpdate(autoMappings);
           
           toast({
@@ -308,28 +315,14 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
   const applyAcceptedSuggestions = useCallback(() => {
     const acceptedMappings: DataMapping[] = aiSuggestions
       .filter((_, idx) => suggestionStates[idx] === 'accepted')
-      .map((suggestion, idx) => {
-        // Determine aggregation based on metric type
-        let aggregation = 'count';
-        if (['revenue', 'mrr', 'investimento', 'cpl', 'cpm', 'ltv', 'cac', 'avg_ticket'].includes(suggestion.targetMetric)) {
-          aggregation = 'sum';
-        } else if (['conversion_rate', 'growth_rate', 'ctr'].includes(suggestion.targetMetric)) {
-          aggregation = 'avg';
-        } else if (suggestion.targetMetric.includes('_rate') || suggestion.targetMetric.includes('taxa')) {
-          aggregation = 'avg';
-        } else if (['total_leads', 'new_leads', 'conversions', 'active_users', 'mensagens', 'reuniões'].includes(suggestion.targetMetric)) {
-          aggregation = 'count';
-        }
-        
-        return {
-          id: `mapping-ai-${Date.now()}-${idx}`,
-          sourceField: suggestion.sourceField,
-          sourceTable: suggestion.sourceTable,
-          targetMetric: suggestion.targetMetric,
-          transformation: suggestion.transformation,
-          aggregation,
-        };
-      });
+      .map((suggestion, idx) => ({
+        id: `mapping-ai-${Date.now()}-${idx}`,
+        sourceField: suggestion.sourceField,
+        sourceTable: suggestion.sourceTable,
+        targetMetric: suggestion.targetMetric,
+        transformation: suggestion.transformation,
+        aggregation: inferAggregation(suggestion.transformation, suggestion.targetMetric),
+      }));
 
     if (acceptedMappings.length === 0) {
       toast({
@@ -352,28 +345,14 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
   const replaceWithAcceptedSuggestions = useCallback(() => {
     const acceptedMappings: DataMapping[] = aiSuggestions
       .filter((_, idx) => suggestionStates[idx] === 'accepted')
-      .map((suggestion, idx) => {
-        // Determine aggregation based on metric type
-        let aggregation = 'count';
-        if (['revenue', 'mrr', 'investimento', 'cpl', 'cpm', 'ltv', 'cac', 'avg_ticket'].includes(suggestion.targetMetric)) {
-          aggregation = 'sum';
-        } else if (['conversion_rate', 'growth_rate', 'ctr'].includes(suggestion.targetMetric)) {
-          aggregation = 'avg';
-        } else if (suggestion.targetMetric.includes('_rate') || suggestion.targetMetric.includes('taxa')) {
-          aggregation = 'avg';
-        } else if (['total_leads', 'new_leads', 'conversions', 'active_users', 'mensagens', 'reuniões'].includes(suggestion.targetMetric)) {
-          aggregation = 'count';
-        }
-        
-        return {
-          id: `mapping-ai-${Date.now()}-${idx}`,
-          sourceField: suggestion.sourceField,
-          sourceTable: suggestion.sourceTable,
-          targetMetric: suggestion.targetMetric,
-          transformation: suggestion.transformation,
-          aggregation,
-        };
-      });
+      .map((suggestion, idx) => ({
+        id: `mapping-ai-${Date.now()}-${idx}`,
+        sourceField: suggestion.sourceField,
+        sourceTable: suggestion.sourceTable,
+        targetMetric: suggestion.targetMetric,
+        transformation: suggestion.transformation,
+        aggregation: inferAggregation(suggestion.transformation, suggestion.targetMetric),
+      }));
 
     if (acceptedMappings.length === 0) {
       toast({
@@ -396,9 +375,10 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
     const newMapping: DataMapping = {
       id: `mapping-${Date.now()}`,
       sourceField: '',
-      sourceTable: selectedTable || tables[0]?.name || '', // Use selected table or first available
+      sourceTable: selectedTable || tables[0]?.name || '',
       targetMetric: 'total_leads',
       transformation: 'none',
+      aggregation: 'count',
     };
     onUpdate([...mappings, newMapping]);
   };
@@ -967,10 +947,17 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
 
                           {/* Transformation */}
                           <div className="w-32 space-y-1">
-                            <Label className="text-xs text-muted-foreground">Transformação</Label>
+                            <Label className="text-xs text-muted-foreground">Formato</Label>
                             <Select
                               value={mapping.transformation}
-                              onValueChange={(value) => updateMapping(mapping.id, { transformation: value as TransformationType })}
+                              onValueChange={(value) => {
+                                const updates: Partial<DataMapping> = { transformation: value as TransformationType };
+                                // Re-inferir agregação ao mudar transformação
+                                if (!mapping.aggregation || mapping.aggregation === inferAggregation(mapping.transformation, mapping.targetMetric)) {
+                                  updates.aggregation = inferAggregation(value, mapping.targetMetric);
+                                }
+                                updateMapping(mapping.id, updates);
+                              }}
                             >
                               <SelectTrigger>
                                 <SelectValue />
@@ -979,6 +966,28 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                                 {TRANSFORMATIONS.map(t => (
                                   <SelectItem key={t.value} value={t.value}>
                                     {t.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Aggregation */}
+                          <div className="w-28 space-y-1">
+                            <Label className="text-xs text-muted-foreground">Agregação</Label>
+                            <Select
+                              value={mapping.aggregation || 'count'}
+                              onValueChange={(value) => updateMapping(mapping.id, { aggregation: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {AGGREGATIONS.map(a => (
+                                  <SelectItem key={a.value} value={a.value}>
+                                    <div className="flex flex-col">
+                                      <span>{a.label}</span>
+                                    </div>
                                   </SelectItem>
                                 ))}
                               </SelectContent>

@@ -43,7 +43,7 @@ export function useWidgetRecommendations({
         source_column: m.sourceField,
         target_metric: m.targetMetric,
         transform_type: m.transformation,
-        aggregation: m.aggregation,
+        aggregation: m.aggregation || 'count',
         format: m.format,
       }));
 

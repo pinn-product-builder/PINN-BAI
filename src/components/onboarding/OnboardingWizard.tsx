@@ -153,15 +153,16 @@ const OnboardingWizard = () => {
           || state.integration?.tables?.[0]?.name 
           || null;
 
-        // Build metric mappings from the mapping step - each mapping includes its sourceTable
+        // Build metric mappings from the mapping step - each mapping includes sourceTable + transformation
         const metricMappings = state.mappings.reduce((acc, m) => ({
           ...acc,
           [m.targetMetric]: {
             field: m.sourceField,
             aggregation: m.aggregation || 'count',
-            sourceTable: m.sourceTable, // Include sourceTable for each mapping
+            sourceTable: m.sourceTable,
+            transformation: m.transformation || 'none',
           },
-        }), {} as Record<string, { field: string; aggregation: string; sourceTable?: string }>);
+        }), {} as Record<string, { field: string; aggregation: string; sourceTable?: string; transformation?: string }>);
 
         await applyTemplate.mutateAsync({
           templateId: state.selectedTemplateId,

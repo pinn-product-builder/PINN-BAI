@@ -158,9 +158,23 @@ export interface DashboardWidget {
 }
 
 export interface WidgetConfig {
+  // === Campos de mapeamento (fonte de dados) ===
+  /** Nome da coluna REAL na tabela de origem (ex: "leads_total_30d") */
   metric?: string;
+  /** Nome da tabela/view de origem (ex: "vw_dashboard_kpis_30d_v3") */
   dataSource?: string;
+  /** Alias para dataSource — mantido por compatibilidade */
+  sourceTable?: string;
+  /** Nome semântico da métrica mapeada (ex: "total_leads") — usado para labels/formatação */
+  targetMetric?: string;
+  /** Tipo de agregação a aplicar */
   aggregation?: 'sum' | 'count' | 'avg' | 'min' | 'max';
+  /** Tipo de transformação/formato (none, date, number, currency, percentage) */
+  transformation?: string;
+  /** Campo para agrupar dados (ex: "created_at" para séries temporais) */
+  groupBy?: string;
+
+  // === Campos de apresentação ===
   showTrend?: boolean;
   showSparkline?: boolean;
   compareWithPrevious?: boolean;
@@ -177,6 +191,7 @@ export interface WidgetConfig {
   funnelStages?: string[];
   columns?: string[];
   pageSize?: number;
+  format?: 'number' | 'currency' | 'percentage';
 }
 
 // ============= Lead =============

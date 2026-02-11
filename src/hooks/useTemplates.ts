@@ -268,8 +268,14 @@ export const useIncrementTemplateUsage = () => {
 
 // Metric mapping type for applying templates with external data
 export interface MetricMapping {
+  /** Nome da coluna REAL na tabela de origem (sourceField) */
   field: string;
+  /** Tipo de agregação (sum, count, avg, min, max) */
   aggregation: string;
+  /** Tabela/view de origem (cada widget pode ter sua própria) */
+  sourceTable?: string;
+  /** Tipo de transformação/formato (none, date, number, currency, percentage) */
+  transformation?: string;
 }
 
 // Apply a template to a dashboard - creates widgets based on template
@@ -441,7 +447,7 @@ export const useApplyTemplate = () => {
         } else {
           // For other templates, use user mappings if available
           const mapping = findBestMapping(tw);
-          const widgetTable = (mapping as any)?.sourceTable || dataSource || null;
+          const widgetTable = mapping?.sourceTable || dataSource || null;
           
           widgetConfig.dataSource = widgetTable;
           widgetConfig.sourceTable = widgetTable;
@@ -450,63 +456,67 @@ export const useApplyTemplate = () => {
           if (mapping) {
             widgetConfig.metric = mapping.field;
             widgetConfig.aggregation = mapping.aggregation;
+            widgetConfig.transformation = mapping.transformation || 'none';
             widgetConfig.targetMetric = templateMetric || Object.keys(metricMappings || {}).find(
               k => metricMappings![k] === mapping
             ) || null;
             
             // Ensure sourceTable is set from mapping
-            if ((mapping as any).sourceTable) {
-              widgetConfig.dataSource = (mapping as any).sourceTable;
-              widgetConfig.sourceTable = (mapping as any).sourceTable;
+            if (mapping.sourceTable) {
+              widgetConfig.dataSource = mapping.sourceTable;
+              widgetConfig.sourceTable = mapping.sourceTable;
             }
           } else {
-            // Priority 1: Try EXACT Afonsina mapping (most accurate - replicates original dashboard)
+            // Fallback chain when no user mapping found
+            // Priority 1: Try EXACT Afonsina mapping
             const { findExactMapping, createWidgetConfigFromExactMapping } = require('@/lib/afonsinaExactMapping');
             const exactMapping = findExactMapping(tw.title || '');
-            
+
             if (exactMapping) {
               console.log('[useTemplates] Using EXACT Afonsina mapping for:', tw.title, exactMapping);
               const exactConfig = createWidgetConfigFromExactMapping(exactMapping, index);
               Object.assign(widgetConfig, exactConfig);
               widgetConfig.format = exactMapping.format || format;
             } else {
-            // Priority 2: Try Afonsina widget config (fallback)
-            const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
-            const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
-            
-            if (afonsinaConfig) {
-              console.log('[useTemplates] Using Afonsina widget config for:', tw.title, afonsinaConfig);
-              widgetConfig.metric = afonsinaConfig.metricField;
-              widgetConfig.aggregation = afonsinaConfig.aggregation;
-              widgetConfig.dataSource = afonsinaConfig.viewName;
-              widgetConfig.sourceTable = afonsinaConfig.viewName;
-              widgetConfig.format = afonsinaConfig.format || format;
-              if (afonsinaConfig.groupBy) {
-                widgetConfig.groupBy = afonsinaConfig.groupBy;
-              }
-            } else {
-            // Priority 2: Try reference mappings as fallback
-            const { findFieldByWidgetTitle } = require('@/lib/referenceMappings');
-            const referenceMapping = findFieldByWidgetTitle(tw.title || '', availableViews, []);
-            
-            if (referenceMapping) {
-              console.log('[useTemplates] Using reference mapping as fallback for widget:', tw.title, referenceMapping);
-              widgetConfig.metric = referenceMapping.fieldName;
-              widgetConfig.aggregation = referenceMapping.aggregation;
-              widgetConfig.dataSource = referenceMapping.viewName;
-              widgetConfig.sourceTable = referenceMapping.viewName;
-            } else {
-              // Last resort: try to use template metric as fallback (but warn)
-              if (templateMetric) {
-                console.warn('[useTemplates] No mapping found for widget:', tw.title, 'using template metric:', templateMetric);
-                widgetConfig.targetMetric = templateMetric;
+              // Priority 2: Try Afonsina widget config
+              const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
+              const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
+
+              if (afonsinaConfig) {
+                console.log('[useTemplates] Using Afonsina widget config for:', tw.title, afonsinaConfig);
+                widgetConfig.metric = afonsinaConfig.metricField;
+                widgetConfig.aggregation = afonsinaConfig.aggregation;
+                widgetConfig.dataSource = afonsinaConfig.viewName;
+                widgetConfig.sourceTable = afonsinaConfig.viewName;
+                widgetConfig.format = afonsinaConfig.format || format;
+                if (afonsinaConfig.groupBy) {
+                  widgetConfig.groupBy = afonsinaConfig.groupBy;
+                }
               } else {
-                console.warn('[useTemplates] No mapping found for widget:', tw.title, 'and no template metric available');
+                // Priority 3: Try reference mappings
+                const { findFieldByWidgetTitle } = require('@/lib/referenceMappings');
+                const referenceMapping = findFieldByWidgetTitle(tw.title || '', availableViews, []);
+
+                if (referenceMapping) {
+                  console.log('[useTemplates] Using reference mapping for:', tw.title, referenceMapping);
+                  widgetConfig.metric = referenceMapping.fieldName;
+                  widgetConfig.aggregation = referenceMapping.aggregation;
+                  widgetConfig.dataSource = referenceMapping.viewName;
+                  widgetConfig.sourceTable = referenceMapping.viewName;
+                } else {
+                  // Last resort: use template metric
+                  if (templateMetric) {
+                    console.warn('[useTemplates] No mapping found for:', tw.title, '— using template metric:', templateMetric);
+                    widgetConfig.targetMetric = templateMetric;
+                  } else {
+                    console.warn('[useTemplates] No mapping found for:', tw.title);
+                  }
+                }
               }
             }
           }
         }
-        
+
         console.log('[useTemplates] Creating widget:', {
           title: tw.title,
           type: tw.type,

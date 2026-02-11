@@ -61,6 +61,7 @@ export const useSaveDataMappings = () => {
         target_metric: string;
         transform_type?: string;
         transform_config?: Json;
+        aggregation?: string;
       }>;
     }): Promise<DataMapping[]> => {
       // Delete existing mappings for this integration
@@ -69,7 +70,7 @@ export const useSaveDataMappings = () => {
         .delete()
         .eq('integration_id', integrationId);
 
-      // Insert new mappings
+      // Insert new mappings — armazena aggregation dentro de transform_config
       const { data, error } = await supabase
         .from('data_mappings')
         .insert(
@@ -80,7 +81,12 @@ export const useSaveDataMappings = () => {
             source_column: mapping.source_column,
             target_metric: mapping.target_metric,
             transform_type: mapping.transform_type || 'direct',
-            transform_config: mapping.transform_config || {},
+            transform_config: {
+              ...(typeof mapping.transform_config === 'object' && mapping.transform_config !== null
+                ? mapping.transform_config
+                : {}),
+              aggregation: mapping.aggregation || 'count',
+            },
           }))
         )
         .select();
