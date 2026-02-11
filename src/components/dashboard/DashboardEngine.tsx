@@ -706,6 +706,14 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         {/* Skeleton KPIs */}
         <div>
           <Skeleton className="h-4 w-24 mb-3 rounded" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-[140px] rounded-xl" />
+            ))}
+          </div>
+        </div>
+        <div>
+          <Skeleton className="h-4 w-32 mb-3 rounded" />
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-[140px] rounded-xl" />
@@ -761,9 +769,9 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   const tableWidgets = sortedWidgets.filter(w => w.type === 'table');
   const insightWidgets = sortedWidgets.filter(w => w.type === 'insight_card');
 
-  // KPIs principais (hero) - até 4 cards no topo
-  const heroMetrics = metricWidgets.slice(0, 4);
-  const secondaryMetrics = metricWidgets.slice(4);
+  // KPIs principais (hero) - até 5 cards no topo (padrão executivo)
+  const heroMetrics = metricWidgets.slice(0, 5);
+  const secondaryMetrics = metricWidgets.slice(5);
 
   // Marca widgets já usados para evitar duplicação em "outras visões"
   const usedIds = new Set<string>([
@@ -805,7 +813,7 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
               Visão Geral
             </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${heroMetrics.length >= 5 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
             {heroMetrics.map(widget => (
               <div key={widget.id} className="min-h-[140px]">
                 <WidgetRenderer 

@@ -278,25 +278,28 @@ export interface MetricMapping {
   transformation?: string;
 }
 
-// Apply a template to a dashboard - creates widgets based on template
+// =====================================================================
+// Apply a template to a dashboard — GENÉRICO para qualquer cliente
+// Fluxo: template.targetMetric → userMapping → widget.metric/dataSource
+// =====================================================================
 export const useApplyTemplate = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const incrementUsage = useIncrementTemplateUsage();
 
   return useMutation({
-    mutationFn: async ({ 
-      templateId, 
+    mutationFn: async ({
+      templateId,
       dashboardId,
       dataSource,
       metricMappings,
-    }: { 
-      templateId: string; 
+    }: {
+      templateId: string;
       dashboardId: string;
       dataSource?: string;
       metricMappings?: Record<string, MetricMapping>;
     }) => {
-      // Fetch template
+      // 1. Buscar template
       const { data: template, error: fetchError } = await supabase
         .from('dashboard_templates')
         .select('*')
@@ -308,228 +311,119 @@ export const useApplyTemplate = () => {
       }
 
       const templateWidgets = template.widgets as unknown as TemplateWidget[];
+      const mappingEntries = Object.entries(metricMappings || {});
 
-      // Get available views from integration or use common ones
-      const availableViews: string[] = [];
-      if (dataSource) {
-        availableViews.push(dataSource);
-      }
-      // Add common views from reference project
-      availableViews.push(
-        'vw_dashboard_kpis_30d_v3',
-        'vw_dashboard_daily_60d_v3',
-        'vw_afonsina_custos_funil_dia',
-        'vw_funnel_current_v3',
-        'leads_v2',
-      );
-
-      // Smart mapping function - finds the best mapping for a widget
-      const findBestMapping = (widget: TemplateWidget): MetricMapping | null => {
-        const templateMetric = (widget.config as Record<string, unknown>)?.metric as string | undefined;
+      // 2. Resolver mapeamento: encontra o MetricMapping mais adequado para um widget
+      const resolveMapping = (widget: TemplateWidget): MetricMapping | null => {
+        const cfg = widget.config as Record<string, unknown>;
+        const targetMetric = (cfg?.targetMetric as string) || (cfg?.metric as string) || '';
         const titleLower = (widget.title || '').toLowerCase();
-        
-        // Priority 1: Direct metric match from user mappings
-        if (templateMetric && metricMappings?.[templateMetric]) {
-          return metricMappings[templateMetric];
+
+        if (mappingEntries.length === 0) return null;
+
+        // A) Match direto por targetMetric
+        if (targetMetric && metricMappings![targetMetric]) {
+          return metricMappings![targetMetric];
         }
-        
-        // Priority 2: Smart title-based matching with multiple strategies from user mappings
-        if (metricMappings && Object.keys(metricMappings).length > 0) {
-          // Strategy 1: Exact metric name in title
-          const exactMatch = Object.entries(metricMappings).find(([targetMetric]) => {
-            const metricLower = targetMetric.toLowerCase();
-            return titleLower.includes(metricLower) || metricLower.includes(titleLower);
+
+        // B) Match por targetMetric parcial (ex: "total_leads" vs mapeamento "leads")
+        if (targetMetric) {
+          const match = mappingEntries.find(([key]) => {
+            const kl = key.toLowerCase();
+            const tl = targetMetric.toLowerCase();
+            return kl === tl || kl.includes(tl) || tl.includes(kl);
           });
-          if (exactMatch) return exactMatch[1];
-          
-          // Strategy 2: Semantic matching (Portuguese + English)
-          const semanticMatches: Array<{ keywords: string[]; metrics: string[] }> = [
-            { keywords: ['lead', 'leads', 'lead'], metrics: ['total_leads', 'new_leads', 'leads'] },
-            { keywords: ['receita', 'revenue', 'valor', 'value', 'amount'], metrics: ['revenue', 'total_revenue', 'mrr'] },
-            { keywords: ['convers', 'conversion'], metrics: ['conversions', 'conversion'] },
-            { keywords: ['taxa', 'rate', 'percent'], metrics: ['conversion_rate', 'growth_rate', 'rate'] },
-            { keywords: ['novo', 'new'], metrics: ['new_leads', 'new'] },
-            { keywords: ['total'], metrics: ['total_leads', 'total', 'total_revenue'] },
-            { keywords: ['mrr', 'recorrente', 'recurring'], metrics: ['mrr', 'recurring'] },
-            { keywords: ['ativo', 'active', 'usuário', 'user'], metrics: ['active_users', 'users'] },
-            { keywords: ['mensagem', 'message'], metrics: ['mensagens', 'messages'] },
-            { keywords: ['reunião', 'meeting'], metrics: ['reuniões_agendadas', 'meetings'] },
-          ];
-          
-          for (const semantic of semanticMatches) {
-            const hasKeyword = semantic.keywords.some(kw => titleLower.includes(kw));
-            if (hasKeyword) {
-              const match = Object.entries(metricMappings).find(([targetMetric]) => {
-                const metricLower = targetMetric.toLowerCase();
-                return semantic.metrics.some(m => metricLower.includes(m) || m.includes(metricLower));
-              });
-              if (match) return match[1];
-            }
+          if (match) return match[1];
+        }
+
+        // C) Match semântico por título do widget (PT + EN)
+        const semanticRules: Array<{ keywords: string[]; metricHints: string[] }> = [
+          { keywords: ['total de leads', 'total leads'], metricHints: ['total_leads', 'leads', 'lead'] },
+          { keywords: ['novos leads', 'new leads', 'novo lead'], metricHints: ['new_leads', 'leads_new'] },
+          { keywords: ['mensagem', 'message', 'msg'], metricHints: ['messages', 'mensagens', 'msg_in'] },
+          { keywords: ['reunião agendada', 'meetings scheduled', 'reuniões agendadas'], metricHints: ['meetings_scheduled', 'reunioes'] },
+          { keywords: ['reunião realizada', 'meetings done', 'reuniões realizadas'], metricHints: ['meetings_done', 'reunioes_realizadas'] },
+          { keywords: ['reunião conclu', 'meetings completed', 'reuniões conclu'], metricHints: ['meetings_completed', 'meetings_done'] },
+          { keywords: ['investimento', 'investment', 'spend'], metricHints: ['investment', 'spend', 'custo_total', 'investimento'] },
+          { keywords: ['cpl', 'custo por lead', 'cost per lead'], metricHints: ['cost_per_lead', 'cpl'] },
+          { keywords: ['custo por reunião', 'cost per meeting'], metricHints: ['cost_per_meeting', 'cpm', 'cp_meeting'] },
+          { keywords: ['conv', 'taxa', 'rate', 'conversão'], metricHints: ['conversion_rate', 'lead_to_meeting', 'taxa'] },
+          { keywords: ['receita', 'revenue', 'mrr'], metricHints: ['revenue', 'mrr', 'receita'] },
+          { keywords: ['funil', 'funnel', 'pipeline'], metricHints: ['funnel', 'pipeline', 'stage'] },
+          { keywords: ['origem', 'source', 'canal'], metricHints: ['source', 'origem', 'canal'] },
+          { keywords: ['evolução', 'evolution', 'diária', 'daily'], metricHints: ['daily', 'evolution', 'trend'] },
+        ];
+
+        for (const rule of semanticRules) {
+          if (rule.keywords.some(kw => titleLower.includes(kw))) {
+            const match = mappingEntries.find(([key]) => {
+              const kl = key.toLowerCase();
+              return rule.metricHints.some(h => kl.includes(h) || h.includes(kl));
+            });
+            if (match) return match[1];
           }
-          
-          // Strategy 3: Partial word matching
-          const partialMatch = Object.entries(metricMappings).find(([targetMetric]) => {
-            const metricWords = targetMetric.toLowerCase().split(/[_\s]+/);
-            const titleWords = titleLower.split(/[\s-]+/);
-            return metricWords.some(mw => titleWords.some(tw => tw.includes(mw) || mw.includes(tw)));
-          });
-          if (partialMatch) return partialMatch[1];
         }
-        
-        // Priority 3: Use reference mappings from Afonsina project
-        // Import reference mappings dynamically to avoid circular dependencies
-        const { findFieldByWidgetTitle } = require('@/lib/referenceMappings');
-        const referenceMapping = findFieldByWidgetTitle(widget.title || '', availableViews, []);
-        
-        if (referenceMapping) {
-          console.log('[useTemplates] Using reference mapping for widget:', widget.title, referenceMapping);
-          return {
-            field: referenceMapping.fieldName,
-            aggregation: referenceMapping.aggregation as 'sum' | 'avg' | 'count',
-            sourceTable: referenceMapping.viewName,
-          };
-        }
-        
+
+        // D) Match por palavras parciais (última tentativa)
+        const titleWords = titleLower.split(/[\s\-→]+/).filter(w => w.length >= 3);
+        const partialMatch = mappingEntries.find(([key]) => {
+          const keyWords = key.toLowerCase().split(/[_\s]+/);
+          return titleWords.some(tw => keyWords.some(kw => tw.includes(kw) || kw.includes(tw)));
+        });
+        if (partialMatch) return partialMatch[1];
+
         return null;
       };
-      
-      // Check if this is the Afonsina Executive template - if so, ALWAYS use exact mapping
-      const isAfonsinaTemplate = templateId === 'afonsina-executive-template' || 
-                                 template.name?.toLowerCase().includes('afonsina') ||
-                                 template.name?.toLowerCase().includes('executiva');
-      
-      // Create widgets based on template with smart mapping
-      const widgetsToCreate = templateWidgets.map((tw, index) => {
-        const templateMetric = (tw.config as Record<string, unknown>)?.metric as string | undefined;
-        
-        // Determine format based on widget title/config
-        let format: 'number' | 'currency' | 'percentage' = 'number';
-        const titleLower = (tw.title || '').toLowerCase();
-        if (titleLower.includes('receita') || titleLower.includes('revenue') || titleLower.includes('valor') || titleLower.includes('mrr')) {
-          format = 'currency';
-        } else if (titleLower.includes('taxa') || titleLower.includes('rate') || titleLower.includes('percent')) {
-          format = 'percentage';
-        } else if (tw.config?.format) {
-          format = tw.config.format as 'number' | 'currency' | 'percentage';
+
+      // 3. Resolver formato a partir do widget config ou título
+      const resolveFormat = (widget: TemplateWidget): 'number' | 'currency' | 'percentage' => {
+        const cfg = widget.config as Record<string, unknown>;
+        if (cfg?.format && ['currency', 'percentage', 'number'].includes(cfg.format as string)) {
+          return cfg.format as 'number' | 'currency' | 'percentage';
         }
-        
+        const tl = (widget.title || '').toLowerCase();
+        if (['investimento', 'receita', 'revenue', 'custo', 'cpl', 'mrr', 'spend', 'valor'].some(k => tl.includes(k))) return 'currency';
+        if (['taxa', 'rate', 'conv', 'percent', '%'].some(k => tl.includes(k))) return 'percentage';
+        return 'number';
+      };
+
+      // 4. Construir widgets com mapeamento
+      const widgetsToCreate = templateWidgets.map((tw, index) => {
+        const cfg = tw.config as Record<string, unknown>;
+        const mapping = resolveMapping(tw);
+        const format = resolveFormat(tw);
+
         const widgetConfig: Record<string, unknown> = {
-          ...tw.config,
+          ...cfg,
           format,
         };
-        
-        // PRIORITY 1: If Afonsina template, ALWAYS use exact mapping (ignore user mappings)
-        if (isAfonsinaTemplate) {
-          const { findExactMapping, createWidgetConfigFromExactMapping } = require('@/lib/afonsinaExactMapping');
-          const exactMapping = findExactMapping(tw.title || '');
-          
-          if (exactMapping) {
-            console.log('[useTemplates] [AFONSINA TEMPLATE] Using EXACT mapping for:', tw.title, exactMapping);
-            const exactConfig = createWidgetConfigFromExactMapping(exactMapping, index);
-            Object.assign(widgetConfig, exactConfig);
-            widgetConfig.format = exactMapping.format || format;
-          } else {
-            console.warn('[useTemplates] [AFONSINA TEMPLATE] No exact mapping found for:', tw.title, '- using fallback');
-            // Fallback to widget config
-            const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
-            const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
-            if (afonsinaConfig) {
-              widgetConfig.metric = afonsinaConfig.metricField;
-              widgetConfig.aggregation = afonsinaConfig.aggregation;
-              widgetConfig.dataSource = afonsinaConfig.viewName;
-              widgetConfig.sourceTable = afonsinaConfig.viewName;
-              widgetConfig.format = afonsinaConfig.format || format;
-              if (afonsinaConfig.groupBy) {
-                widgetConfig.groupBy = afonsinaConfig.groupBy;
-              }
-            }
+
+        if (mapping) {
+          // Mapeamento encontrado — preencher metric + dataSource reais
+          widgetConfig.metric = mapping.field;
+          widgetConfig.aggregation = mapping.aggregation || cfg?.aggregation || 'count';
+          widgetConfig.transformation = mapping.transformation || 'none';
+          if (mapping.sourceTable) {
+            widgetConfig.dataSource = mapping.sourceTable;
+            widgetConfig.sourceTable = mapping.sourceTable;
+          } else if (dataSource) {
+            widgetConfig.dataSource = dataSource;
+            widgetConfig.sourceTable = dataSource;
           }
-        } else {
-          // For other templates, use user mappings if available
-          const mapping = findBestMapping(tw);
-          const widgetTable = mapping?.sourceTable || dataSource || null;
-          
-          widgetConfig.dataSource = widgetTable;
-          widgetConfig.sourceTable = widgetTable;
-          
-          // Apply mapping if found
-          if (mapping) {
-            widgetConfig.metric = mapping.field;
-            widgetConfig.aggregation = mapping.aggregation;
-            widgetConfig.transformation = mapping.transformation || 'none';
-            widgetConfig.targetMetric = templateMetric || Object.keys(metricMappings || {}).find(
-              k => metricMappings![k] === mapping
-            ) || null;
-            
-            // Ensure sourceTable is set from mapping
-            if (mapping.sourceTable) {
-              widgetConfig.dataSource = mapping.sourceTable;
-              widgetConfig.sourceTable = mapping.sourceTable;
-            }
-          } else {
-            // Fallback chain when no user mapping found
-            // Priority 1: Try EXACT Afonsina mapping
-            const { findExactMapping, createWidgetConfigFromExactMapping } = require('@/lib/afonsinaExactMapping');
-            const exactMapping = findExactMapping(tw.title || '');
-
-            if (exactMapping) {
-              console.log('[useTemplates] Using EXACT Afonsina mapping for:', tw.title, exactMapping);
-              const exactConfig = createWidgetConfigFromExactMapping(exactMapping, index);
-              Object.assign(widgetConfig, exactConfig);
-              widgetConfig.format = exactMapping.format || format;
-            } else {
-              // Priority 2: Try Afonsina widget config
-              const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
-              const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
-
-              if (afonsinaConfig) {
-                console.log('[useTemplates] Using Afonsina widget config for:', tw.title, afonsinaConfig);
-                widgetConfig.metric = afonsinaConfig.metricField;
-                widgetConfig.aggregation = afonsinaConfig.aggregation;
-                widgetConfig.dataSource = afonsinaConfig.viewName;
-                widgetConfig.sourceTable = afonsinaConfig.viewName;
-                widgetConfig.format = afonsinaConfig.format || format;
-                if (afonsinaConfig.groupBy) {
-                  widgetConfig.groupBy = afonsinaConfig.groupBy;
-                }
-              } else {
-                // Priority 3: Try reference mappings
-                const { findFieldByWidgetTitle } = require('@/lib/referenceMappings');
-                const referenceMapping = findFieldByWidgetTitle(tw.title || '', availableViews, []);
-
-                if (referenceMapping) {
-                  console.log('[useTemplates] Using reference mapping for:', tw.title, referenceMapping);
-                  widgetConfig.metric = referenceMapping.fieldName;
-                  widgetConfig.aggregation = referenceMapping.aggregation;
-                  widgetConfig.dataSource = referenceMapping.viewName;
-                  widgetConfig.sourceTable = referenceMapping.viewName;
-                } else {
-                  // Last resort: use template metric
-                  if (templateMetric) {
-                    console.warn('[useTemplates] No mapping found for:', tw.title, '— using template metric:', templateMetric);
-                    widgetConfig.targetMetric = templateMetric;
-                  } else {
-                    console.warn('[useTemplates] No mapping found for:', tw.title);
-                  }
-                }
-              }
-            }
-          }
+        } else if (dataSource) {
+          // Sem mapeamento específico — usar dataSource global
+          widgetConfig.dataSource = cfg?.dataSource || dataSource;
+          widgetConfig.sourceTable = cfg?.sourceTable || dataSource;
         }
+        // Se nem mapping nem dataSource, widget fica com targetMetric para o Engine resolver
 
-        console.log('[useTemplates] Creating widget:', {
-          title: tw.title,
-          type: tw.type,
-          isAfonsinaTemplate,
-          finalConfig: {
-            metric: widgetConfig.metric,
-            aggregation: widgetConfig.aggregation,
-            dataSource: widgetConfig.dataSource,
-            sourceTable: widgetConfig.sourceTable,
-            format: widgetConfig.format,
-          },
-          templateMetric,
-          availableMappings: Object.keys(metricMappings || {}),
+        console.log('[useApplyTemplate]', tw.title, '→', {
+          metric: widgetConfig.metric,
+          targetMetric: widgetConfig.targetMetric,
+          dataSource: widgetConfig.dataSource,
+          aggregation: widgetConfig.aggregation,
+          format: widgetConfig.format,
+          mappingFound: !!mapping,
         });
 
         return {
@@ -543,13 +437,14 @@ export const useApplyTemplate = () => {
         };
       });
 
+      // 5. Inserir widgets
       const { error: insertError } = await supabase
         .from('dashboard_widgets')
         .insert(widgetsToCreate as never[]);
 
       if (insertError) throw insertError;
 
-      // Increment usage count
+      // 6. Incrementar contagem de uso
       await incrementUsage.mutateAsync(templateId);
 
       return template;
@@ -558,7 +453,7 @@ export const useApplyTemplate = () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-widgets'] });
       toast({
         title: 'Template aplicado',
-        description: 'Os widgets do template foram criados no dashboard.',
+        description: 'Dashboard criado com sucesso a partir do template.',
       });
     },
     onError: (error) => {
