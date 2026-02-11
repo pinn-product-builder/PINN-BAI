@@ -175,62 +175,52 @@ const WidgetWrapper = ({
   isRefreshing?: boolean;
   error?: string | null;
 }) => (
-  <div className="relative group animate-fade-up h-full">
+  <div className="relative group h-full">
+    {/* Source badge — discrete top-left */}
     {sourceTable && (
       <Badge 
         variant="secondary" 
-        className="absolute -top-2 left-3 z-10 text-[10px] px-1.5 py-0 flex items-center gap-1"
+        className="absolute -top-2.5 left-3 z-10 text-[9px] px-1.5 py-0 h-[18px] flex items-center gap-1 bg-muted/80 backdrop-blur-sm border-border/50 font-mono"
       >
-        <Database className="w-3 h-3" />
+        <Database className="w-2.5 h-2.5" />
         {sourceTable}
       </Badge>
     )}
-    <div className="absolute -top-2 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+    {/* Hover controls — top-right */}
+    <div className="absolute -top-2.5 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
       {onRefresh && (
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 bg-background/80 backdrop-blur-sm"
+          className="h-5 w-5 bg-muted/80 backdrop-blur-sm border border-border/50 rounded-md"
           onClick={onRefresh}
           disabled={isRefreshing}
         >
-          <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-2.5 w-2.5 ${isRefreshing ? 'animate-spin' : ''}`} />
         </Button>
       )}
       {onRemove && (
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 bg-background/80 backdrop-blur-sm text-destructive hover:text-destructive"
+          className="h-5 w-5 bg-muted/80 backdrop-blur-sm border border-border/50 rounded-md text-destructive hover:text-destructive"
           onClick={onRemove}
         >
-          <Trash2 className="h-3 w-3" />
+          <Trash2 className="h-2.5 w-2.5" />
         </Button>
       )}
     </div>
+    {/* Error overlay */}
     {error && (
-      <div className="absolute inset-0 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center justify-center z-20">
+      <div className="absolute inset-0 bg-destructive/5 border border-destructive/20 rounded-xl flex items-center justify-center z-20 backdrop-blur-[2px]">
         <div className="text-center p-4">
-          <AlertCircle className="w-6 h-6 text-destructive mx-auto mb-2" />
+          <AlertCircle className="w-5 h-5 text-destructive/70 mx-auto mb-2" />
           <p className="text-xs text-destructive font-medium">Erro ao carregar dados</p>
-          <p className="text-[10px] text-destructive/70 mt-1 max-w-[200px]">{error}</p>
+          <p className="text-[10px] text-destructive/60 mt-1 max-w-[200px]">{error}</p>
         </div>
       </div>
     )}
     {children}
-    {/* Source data button at bottom - estilo do print */}
-    {sourceTable && (
-      <div className="absolute bottom-2 left-0 right-0 px-3 z-10">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full h-7 text-[10px] text-muted-foreground hover:text-foreground bg-background/50 backdrop-blur-sm border border-border/50"
-          onClick={onRefresh}
-        >
-          Dados em tempo real de {sourceTable}
-        </Button>
-      </div>
-    )}
   </div>
 );
 
@@ -599,7 +589,7 @@ const WidgetRenderer = ({
             title={widget.title}
             description={widget.description || ''}
             data={chartData}
-            isDonut={false}
+            isDonut={true}
             isLoading={isLoading}
           />
         </WidgetWrapper>
@@ -712,16 +702,24 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-lg" />
-          ))}
+      <div className="space-y-8">
+        {/* Skeleton KPIs */}
+        <div>
+          <Skeleton className="h-4 w-24 mb-3 rounded" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-[140px] rounded-xl" />
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {[...Array(2)].map((_, i) => (
-            <Skeleton key={i} className="h-80 rounded-lg" />
-          ))}
+        {/* Skeleton charts */}
+        <div>
+          <Skeleton className="h-4 w-32 mb-3 rounded" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[...Array(2)].map((_, i) => (
+              <Skeleton key={i} className="h-[320px] rounded-xl" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -942,7 +940,7 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
       {/* Cartas de insight da IA */}
       {insightWidgets.length > 0 && (
         <section>
-          <div className="mb-3 flex items-center justifyBetween gap-2">
+          <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
               Insights da IA
             </h2>

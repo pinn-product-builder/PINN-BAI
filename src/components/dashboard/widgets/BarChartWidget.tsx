@@ -31,15 +31,12 @@ const CHART_COLORS = [
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-popover border rounded-lg shadow-lg p-3">
-        <p className="font-medium text-foreground mb-1">{label}</p>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Valor:</span>
-          <span className="font-medium text-foreground">
-            {typeof payload[0].value === 'number'
-              ? payload[0].value.toLocaleString('pt-BR')
-              : payload[0].value
-            }
+      <div className="bg-popover/95 backdrop-blur-md border border-border/60 rounded-lg shadow-xl p-3 min-w-[120px]">
+        <p className="text-xs font-semibold text-foreground mb-1.5">{label}</p>
+        <div className="flex items-center gap-2 text-xs">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].color || CHART_COLORS[0] }} />
+          <span className="font-semibold text-foreground tabular-nums">
+            {typeof payload[0].value === 'number' ? payload[0].value.toLocaleString('pt-BR') : payload[0].value}
           </span>
         </div>
       </div>
@@ -48,17 +45,17 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const BarChartWidget = ({ 
-  title, 
+const BarChartWidget = ({
+  title,
   description,
   data = [],
-  isLoading = false
+  isLoading = false,
 }: BarChartWidgetProps) => {
   const hasRealData = data.length > 0;
 
   if (isLoading) {
     return (
-      <Card className="h-full flex items-center justify-center min-h-[350px]">
+      <Card className="rounded-xl h-full flex items-center justify-center min-h-[350px] bg-card/80 backdrop-blur-sm border-border/50">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
           <span className="text-xs text-muted-foreground">Carregando dados...</span>
@@ -68,69 +65,63 @@ const BarChartWidget = ({
   }
 
   return (
-    <Card className={cn(!hasRealData && 'opacity-60')}>
-      <CardHeader className="pb-2">
+    <Card className={cn('rounded-xl bg-card/80 backdrop-blur-sm border-border/50', !hasRealData && 'opacity-60')}>
+      <CardHeader className="pb-1">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <CardTitle className="text-base">{title}</CardTitle>
-            <Tooltip>
-              <TooltipTrigger>
-                <Info className="w-4 h-4 text-muted-foreground/50 hover:text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs">
-                <p className="text-xs">{description}</p>
-              </TooltipContent>
-            </Tooltip>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-3.5 h-3.5 text-muted-foreground/40 hover:text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-xs">{description}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            {description && (
+              <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+            )}
           </div>
           {!hasRealData && (
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-              Sem dados
-            </span>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Sem dados</span>
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-2">
         {!hasRealData ? (
-          <div className="h-[250px] flex items-center justify-center">
+          <div className="h-[260px] flex items-center justify-center">
             <div className="text-center text-muted-foreground">
-              <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <Database className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Sem dados disponíveis</p>
-              <p className="text-xs mt-1">Configure a fonte de dados</p>
+              <p className="text-xs mt-1 text-muted-foreground/60">Configure a fonte de dados</p>
             </div>
           </div>
         ) : (
-          <div className="h-[250px]">
+          <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+              <BarChart data={data} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.3} horizontal={false} />
                 <XAxis
                   type="number"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v)}
                 />
                 <YAxis
                   type="category"
                   dataKey="label"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                  width={80}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  width={90}
                 />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
-                <Bar 
-                  dataKey="value" 
-                  radius={[0, 4, 4, 0]} 
-                  barSize={24}
-                  animationDuration={800}
-                  animationEasing="ease-out"
-                  animationBegin={100}
-                >
+                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }} />
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20} animationDuration={800} animationEasing="ease-out">
                   {data.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} 
-                    />
+                    <Cell key={`cell-${index}`} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Bar>
               </BarChart>

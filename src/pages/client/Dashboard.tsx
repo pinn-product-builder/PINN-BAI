@@ -104,151 +104,135 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="p-8 space-y-8 pb-32">
-      {/* Dynamic Header with AI Briefing Trigger */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="p-6 lg:p-8 space-y-6 pb-32">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-accent font-bold text-xs uppercase tracking-tight">
-            <Sparkles className="w-3 h-3 fill-current" />
-            Insights em Tempo Real
+          <div className="flex items-center gap-1.5 text-primary font-semibold text-[10px] uppercase tracking-[0.2em]">
+            <Sparkles className="w-3 h-3" />
+            Dashboard Executivo
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">
-            {dashboard?.name || 'Executive Dashboard'}
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
+            {dashboard?.name || 'Visão Executiva'}
           </h1>
-          <p className="text-muted-foreground text-lg">
-            Bem-vindo ao seu centro de comando. Aqui está o que aconteceu hoje.
+          <p className="text-sm text-muted-foreground">
+            Panorama completo de performance dos últimos 30 dias
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            className="h-12 px-6 rounded-xl gap-2 font-bold border-white/10 hover:bg-white/5 text-white/70"
+            size="sm"
+            className="h-9 px-4 rounded-lg gap-2 text-xs font-medium border-border/50"
             onClick={handleExportPDF}
             disabled={isExporting}
           >
-            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Relatório PDF
+            {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            Exportar PDF
           </Button>
           <Button
             variant="outline"
-            className="h-12 px-6 rounded-xl gap-2 font-bold border-accent/20 hover:bg-accent/5 text-accent"
+            size="sm"
+            className="h-9 px-4 rounded-lg gap-2 text-xs font-medium border-primary/20 text-primary hover:bg-primary/5"
             onClick={handleVoiceBriefing}
             disabled={isVoiceActive}
           >
             {isVoiceActive ? (
-              <div className="flex gap-1 items-center">
-                <div className="w-1 h-3 bg-accent animate-bounce" />
-                <div className="w-1 h-5 bg-accent animate-bounce delay-75" />
-                <div className="w-1 h-4 bg-accent animate-bounce delay-150" />
+              <div className="flex gap-0.5 items-center">
+                <div className="w-0.5 h-2 bg-primary animate-bounce rounded-full" />
+                <div className="w-0.5 h-3 bg-primary animate-bounce delay-75 rounded-full" />
+                <div className="w-0.5 h-2.5 bg-primary animate-bounce delay-150 rounded-full" />
               </div>
             ) : (
-              <Volume2 className="w-4 h-4" />
+              <Volume2 className="w-3.5 h-3.5" />
             )}
-            CEO Briefing
+            Briefing IA
           </Button>
-          <Button className="h-12 px-6 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground font-bold shadow-lg shadow-accent/20 gap-2">
-            <Plus className="w-4 h-4" />
-            Novo Widget
+          <Button size="sm" className="h-9 px-4 rounded-lg text-xs font-medium gap-1.5">
+            <Plus className="w-3.5 h-3.5" />
+            Widget
           </Button>
         </div>
       </div>
 
-      {/* AI Narrative Section */}
-      <Card className="border-none shadow-2xl bg-gradient-to-br from-accent/15 via-background to-background overflow-hidden relative group rounded-3xl">
-        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-          <Sparkles size={180} />
+      {/* AI Narrative — compact */}
+      <Card className="border-border/40 bg-gradient-to-br from-primary/5 via-card to-card overflow-hidden relative group rounded-xl">
+        <div className="absolute top-0 right-0 p-3 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+          <Sparkles size={120} />
         </div>
-        <CardContent className="p-10">
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            <div className="w-20 h-20 rounded-3xl bg-accent flex items-center justify-center shadow-2xl shadow-accent/30 shrink-0 transform group-hover:scale-105 transition-transform">
-              <Mic2 className="text-accent-foreground w-10 h-10" />
+        <CardContent className="p-5">
+          <div className="flex gap-4 items-start">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Mic2 className="text-primary w-5 h-5" />
             </div>
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-2xl font-bold text-foreground">Resumo Narrativo: <span className="text-accent tracking-tight">Destaques do Dia</span></h3>
-                <div className="h-1 w-20 bg-accent mt-1 rounded-full" />
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-foreground">Resumo Executivo</h3>
+                {narrative?.trend && (
+                  <div className={cn(
+                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
+                    narrative.trend === 'up' && "bg-emerald-500/10 text-emerald-500",
+                    narrative.trend === 'down' && "bg-red-500/10 text-red-500",
+                    narrative.trend === 'stable' && "bg-muted text-muted-foreground"
+                  )}>
+                    {narrative.trend === 'up' && <TrendingUp className="w-2.5 h-2.5" />}
+                    {narrative.trend === 'down' && <TrendingDown className="w-2.5 h-2.5" />}
+                    {narrative.trend === 'up' && 'Alta'}
+                    {narrative.trend === 'down' && 'Baixa'}
+                    {narrative.trend === 'stable' && 'Estável'}
+                  </div>
+                )}
               </div>
               {isLoadingNarrative ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Gerando insights...</span>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span className="text-xs">Gerando insights...</span>
                 </div>
               ) : (
-                <>
-                  <p className="text-muted-foreground leading-relaxed text-xl max-w-4xl font-medium">
-                    "{narrative?.highlight ? (
-                      <>
-                        {narrative.text.split(narrative.highlight)[0]}
-                        <span className="text-foreground font-bold underline decoration-accent/30 underline-offset-4">
-                          {narrative.highlight}
-                        </span>
-                        {narrative.text.split(narrative.highlight)[1]}
-                      </>
-                    ) : (
-                      narrative?.text || "Configure seus widgets para ver insights automáticos."
-                    )}"
-                  </p>
-                  <div className="flex gap-4">
-                    <Button variant="ghost" size="sm" className="text-accent gap-2 font-bold hover:bg-accent/5 rounded-lg" onClick={handleVoiceBriefing}>
-                      <Play className="w-3 h-3 fill-current" />
-                      Ouvir Resumo por IA
-                    </Button>
-                    {narrative?.trend && (
-                      <div className={cn(
-                        "flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
-                        narrative.trend === 'up' && "bg-success/10 text-success",
-                        narrative.trend === 'down' && "bg-destructive/10 text-destructive",
-                        narrative.trend === 'stable' && "bg-muted text-muted-foreground"
-                      )}>
-                        {narrative.trend === 'up' && <TrendingUp className="w-3 h-3" />}
-                        {narrative.trend === 'down' && <TrendingDown className="w-3 h-3" />}
-                        {narrative.trend === 'up' && 'Tendência de Alta'}
-                        {narrative.trend === 'down' && 'Tendência de Baixa'}
-                        {narrative.trend === 'stable' && 'Estável'}
-                      </div>
-                    )}
-                  </div>
-                </>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {narrative?.highlight ? (
+                    <>
+                      {narrative.text.split(narrative.highlight)[0]}
+                      <span className="text-foreground font-semibold">{narrative.highlight}</span>
+                      {narrative.text.split(narrative.highlight)[1]}
+                    </>
+                  ) : (
+                    narrative?.text || "Configure seus widgets para ver insights automáticos."
+                  )}
+                </p>
               )}
+              <Button variant="ghost" size="sm" className="text-primary gap-1.5 text-xs font-medium hover:bg-primary/5 h-7 px-2 -ml-2" onClick={handleVoiceBriefing}>
+                <Play className="w-3 h-3 fill-current" />
+                Ouvir
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Dynamic Grid Engine */}
-      <div className="space-y-6" id="dashboard-content">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Monitor className="w-5 h-5 text-accent" />
-            Visão Detalhada
-          </h2>
-          <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-xl">
-            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs font-bold bg-background shadow-sm">Grade</Button>
-            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs font-bold">Lista</Button>
-          </div>
-        </div>
-
+      {/* Dashboard Widgets */}
+      <div id="dashboard-content">
         {dashboard?.id ? (
           <>
             {console.log('[Dashboard] Rendering DashboardEngine with dashboardId:', dashboard.id)}
             <DashboardEngine dashboardId={dashboard.id} />
           </>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-80 rounded-3xl bg-muted/20 animate-pulse border-2 border-dashed border-muted" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-[140px] rounded-xl bg-muted/20 animate-pulse border border-dashed border-border/50" />
             ))}
           </div>
         )}
       </div>
 
-      {/* Floating Action for CRM Kanban */}
-      <div className="fixed bottom-8 right-8 z-50">
-        <Button className="h-16 px-10 rounded-full bg-foreground text-background font-bold shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-105 transition-transform gap-3 group">
-          <Layout className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-          Visualizar Smart CRM
-          <div className="absolute -top-2 -right-2 w-6 h-6 bg-accent rounded-full flex items-center justify-center text-[10px] text-accent-foreground animate-pulse shadow-lg shadow-accent/50">
+      {/* Floating Action */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button size="sm" className="h-10 px-5 rounded-full font-medium shadow-lg gap-2 text-xs">
+          <Layout className="w-4 h-4" />
+          Smart CRM
+          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center text-[9px] text-primary-foreground font-bold">
             12
           </div>
         </Button>

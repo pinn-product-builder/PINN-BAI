@@ -11,7 +11,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Info, ChevronLeft, ChevronRight, Loader2, Database } from 'lucide-react';
+import { Info, ChevronLeft, ChevronRight, Loader2, Database, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -32,29 +32,34 @@ interface TableWidgetProps {
 }
 
 const formatValue = (value: unknown, type?: string): React.ReactNode => {
-  if (value === null || value === undefined) return '-';
-  
+  if (value === null || value === undefined) return <span className="text-muted-foreground/40">-</span>;
+
   switch (type) {
     case 'currency':
-      return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-        maximumFractionDigits: 0,
-      }).format(Number(value));
+      return (
+        <span className="tabular-nums font-medium">
+          {new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            maximumFractionDigits: 0,
+          }).format(Number(value))}
+        </span>
+      );
     case 'number':
-      return Number(value).toLocaleString('pt-BR');
+      return <span className="tabular-nums">{Number(value).toLocaleString('pt-BR')}</span>;
     case 'date':
       try {
-        return formatDistanceToNow(new Date(String(value)), { 
-          addSuffix: true, 
-          locale: ptBR 
-        });
+        return (
+          <span className="text-muted-foreground">
+            {formatDistanceToNow(new Date(String(value)), { addSuffix: true, locale: ptBR })}
+          </span>
+        );
       } catch {
         return String(value);
       }
     case 'badge':
       return (
-        <Badge variant="secondary" className="font-normal">
+        <Badge variant="secondary" className="text-[10px] font-medium px-2 py-0.5">
           {String(value)}
         </Badge>
       );
@@ -63,58 +68,39 @@ const formatValue = (value: unknown, type?: string): React.ReactNode => {
   }
 };
 
-const TableWidget = ({ 
-  title, 
+const TableWidget = ({
+  title,
   description,
   data = [],
   columns: providedColumns,
   pageSize = 5,
-  isLoading = false
+  isLoading = false,
 }: TableWidgetProps) => {
   const [currentPage, setCurrentPage] = useState(0);
-  
   const hasRealData = data.length > 0;
-  
-  // Auto-generate columns from data if not provided
+
   const columns = useMemo(() => {
-    if (providedColumns && providedColumns.length > 0) {
-      return providedColumns;
-    }
+    if (providedColumns && providedColumns.length > 0) return providedColumns;
     if (data.length > 0) {
-      return Object.keys(data[0]).slice(0, 6).map(key => {
-        // Detect column type based on first value
+      return Object.keys(data[0]).slice(0, 6).map((key) => {
         const sampleValue = data[0][key];
         let type: Column['type'] = 'text';
-        
-        if (typeof sampleValue === 'number') {
-          type = 'number';
-        } else if (key.includes('date') || key.includes('created_at') || key.includes('updated_at')) {
-          type = 'date';
-        } else if (key.includes('status') || key.includes('source')) {
-          type = 'badge';
-        } else if (key.includes('value') || key.includes('price') || key.includes('revenue')) {
-          type = 'currency';
-        }
-        
-        return {
-          key,
-          label: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '),
-          type,
-        };
+        if (typeof sampleValue === 'number') type = 'number';
+        else if (key.includes('date') || key.includes('created_at') || key.includes('updated_at')) type = 'date';
+        else if (key.includes('status') || key.includes('source')) type = 'badge';
+        else if (key.includes('value') || key.includes('price') || key.includes('revenue')) type = 'currency';
+        return { key, label: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '), type };
       });
     }
     return [];
   }, [providedColumns, data]);
 
   const totalPages = Math.ceil(data.length / pageSize);
-  const paginatedData = data.slice(
-    currentPage * pageSize,
-    (currentPage + 1) * pageSize
-  );
+  const paginatedData = data.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
   if (isLoading) {
     return (
-      <Card className="h-full flex items-center justify-center min-h-[350px]">
+      <Card className="rounded-xl h-full flex items-center justify-center min-h-[350px] bg-card/80 backdrop-blur-sm border-border/50">
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
           <span className="text-xs text-muted-foreground">Carregando dados...</span>
@@ -124,29 +110,37 @@ const TableWidget = ({
   }
 
   return (
-    <Card className={cn(!hasRealData && 'opacity-60')}>
+    <Card className={cn('rounded-xl bg-card/80 backdrop-blur-sm border-border/50', !hasRealData && 'opacity-60')}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <CardTitle className="text-base">{title}</CardTitle>
-            <Tooltip>
-              <TooltipTrigger>
-                <Info className="w-4 h-4 text-muted-foreground/50 hover:text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs">
-                <p className="text-xs">{description}</p>
-              </TooltipContent>
-            </Tooltip>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-3.5 h-3.5 text-muted-foreground/40 hover:text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-xs">{description}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            {hasRealData && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {data.length} registro{data.length !== 1 ? 's' : ''}
+              </p>
+            )}
           </div>
           {hasRealData && (
-            <span className="text-xs text-muted-foreground">
-              {data.length} registro{data.length !== 1 ? 's' : ''}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 border border-border/50 text-muted-foreground">
+                <Search className="w-3 h-3" />
+                <span className="text-[10px]">Buscar...</span>
+              </div>
+            </div>
           )}
           {!hasRealData && (
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-              Sem dados
-            </span>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Sem dados</span>
           )}
         </div>
       </CardHeader>
@@ -154,19 +148,19 @@ const TableWidget = ({
         {!hasRealData ? (
           <div className="h-[250px] flex items-center justify-center">
             <div className="text-center text-muted-foreground">
-              <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <Database className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Sem dados disponíveis</p>
-              <p className="text-xs mt-1">Configure a fonte de dados</p>
+              <p className="text-xs mt-1 text-muted-foreground/60">Configure a fonte de dados</p>
             </div>
           </div>
         ) : (
           <>
-            <div className="rounded-md border overflow-hidden">
+            <div className="rounded-lg border border-border/50 overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/50">
+                  <TableRow className="bg-muted/30 border-border/50 hover:bg-muted/30">
                     {columns.map((column) => (
-                      <TableHead key={column.key} className="font-medium">
+                      <TableHead key={column.key} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider h-9">
                         {column.label}
                       </TableHead>
                     ))}
@@ -174,13 +168,12 @@ const TableWidget = ({
                 </TableHeader>
                 <TableBody>
                   {paginatedData.map((row, rowIndex) => (
-                    <TableRow 
+                    <TableRow
                       key={rowIndex}
-                      className="animate-fade-up"
-                      style={{ animationDelay: `${rowIndex * 50}ms` }}
+                      className="border-border/30 hover:bg-muted/20 transition-colors"
                     >
                       {columns.map((column) => (
-                        <TableCell key={column.key}>
+                        <TableCell key={column.key} className="text-xs py-2.5">
                           {formatValue(row[column.key], column.type)}
                         </TableCell>
                       ))}
@@ -191,28 +184,28 @@ const TableWidget = ({
             </div>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4">
-                <span className="text-xs text-muted-foreground">
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-[11px] text-muted-foreground tabular-nums">
                   Página {currentPage + 1} de {totalPages}
                 </span>
                 <div className="flex gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                    className="h-7 w-7 rounded-md"
+                    onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
                     disabled={currentPage === 0}
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                    className="h-7 w-7 rounded-md"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
                     disabled={currentPage === totalPages - 1}
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
