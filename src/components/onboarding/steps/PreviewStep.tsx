@@ -80,10 +80,52 @@ const WIDGET_ICONS: Record<string, React.ElementType> = {
 const PreviewStep = ({ mappings, widgets, plan, onUpdate, hasTemplate, templateName }: PreviewStepProps) => {
   const [showPreview, setShowPreview] = useState(false);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[PreviewStep] Props:', {
+      hasTemplate,
+      templateName,
+      widgetsCount: widgets.length,
+      widgets: widgets.map(w => ({ id: w.id, title: w.title, type: w.type })),
+    });
+  }, [hasTemplate, templateName, widgets]);
+
   // =================================================================
   // MODO TEMPLATE: mostrar os widgets do template já selecionado
   // =================================================================
-  if (hasTemplate && widgets.length > 0) {
+  // IMPORTANTE: Se tem template selecionado, SEMPRE mostrar modo template
+  // Mesmo que widgets.length seja 0, o template será aplicado no handleComplete
+  if (hasTemplate) {
+    // Se widgets está vazio mas tem template, mostrar mensagem informativa
+    if (widgets.length === 0) {
+      return (
+        <div className="space-y-8">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Dashboard Pronto para Criação
+            </h2>
+            <p className="text-muted-foreground">
+              O template <strong className="text-accent">{templateName || 'selecionado'}</strong> será 
+              aplicado durante a finalização. Os widgets serão criados automaticamente com base nos seus mapeamentos.
+            </p>
+          </div>
+          <Card className="p-6 bg-accent/5 border-accent/20">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
+                <LayoutTemplate className="w-5 h-5 text-accent" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">{templateName || 'Template Premium'}</h3>
+                <p className="text-sm text-muted-foreground">Será aplicado na finalização</p>
+              </div>
+              <Badge className="ml-auto bg-accent/20 text-accent border-0">Pronto</Badge>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+    
+    // Widgets do template disponíveis - mostrar preview completo
     // Agrupar widgets por tipo para exibição bonita
     const metricCards = widgets.filter(w => w.type === 'metric_card');
     const charts = widgets.filter(w => ['area_chart', 'line_chart', 'bar_chart', 'pie_chart', 'donut_chart'].includes(w.type));
