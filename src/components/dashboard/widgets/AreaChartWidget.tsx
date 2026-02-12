@@ -133,9 +133,9 @@ const AreaChartWidget = ({
             </div>
           </div>
         ) : (
-          <div className="h-[260px]">
+          <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
+              <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
                 <defs>
                   {dataKeys.map((key, index) => (
                     <linearGradient key={key} id={`area-grad-${key}`} x1="0" y1="0" x2="0" y2="1">

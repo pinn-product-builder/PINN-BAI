@@ -45,13 +45,22 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+// Prettify bar labels
+const prettifyLabel = (raw: string): string => {
+  if (!raw || raw === 'null' || raw === 'undefined' || raw === 'Outros') return 'Outros';
+  if (/^[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ]/.test(raw) && raw.includes(' ')) return raw;
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+};
+
 const BarChartWidget = ({
   title,
   description,
   data = [],
   isLoading = false,
 }: BarChartWidgetProps) => {
-  const hasRealData = data.length > 0;
+  // Clean data: prettify labels, filter zero
+  const cleanData = data.filter(d => d.value > 0).map(d => ({ ...d, label: prettifyLabel(d.label) }));
+  const hasRealData = cleanData.length > 0;
 
   if (isLoading) {
     return (
@@ -99,16 +108,16 @@ const BarChartWidget = ({
             </div>
           </div>
         ) : (
-          <div className="h-[260px]">
+          <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+              <BarChart data={cleanData} layout="vertical" margin={{ top: 5, right: 15, left: 5, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.3} horizontal={false} />
                 <XAxis
                   type="number"
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v)}
+                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))}
                 />
                 <YAxis
                   type="category"
@@ -116,11 +125,11 @@ const BarChartWidget = ({
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  width={90}
+                  width={100}
                 />
                 <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }} />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20} animationDuration={800} animationEasing="ease-out">
-                  {data.map((entry, index) => (
+                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22} animationDuration={800} animationEasing="ease-out">
+                  {cleanData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Bar>

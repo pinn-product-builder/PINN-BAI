@@ -18,16 +18,25 @@ const FUNNEL_COLORS = [
   'hsl(var(--chart-5))',
 ];
 
+// Prettify stage names
+const prettifyStage = (raw: string): string => {
+  if (!raw || raw === 'null' || raw === 'undefined') return 'Outros';
+  if (/^[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ]/.test(raw) && raw.includes(' ')) return raw;
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+};
+
 const FunnelWidget = ({
   title,
   description,
   data = [],
   isLoading = false,
 }: FunnelWidgetProps) => {
-  const hasRealData = data.length > 0;
-  const maxValue = hasRealData ? Math.max(...data.map((d) => d.value)) : 0;
-  const firstValue = hasRealData ? data[0].value : 0;
-  const lastValue = hasRealData ? data[data.length - 1].value : 0;
+  // Prettify stage names and filter zero values
+  const cleanData = data.filter(d => d.value > 0).map(d => ({ ...d, stage: prettifyStage(d.stage) }));
+  const hasRealData = cleanData.length > 0;
+  const maxValue = hasRealData ? Math.max(...cleanData.map((d) => d.value)) : 0;
+  const firstValue = hasRealData ? cleanData[0].value : 0;
+  const lastValue = hasRealData ? cleanData[cleanData.length - 1].value : 0;
   const totalConversion =
     firstValue > 0 ? ((lastValue / firstValue) * 100).toFixed(1) : '0.0';
 
@@ -81,9 +90,21 @@ const FunnelWidget = ({
           </div>
         ) : (
           <div className="space-y-2.5">
-            {data.map((item, index) => {
+            {cleanData.length === 1 && (
+              <div className="text-center py-4 space-y-3">
+                <p className="text-3xl font-bold text-foreground tabular-nums">{cleanData[0].value.toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-muted-foreground">{cleanData[0].stage}</p>
+                <div className="w-full h-3 rounded-full bg-muted/40 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: '100%', backgroundColor: FUNNEL_COLORS[0] }} />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Configure uma view de funil com múltiplos estágios para ver a conversão
+                </p>
+              </div>
+            )}
+            {cleanData.length > 1 && cleanData.map((item, index) => {
               const widthPercent = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
-              const prevValue = index > 0 ? data[index - 1].value : item.value;
+              const prevValue = index > 0 ? cleanData[index - 1].value : item.value;
               const conversionRate =
                 prevValue > 0 ? ((item.value / prevValue) * 100).toFixed(0) : '100';
               const color = item.color || FUNNEL_COLORS[index % FUNNEL_COLORS.length];
@@ -134,12 +155,14 @@ const FunnelWidget = ({
             })}
 
             {/* Conversion summary */}
-            <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Conversão Total</span>
-              <span className="text-base font-bold text-foreground tabular-nums">
-                {totalConversion}%
-              </span>
-            </div>
+            {cleanData.length > 1 && (
+              <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
+                <span className="text-xs text-muted-foreground font-medium">Conversão Total</span>
+                <span className="text-base font-bold text-foreground tabular-nums">
+                  {totalConversion}%
+                </span>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

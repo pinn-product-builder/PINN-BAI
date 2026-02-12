@@ -26,6 +26,14 @@ const CHART_COLORS = [
   'hsl(var(--chart-5))',
 ];
 
+// Prettify label names
+const prettifyLabel = (raw: string): string => {
+  if (!raw || raw === 'Outros' || raw === 'null' || raw === 'undefined') return 'Outros';
+  // Already looks good
+  if (/^[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ]/.test(raw) && raw.includes(' ')) return raw;
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+};
+
 const PieChartWidget = ({
   title,
   description,
@@ -33,8 +41,13 @@ const PieChartWidget = ({
   isDonut = true,
   isLoading = false,
 }: PieChartWidgetProps) => {
-  const hasRealData = data.length > 0;
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+  // Prettify all labels
+  const cleanData = data.map(d => ({ ...d, name: prettifyLabel(d.name) }));
+  // Filter out zero values and merge tiny slices
+  const filteredData = cleanData.filter(d => d.value > 0);
+  const hasRealData = filteredData.length > 0;
+  const total = filteredData.reduce((sum, item) => sum + item.value, 0);
+  const hasMultipleSlices = filteredData.length > 1;
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -97,6 +110,23 @@ const PieChartWidget = ({
               <p className="text-sm">Sem dados disponíveis</p>
             </div>
           </div>
+        ) : !hasMultipleSlices ? (
+          /* Fallback: quando só 1 categoria — mostrar como stat card */
+          <div className="py-4 space-y-4">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-foreground tabular-nums">{total.toLocaleString('pt-BR')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{filteredData[0]?.name || 'Total'}</p>
+            </div>
+            <div className="w-full h-3 rounded-full bg-muted/40 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-1000"
+                style={{ width: '100%', backgroundColor: CHART_COLORS[0] }}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground text-center">
+              Configure mais campos de origem para ver a distribuição completa
+            </p>
+          </div>
         ) : (
           <div className="flex items-center gap-4">
             {/* Chart */}
@@ -104,7 +134,7 @@ const PieChartWidget = ({
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={data}
+                    data={filteredData}
                     cx="50%"
                     cy="50%"
                     innerRadius={isDonut ? 55 : 0}
@@ -115,7 +145,7 @@ const PieChartWidget = ({
                     animationDuration={900}
                     animationEasing="ease-out"
                   >
-                    {data.map((entry, index) => (
+                    {filteredData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
@@ -134,7 +164,7 @@ const PieChartWidget = ({
 
             {/* Legend */}
             <div className="space-y-2 shrink-0 min-w-[100px]">
-              {data.map((item, index) => {
+              {filteredData.slice(0, 8).map((item, index) => {
                 const pct = total > 0 ? ((item.value / total) * 100).toFixed(0) : 0;
                 return (
                   <div key={item.name} className="flex items-center gap-2">
@@ -149,6 +179,9 @@ const PieChartWidget = ({
                   </div>
                 );
               })}
+              {filteredData.length > 8 && (
+                <p className="text-[10px] text-muted-foreground">+{filteredData.length - 8} mais</p>
+              )}
             </div>
           </div>
         )}

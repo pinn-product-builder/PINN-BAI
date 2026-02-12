@@ -82,14 +82,55 @@ const TableWidget = ({
   const columns = useMemo(() => {
     if (providedColumns && providedColumns.length > 0) return providedColumns;
     if (data.length > 0) {
-      return Object.keys(data[0]).slice(0, 6).map((key) => {
+      // Filter out internal/system columns
+      const skipColumns = /^(id|uuid|pk|org_id|dashboard_id|integration_id|widget_id|created_by|updated_by)$/i;
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}/i;
+      
+      const allKeys = Object.keys(data[0]);
+      const goodKeys = allKeys.filter(key => {
+        if (skipColumns.test(key)) return false;
+        // Skip columns where all sample values look like UUIDs
+        const sample = data[0][key];
+        if (typeof sample === 'string' && uuidPattern.test(sample)) return false;
+        return true;
+      });
+
+      // Prioritize user-friendly columns: name, email, status, date, value fields
+      const priority = (key: string): number => {
+        const k = key.toLowerCase();
+        if (k.includes('name') || k.includes('nome')) return 0;
+        if (k.includes('email')) return 1;
+        if (k.includes('phone') || k.includes('telefone')) return 2;
+        if (k.includes('status')) return 3;
+        if (k.includes('source') || k.includes('origem') || k.includes('anuncio')) return 4;
+        if (k.includes('stage') || k.includes('etapa')) return 5;
+        if (k.includes('created') || k.includes('date') || k.includes('data')) return 6;
+        if (k.includes('value') || k.includes('valor')) return 7;
+        return 10;
+      };
+
+      const sortedKeys = [...goodKeys].sort((a, b) => priority(a) - priority(b)).slice(0, 7);
+
+      // Pretty label map for common columns
+      const labelMap: Record<string, string> = {
+        name: 'Nome', full_name: 'Nome Completo', first_name: 'Nome',
+        email: 'E-mail', phone: 'Telefone', telefone: 'Telefone',
+        status: 'Status', lead_source: 'Origem', source: 'Origem', anuncio: 'Anúncio',
+        stage_name: 'Etapa', stage: 'Etapa', created_at: 'Criado em',
+        updated_at: 'Atualizado', data: 'Data', date: 'Data',
+        value: 'Valor', revenue: 'Receita', amount: 'Valor',
+      };
+
+      return sortedKeys.map((key) => {
         const sampleValue = data[0][key];
         let type: Column['type'] = 'text';
         if (typeof sampleValue === 'number') type = 'number';
-        else if (key.includes('date') || key.includes('created_at') || key.includes('updated_at')) type = 'date';
-        else if (key.includes('status') || key.includes('source')) type = 'badge';
-        else if (key.includes('value') || key.includes('price') || key.includes('revenue')) type = 'currency';
-        return { key, label: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '), type };
+        else if (key.includes('date') || key.includes('created_at') || key.includes('updated_at') || key === 'data') type = 'date';
+        else if (key.includes('status') || key.includes('source') || key.includes('stage') || key.includes('anuncio')) type = 'badge';
+        else if (key.includes('value') || key.includes('price') || key.includes('revenue') || key.includes('valor')) type = 'currency';
+        
+        const label = labelMap[key.toLowerCase()] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        return { key, label, type };
       });
     }
     return [];

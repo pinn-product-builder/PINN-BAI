@@ -24,6 +24,52 @@ const generateSparklineData = (baseValue: number) => {
   }));
 };
 
+// Converte nomes raw de colunas em títulos legíveis
+// "TOTAL_LEADS" → "Total Leads", "reunioes_agendadas" → "Reuniões Agendadas"
+const TITLE_MAP: Record<string, string> = {
+  total_leads: 'Total de Leads',
+  new_leads: 'Novos Leads',
+  leads_new: 'Novos Leads',
+  mensagens: 'Mensagens',
+  msg_in: 'Mensagens Recebidas',
+  msg_in_30d: 'Mensagens (30d)',
+  reunioes_agendadas: 'Reuniões Agendadas',
+  meetings_booked: 'Reuniões Agendadas',
+  meetings_booked_30d: 'Reuniões Agendadas',
+  reunioes_realizadas: 'Reuniões Realizadas',
+  meetings_done: 'Reuniões Realizadas',
+  meetings_done_30d: 'Reuniões Realizadas',
+  meetings_cancelled: 'Reuniões Canceladas',
+  meetings_cancelled_30d: 'Reuniões Canceladas',
+  investimento: 'Investimento',
+  spend: 'Investimento',
+  spend_30d: 'Investimento (30d)',
+  cpl: 'Custo por Lead',
+  cpl_30d: 'CPL (30d)',
+  cpm: 'Custo por Reunião',
+  cp_meeting_booked_30d: 'Custo por Reunião',
+  conversion_rate: 'Taxa de Conversão',
+  conv_lead_to_meeting_30d: 'Conv. Lead → Reunião',
+  calls_done: 'Ligações Realizadas',
+};
+
+const prettifyTitle = (raw: string): string => {
+  // 1. Check direct map
+  const lower = raw.toLowerCase().trim();
+  if (TITLE_MAP[lower]) return TITLE_MAP[lower];
+  // 2. Check without suffix like _30d
+  const noSuffix = lower.replace(/_\d+d$/, '');
+  if (TITLE_MAP[noSuffix]) return TITLE_MAP[noSuffix];
+  // 3. Already looks like a proper title (has spaces, starts with uppercase)
+  if (/^[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ]/.test(raw) && raw.includes(' ')) return raw;
+  // 4. Convert snake_case / UPPER_SNAKE to Title Case
+  return raw
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 const MetricCard = ({
   title,
   description,
@@ -34,6 +80,7 @@ const MetricCard = ({
   isLoading = false,
   metricLabel,
 }: MetricCardProps) => {
+  const displayTitle = prettifyTitle(title);
   if (isLoading) {
     return (
       <Card className="relative overflow-hidden rounded-xl h-full flex items-center justify-center min-h-[140px] bg-card/80 backdrop-blur-sm border-border/50">
@@ -106,7 +153,7 @@ const MetricCard = ({
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
-              {title}
+              {displayTitle}
             </h3>
             <Tooltip>
               <TooltipTrigger>

@@ -806,9 +806,10 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   const tableWidgets = sortedWidgets.filter(w => w.type === 'table');
   const insightWidgets = sortedWidgets.filter(w => w.type === 'insight_card');
 
-  // KPIs principais (hero) - até 5 cards no topo (padrão executivo)
-  const heroMetrics = metricWidgets.slice(0, 5);
-  const secondaryMetrics = metricWidgets.slice(5);
+  // KPIs: adaptar quantidade ao que existe (3→3cols, 4→4cols, 5+→5cols)
+  const heroCount = Math.min(metricWidgets.length, 5);
+  const heroMetrics = metricWidgets.slice(0, heroCount);
+  const secondaryMetrics = metricWidgets.slice(heroCount);
 
   // Marca widgets já usados para evitar duplicação em "outras visões"
   const usedIds = new Set<string>([
@@ -850,7 +851,11 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
               Visão Geral
             </h2>
           </div>
-          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${heroMetrics.length >= 5 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
+            heroMetrics.length >= 5 ? 'xl:grid-cols-5' : 
+            heroMetrics.length === 4 ? 'xl:grid-cols-4' : 
+            heroMetrics.length === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-2'
+          }`}>
             {heroMetrics.map(widget => (
               <div key={widget.id} className="min-h-[140px]">
                 <WidgetRenderer 
@@ -886,19 +891,20 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Seção de evolução ao longo do tempo (linha/área) */}
-      {timeSeriesCharts.length > 0 && (
+      {/* Gráficos principais (time series + distribuição lado a lado) */}
+      {(timeSeriesCharts.length > 0 || barCharts.length > 0 || pieCharts.length > 0 || funnelWidgets.length > 0) && (
         <section>
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
-              Evolução no Tempo
+              Análise Visual
             </h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Evolução temporal: largura total se só 1 gráfico */}
             {timeSeriesCharts.map(widget => (
               <div 
                 key={widget.id} 
-                className={`min-h-[320px] ${widget.type === 'area_chart' ? 'lg:col-span-2' : ''}`}
+                className={`min-h-[320px] ${timeSeriesCharts.length === 1 ? 'lg:col-span-2' : ''}`}
               >
                 <WidgetRenderer 
                   widget={widget} 
@@ -907,53 +913,20 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
                 />
               </div>
             ))}
-          </div>
-        </section>
-      )}
-
-      {/* Distribuição por origem / comparativos (barras, pizza, funil) */}
-      {(barCharts.length > 0 || pieCharts.length > 0 || funnelWidgets.length > 0) && (
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
-              Distribuição & Funil
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Barras, pizza e funil em grid de 2 colunas */}
             {barCharts.map(widget => (
-              <div 
-                key={widget.id} 
-                className={`min-h-[320px] ${sizeToCols(widget.size)}`}
-              >
-                <WidgetRenderer 
-                  widget={widget} 
-                  orgId={orgId || ''}
-                  onRemove={handleDelete}
-                />
-              </div>
-            ))}
-            {pieCharts.map(widget => (
-              <div 
-                key={widget.id} 
-                className={`min-h-[320px] ${sizeToCols(widget.size)}`}
-              >
-                <WidgetRenderer 
-                  widget={widget} 
-                  orgId={orgId || ''}
-                  onRemove={handleDelete}
-                />
+              <div key={widget.id} className="min-h-[320px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
             ))}
             {funnelWidgets.map(widget => (
-              <div 
-                key={widget.id} 
-                className={`min-h-[320px] ${sizeToCols(widget.size)}`}
-              >
-                <WidgetRenderer 
-                  widget={widget} 
-                  orgId={orgId || ''}
-                  onRemove={handleDelete}
-                />
+              <div key={widget.id} className="min-h-[320px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ))}
+            {pieCharts.map(widget => (
+              <div key={widget.id} className="min-h-[320px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
             ))}
           </div>
