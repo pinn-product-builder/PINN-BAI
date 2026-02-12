@@ -387,7 +387,86 @@ export const useApplyTemplate = () => {
         return 'number';
       };
 
-      // 4. Construir widgets com mapeamento
+      // 4. Analisar tabelas disponíveis a partir dos mapeamentos do usuário
+      // Descobrir a melhor tabela para cada tipo de widget
+      const tableFrequency = new Map<string, number>();
+      const tablesByPurpose: Record<string, string | null> = {
+        kpi: null,       // Tabela com KPIs pré-calculados (1 row)
+        timeseries: null, // Tabela com dados diários/temporais
+        funnel: null,     // Tabela com estágios/funil
+        leads: null,      // Tabela principal de leads/contatos
+        general: null,    // Tabela mais usada (fallback)
+      };
+
+      // Classificar tabelas pelos mapeamentos
+      for (const [, mapping] of mappingEntries) {
+        if (!mapping.sourceTable) continue;
+        const t = mapping.sourceTable.toLowerCase();
+        tableFrequency.set(mapping.sourceTable, (tableFrequency.get(mapping.sourceTable) || 0) + 1);
+
+        // KPI views (agregadas)
+        if (t.includes('kpi') || t.includes('_30d') || t.includes('_7d') || t.includes('summary') || t.includes('overview')) {
+          tablesByPurpose.kpi = mapping.sourceTable;
+        }
+        // Daily/time-series views
+        if (t.includes('daily') || t.includes('_60d') || t.includes('_90d') || t.includes('time') || t.includes('dia') || t.includes('day')) {
+          tablesByPurpose.timeseries = mapping.sourceTable;
+        }
+        // Funnel/pipeline
+        if (t.includes('funnel') || t.includes('pipeline') || t.includes('stage') || t.includes('funil')) {
+          tablesByPurpose.funnel = mapping.sourceTable;
+        }
+        // Leads/contacts
+        if (t.includes('lead') || t.includes('contact') || t.includes('cliente') || t.includes('customer') || t.includes('prospect')) {
+          tablesByPurpose.leads = mapping.sourceTable;
+        }
+      }
+
+      // Tabela mais usada = general fallback
+      let maxFreq = 0;
+      for (const [table, freq] of tableFrequency) {
+        if (freq > maxFreq) {
+          maxFreq = freq;
+          tablesByPurpose.general = table;
+        }
+      }
+
+      // Fallback global
+      const globalFallback = dataSource || tablesByPurpose.general || tablesByPurpose.leads;
+
+      // Resolver a melhor tabela para cada tipo de widget
+      const resolveTableForWidget = (widgetType: string, title: string): string | null => {
+        const tl = title.toLowerCase();
+        switch (widgetType) {
+          case 'metric_card':
+            // KPIs preferem view agregada, senão leads, senão geral
+            return tablesByPurpose.kpi || tablesByPurpose.leads || globalFallback;
+          case 'area_chart':
+          case 'line_chart':
+            // Séries temporais preferem view diária
+            return tablesByPurpose.timeseries || globalFallback;
+          case 'funnel':
+            // Funil precisa da view de pipeline
+            return tablesByPurpose.funnel || globalFallback;
+          case 'pie_chart':
+          case 'bar_chart':
+            // Distribuição — leads ou geral
+            return tablesByPurpose.leads || globalFallback;
+          case 'table':
+            // Tabelas usam leads/contatos
+            if (tl.includes('lead') || tl.includes('contato')) return tablesByPurpose.leads || globalFallback;
+            if (tl.includes('reuni') || tl.includes('meeting')) return tablesByPurpose.timeseries || globalFallback;
+            return tablesByPurpose.leads || globalFallback;
+          case 'insight_card':
+            return null; // Insights IA não precisam de tabela
+          default:
+            return globalFallback;
+        }
+      };
+
+      console.log('[useApplyTemplate] Tables detected:', tablesByPurpose);
+
+      // 5. Construir widgets com mapeamento inteligente
       const widgetsToCreate = templateWidgets.map((tw, index) => {
         const cfg = tw.config as Record<string, unknown>;
         const mapping = resolveMapping(tw);
@@ -406,16 +485,17 @@ export const useApplyTemplate = () => {
           if (mapping.sourceTable) {
             widgetConfig.dataSource = mapping.sourceTable;
             widgetConfig.sourceTable = mapping.sourceTable;
-          } else if (dataSource) {
-            widgetConfig.dataSource = dataSource;
-            widgetConfig.sourceTable = dataSource;
           }
-        } else if (dataSource) {
-          // Sem mapeamento específico — usar dataSource global
-          widgetConfig.dataSource = cfg?.dataSource || dataSource;
-          widgetConfig.sourceTable = cfg?.sourceTable || dataSource;
         }
-        // Se nem mapping nem dataSource, widget fica com targetMetric para o Engine resolver
+        
+        // Se ainda sem dataSource, usar resolução inteligente por tipo de widget
+        if (!widgetConfig.dataSource) {
+          const bestTable = resolveTableForWidget(tw.type, tw.title);
+          if (bestTable) {
+            widgetConfig.dataSource = bestTable;
+            widgetConfig.sourceTable = bestTable;
+          }
+        }
 
         console.log('[useApplyTemplate]', tw.title, '→', {
           metric: widgetConfig.metric,
