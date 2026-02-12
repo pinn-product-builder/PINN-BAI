@@ -171,22 +171,103 @@ const OnboardingWizard = () => {
           metricMappings: Object.keys(metricMappings).length > 0 ? metricMappings : undefined,
         });
       } 
-      // Or create widgets from manual selection
+      // Or create widgets from manual selection — enriquecer com dataSource
       else if (state.selectedWidgets.length > 0) {
-        const widgetsToCreate = state.selectedWidgets.map((w, index) => ({
-          dashboard_id: dashboard.id,
-          title: w.title,
-          type: w.type,
-          position: index,
-          config: w.config || {},
-          description: null,
-        }));
+        // Descobrir melhor tabela para cada tipo
+        const allTables = state.mappings.map(m => m.sourceTable).filter(Boolean);
+        const primaryTable = state.primaryTable || allTables[0] || state.integration?.tables?.[0]?.name;
+        
+        const widgetsToCreate = state.selectedWidgets.map((w, index) => {
+          const config = { ...(w.config || {}) };
+          // Garantir que cada widget tem um dataSource
+          if (!config.dataSource && primaryTable) {
+            config.dataSource = primaryTable;
+            config.sourceTable = primaryTable;
+          }
+          return {
+            dashboard_id: dashboard.id,
+            title: w.title,
+            type: w.type,
+            position: index,
+            config,
+            description: null,
+          };
+        });
 
         const { error: widgetError } = await supabase
           .from('dashboard_widgets')
           .insert(widgetsToCreate as never[]);
 
         if (widgetError) throw widgetError;
+      }
+      // Fallback final: se nenhum widget foi criado, criar set mínimo inteligente
+      else if (state.mappings.length > 0) {
+        const primaryTable = state.primaryTable || state.mappings[0]?.sourceTable || state.integration?.tables?.[0]?.name;
+        if (primaryTable) {
+          // Criar 5 widgets mínimos com os mapeamentos disponíveis
+          const fallbackWidgets: Array<{
+            dashboard_id: string;
+            title: string;
+            type: string;
+            position: number;
+            config: Record<string, unknown>;
+            description: string | null;
+          }> = [];
+
+          // KPIs dos primeiros 3 mapeamentos
+          state.mappings.slice(0, 3).forEach((m, i) => {
+            const prettyTitle = m.targetMetric.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            fallbackWidgets.push({
+              dashboard_id: dashboard.id,
+              title: prettyTitle,
+              type: 'metric_card',
+              position: i,
+              config: {
+                dataSource: m.sourceTable || primaryTable,
+                sourceTable: m.sourceTable || primaryTable,
+                metric: m.sourceField,
+                targetMetric: m.targetMetric,
+                aggregation: m.aggregation || 'count',
+                format: m.transformation === 'currency' ? 'currency' : m.transformation === 'percentage' ? 'percentage' : 'number',
+              },
+              description: null,
+            });
+          });
+
+          // Gráfico de evolução
+          fallbackWidgets.push({
+            dashboard_id: dashboard.id,
+            title: 'Evolução',
+            type: 'area_chart',
+            position: fallbackWidgets.length,
+            config: {
+              dataSource: primaryTable,
+              sourceTable: primaryTable,
+              groupBy: 'created_at',
+              aggregation: 'count',
+            },
+            description: 'Evolução ao longo do tempo',
+          });
+
+          // Tabela de dados
+          fallbackWidgets.push({
+            dashboard_id: dashboard.id,
+            title: 'Dados Recentes',
+            type: 'table',
+            position: fallbackWidgets.length,
+            config: {
+              dataSource: primaryTable,
+              sourceTable: primaryTable,
+            },
+            description: 'Registros mais recentes',
+          });
+
+          const { error: widgetError } = await supabase
+            .from('dashboard_widgets')
+            .insert(fallbackWidgets as never[]);
+
+          if (widgetError) throw widgetError;
+        }
       }
 
       // 3. Save integration if configured

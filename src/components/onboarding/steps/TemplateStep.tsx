@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -15,6 +16,21 @@ interface TemplateStepProps {
 
 const TemplateStep = ({ plan, selectedTemplateId, selectedTemplate, onSelect }: TemplateStepProps) => {
   const { data: templates, isLoading, error } = useTemplates(plan);
+
+  // Auto-selecionar o melhor template quando carrega pela primeira vez
+  useEffect(() => {
+    if (!isLoading && templates && templates.length > 0 && !selectedTemplateId) {
+      // Preferir template "executive" ou "Premium"
+      const bestTemplate = templates.find(t => 
+        t.category === 'executive' || t.name.toLowerCase().includes('premium')
+      ) || templates[0];
+      
+      if (bestTemplate) {
+        console.log('[TemplateStep] Auto-selecionando template:', bestTemplate.name, bestTemplate.id);
+        onSelect(bestTemplate.id, bestTemplate);
+      }
+    }
+  }, [isLoading, templates, selectedTemplateId, onSelect]);
 
   const handleSelectTemplate = (template: DashboardTemplate) => {
     if (selectedTemplateId === template.id) {
