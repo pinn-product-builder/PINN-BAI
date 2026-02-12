@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -87,6 +87,27 @@ const IntegrationStep = ({ integration, onUpdate }: IntegrationStepProps) => {
   const [selectedTables, setSelectedTables] = useState<SelectedTableConfig[]>(
     integration?.selectedTables || []
   );
+
+  // Filtrar tabelas de sistema/metadados que não são dados do cliente
+  const filteredTables = useMemo(() => {
+    const SYSTEM_TABLE_PATTERNS = [
+      'table_overview', 'schema_migration', '_prisma_', 'pg_', 'information_schema',
+      'auth.', 'storage.', 'supabase_', '_migrations', 'spatial_ref',
+      'geography_columns', 'geometry_columns', 'raster_columns',
+    ];
+    
+    const filtered = detectedTables.filter(t => {
+      const name = t.name.toLowerCase();
+      // Excluir tabelas que parecem ser de sistema
+      if (SYSTEM_TABLE_PATTERNS.some(p => name.includes(p))) return false;
+      // Excluir tabelas com 0 registros
+      if (t.rowCount === 0) return false;
+      return true;
+    });
+    
+    // Se filtrou tudo, usar todas (safety net)
+    return filtered.length > 0 ? filtered : detectedTables;
+  }, [detectedTables]);
 
   const handleConnect = async (config: IntegrationConfig) => {
     setIsConnecting(true);
@@ -444,9 +465,9 @@ const IntegrationStep = ({ integration, onUpdate }: IntegrationStepProps) => {
         </div>
 
         {/* Table Selection */}
-        {detectedTables.length > 0 && (
+        {filteredTables.length > 0 && (
           <TableSelection
-            tables={detectedTables}
+            tables={filteredTables}
             selectedTables={selectedTables}
             onSelectionChange={handleTableSelectionChange}
             minTables={1}
