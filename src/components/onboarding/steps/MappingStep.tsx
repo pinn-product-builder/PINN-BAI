@@ -201,6 +201,96 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
     setSuggestionStates({});
   }, []);
 
+  // ============================================================
+  // RANKING DE TABELAS: selecionar as mais relevantes para enviar à IA
+  // ============================================================
+  const rankAndFilterTables = useCallback((allTables: typeof tables) => {
+    // Palavras-chave que indicam tabelas de dados relevantes para dashboard
+    const POSITIVE_KEYWORDS = [
+      'lead', 'contact', 'cliente', 'customer', 'deal', 'oportunidade', 'opportunity',
+      'campaign', 'campanha', 'meeting', 'reuniao', 'reunião', 'appointment',
+      'sale', 'venda', 'revenue', 'receita', 'order', 'pedido',
+      'message', 'mensagem', 'email', 'call', 'ligacao', 'ligação',
+      'funnel', 'funil', 'pipeline', 'stage', 'etapa',
+      'metric', 'kpi', 'dashboard', 'daily', 'monthly', 'weekly',
+      'user', 'usuario', 'member', 'membro', 'team', 'equipe',
+      'task', 'tarefa', 'activity', 'atividade', 'event', 'evento',
+      'product', 'produto', 'service', 'servico', 'projeto', 'project',
+      'invoice', 'fatura', 'payment', 'pagamento', 'subscription', 'assinatura',
+      'ticket', 'chamado', 'support', 'suporte',
+      'feedback', 'review', 'avaliacao', 'survey', 'pesquisa',
+      'notification', 'notificacao', 'log', 'analytics',
+    ];
+    
+    // Palavras que indicam tabelas de SISTEMA (excluir)
+    const NEGATIVE_KEYWORDS = [
+      'migration', '_prisma_', 'schema_', 'pg_', 'information_schema',
+      'spatial_ref', 'geography_col', 'geometry_col', 'raster_',
+      'auth.', 'storage.', 'supabase_', 'realtime.',
+      'bucket', 'object', 'session', 'refresh_token', 'mfa_',
+      'sso_', 'saml_', 'flow_state', 'identity', 'audit_log',
+      '_backup', '_temp', '_old', '_archive', '_deprecated',
+      'table_overview', 'column_overview',
+    ];
+
+    const scored = allTables.map(t => {
+      const name = t.name.toLowerCase();
+      let score = 0;
+      
+      // Excluir tabelas de sistema
+      if (NEGATIVE_KEYWORDS.some(kw => name.includes(kw))) return { table: t, score: -100 };
+      
+      // Excluir tabelas sem registros
+      if (t.rowCount === 0) return { table: t, score: -50 };
+      
+      // Bonus por palavras-chave positivas
+      POSITIVE_KEYWORDS.forEach(kw => {
+        if (name.includes(kw)) score += 20;
+      });
+      
+      // Bonus por ter muitos registros (tabela ativa)
+      if (t.rowCount > 100) score += 10;
+      if (t.rowCount > 1000) score += 5;
+      
+      // Bonus por ter colunas relevantes
+      const colNames = t.columns.map(c => c.name.toLowerCase()).join(' ');
+      if (colNames.includes('email')) score += 10;
+      if (colNames.includes('name') || colNames.includes('nome')) score += 10;
+      if (colNames.includes('status')) score += 10;
+      if (colNames.includes('source') || colNames.includes('origem')) score += 10;
+      if (colNames.includes('value') || colNames.includes('valor')) score += 10;
+      if (colNames.includes('created_at') || colNames.includes('date')) score += 5;
+      
+      // Penalizar tabelas com muitas colunas de sistema
+      const sysColCount = t.columns.filter(c => /^(id|uuid|pk|org_id|tenant_id|_id)$/i.test(c.name)).length;
+      if (sysColCount > 3) score -= 5;
+      
+      // Penalizar nomes muito genéricos ou muito longos
+      if (name.length > 50) score -= 5;
+      
+      return { table: t, score };
+    });
+    
+    // Filtrar score positivo, ordenar por score desc, pegar top 15
+    const filtered = scored
+      .filter(s => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15)
+      .map(s => s.table);
+    
+    // Se filtrou demais, pegar pelo menos as top 5 por rowCount (excluindo sistema)
+    if (filtered.length < 3) {
+      const bySize = scored
+        .filter(s => s.score >= 0)
+        .sort((a, b) => b.table.rowCount - a.table.rowCount)
+        .slice(0, 10)
+        .map(s => s.table);
+      return bySize.length > 0 ? bySize : allTables.slice(0, 10);
+    }
+    
+    return filtered;
+  }, []);
+
   // Fetch AI mapping suggestions
   const fetchAIMappings = useCallback(async (autoApply: boolean = false) => {
     if (tables.length === 0) return;
@@ -209,17 +299,19 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
     setSuggestionStates({});
     
     try {
+      // PASSO CRUCIAL: enviar só tabelas relevantes (não todas 157!)
+      const relevantTables = rankAndFilterTables(tables);
+      console.log(`[MappingStep] Enviando ${relevantTables.length} de ${tables.length} tabelas para IA`);
+      
       // Prepare comprehensive data for AI analysis
-      const tablesData = tables.map(t => ({
+      const tablesData = relevantTables.map(t => ({
         name: t.name,
         rowCount: t.rowCount,
         columns: t.columns.map(c => ({ 
           name: c.name, 
           type: c.type,
-          // Send maximum samples for deep analysis (15-20 values)
           sampleValues: c.sampleValues?.slice(0, 20) || [],
         })),
-        // Send more sample rows for better context understanding (10 rows)
         sampleData: t.sampleData?.slice(0, 10) || [],
       }));
 
@@ -231,7 +323,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
 
       if (data?.suggestions && data.suggestions.length > 0) {
         // Validate suggestions before using them
-        const validSuggestions = data.suggestions.filter((s: MappingSuggestion) => {
+        let validSuggestions = data.suggestions.filter((s: MappingSuggestion) => {
           // Check if source table exists
           const tableExists = tables.some(t => t.name === s.sourceTable);
           if (!tableExists) {
@@ -251,6 +343,19 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
           
           return true;
         });
+        
+        // DESDUPLICAR: manter apenas 1 sugestão por targetMetric (a de maior confiança)
+        const seenTargets = new Map<string, MappingSuggestion>();
+        validSuggestions.forEach((s: MappingSuggestion) => {
+          const existing = seenTargets.get(s.targetMetric);
+          if (!existing || (s.confidence || 0) > (existing.confidence || 0)) {
+            seenTargets.set(s.targetMetric, s);
+          }
+        });
+        validSuggestions = Array.from(seenTargets.values());
+        
+        // Limitar a 15 mapeamentos máx
+        validSuggestions = validSuggestions.slice(0, 15);
         
         if (validSuggestions.length === 0) {
           toast({
@@ -273,7 +378,6 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
             handleTableChange(data.primaryTable);
           }
         }
-        // Note: Each mapping already has its own sourceTable, so we don't need to force a single primary table
         
         // Auto-accept all valid suggestions
         const newStates: Record<number, SuggestionState> = {};
@@ -296,12 +400,12 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
           
           toast({
             title: 'Dashboard configurado automaticamente!',
-            description: `IA analisou ${tables.length} tabelas e criou ${validSuggestions.length} mapeamentos válidos. Você pode editar na aba "Manual".`,
+            description: `IA analisou ${relevantTables.length} tabelas e criou ${validSuggestions.length} mapeamentos. Você pode editar na aba "Manual".`,
           });
         } else {
           toast({
             title: 'Mapeamentos sugeridos!',
-            description: `IA analisou ${tables.length} tabelas e sugeriu ${validSuggestions.length} mapeamentos válidos. Revise e aceite os que desejar.`,
+            description: `IA analisou ${relevantTables.length} tabelas e sugeriu ${validSuggestions.length} mapeamentos. Revise e aceite os que desejar.`,
           });
         }
       } else {
