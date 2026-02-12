@@ -72,6 +72,58 @@ const isDateField = (field: string): boolean => {
 };
 
 /**
+ * Resolve o campo de agrupamento real nos dados.
+ * Se o groupBy configurado não existe, tenta alternativas comuns.
+ */
+const resolveGroupByField = (
+  data: Record<string, unknown>[],
+  configGroupBy: string,
+  preferDate: boolean
+): string | null => {
+  if (data.length === 0) return null;
+  const available = Object.keys(data[0]);
+  
+  // 1. Campo exato
+  if (available.includes(configGroupBy)) return configGroupBy;
+  
+  // 2. Case-insensitive
+  const lower = configGroupBy.toLowerCase();
+  const found = available.find(k => k.toLowerCase() === lower);
+  if (found) return found;
+  
+  // 3. Match parcial
+  const partial = available.find(k => {
+    const kl = k.toLowerCase();
+    return kl.includes(lower) || lower.includes(kl);
+  });
+  if (partial) return partial;
+  
+  // 4. Fallback: procurar qualquer campo de data ou categórico
+  if (preferDate) {
+    const datePatterns = ['created_at', 'date', 'day', 'dia', 'data', 'created', 'updated_at', 'timestamp'];
+    for (const pattern of datePatterns) {
+      const match = available.find(k => k.toLowerCase().includes(pattern));
+      if (match) return match;
+    }
+  } else {
+    const catPatterns = ['source', 'origem', 'status', 'stage', 'etapa', 'tipo', 'type', 'category', 'canal', 'channel'];
+    for (const pattern of catPatterns) {
+      const match = available.find(k => k.toLowerCase().includes(pattern));
+      if (match) return match;
+    }
+    // Último recurso: primeiro campo de texto (não numérico, não id)
+    const textField = available.find(k => {
+      if (/^id$|^uuid$|^pk$|_id$|_uuid$/i.test(k)) return false;
+      const val = data[0][k];
+      return typeof val === 'string' && val.length > 0;
+    });
+    if (textField) return textField;
+  }
+  
+  return null;
+};
+
+/**
  * Processa dados multi-série para gráficos de evolução temporal.
  * Retorna dados no formato Recharts: [{ day: "15 Jan", new_leads: 12, msg_in: 45, ... }, ...]
  */
@@ -79,29 +131,58 @@ const processMultiSeriesData = (
   rawData: Record<string, unknown>[],
   config: WidgetConfig,
 ): { chartData: any[]; detectedKeys: string[] } => {
-  const groupBy = config.groupBy || 'day';
+  if (rawData.length === 0) return { chartData: [], detectedKeys: [] };
+
+  // Resolver groupBy REAL (pode não existir nos dados)
+  const configGroupBy = config.groupBy || 'day';
+  const groupBy = resolveGroupByField(rawData, configGroupBy, true);
+  
+  if (!groupBy) {
+    console.warn('[processMultiSeriesData] Nenhum campo de agrupamento encontrado. Config:', configGroupBy, 'Disponíveis:', Object.keys(rawData[0]));
+    // Fallback: agrupar por índice
+    const firstRow = rawData[0];
+    const numericKeys = Object.keys(firstRow).filter(key => {
+      if (/^(id|uuid|pk|org_id|dashboard_id)$/i.test(key)) return false;
+      const val = firstRow[key];
+      return val !== null && val !== undefined && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
+    });
+    if (numericKeys.length === 0) return { chartData: [], detectedKeys: [] };
+    const chartData = rawData.map((row, i) => {
+      const entry: Record<string, unknown> = { label: `#${i + 1}` };
+      numericKeys.forEach(key => {
+        const val = row[key];
+        entry[key] = typeof val === 'number' ? val : parseFloat(String(val)) || 0;
+      });
+      return entry;
+    });
+    return { chartData, detectedKeys: numericKeys };
+  }
+
+  console.log('[processMultiSeriesData] groupBy resolvido:', configGroupBy, '→', groupBy);
+
   const explicitKeys = config.dataKeys || [];
   
-  // Se temos dataKeys explícitos, usar diretamente
-  if (explicitKeys.length > 0) {
+  // Se temos dataKeys explícitos, verificar se existem nos dados
+  const availableColumns = Object.keys(rawData[0]);
+  const validExplicitKeys = explicitKeys.filter(k => availableColumns.includes(k));
+  
+  if (validExplicitKeys.length > 0) {
     const chartData = rawData
       .sort((a, b) => String(a[groupBy] || '').localeCompare(String(b[groupBy] || '')))
       .map(row => {
         const entry: Record<string, unknown> = {
           label: isDateField(groupBy) ? formatDateLabel(String(row[groupBy])) : String(row[groupBy] || ''),
         };
-        explicitKeys.forEach(key => {
+        validExplicitKeys.forEach(key => {
           const val = row[key];
           entry[key] = val !== null && val !== undefined ? (typeof val === 'number' ? val : parseFloat(String(val)) || 0) : 0;
         });
         return entry;
       });
-    return { chartData, detectedKeys: explicitKeys };
+    return { chartData, detectedKeys: validExplicitKeys };
   }
   
   // Auto-detectar colunas numéricas (excluindo groupBy e IDs)
-  if (rawData.length === 0) return { chartData: [], detectedKeys: [] };
-  
   const firstRow = rawData[0];
   const skipPatterns = /^(id|uuid|pk|org_id|dashboard_id|created_at|updated_at)$/i;
   const numericKeys = Object.keys(firstRow).filter(key => {
@@ -110,6 +191,19 @@ const processMultiSeriesData = (
     const val = firstRow[key];
     return val !== null && val !== undefined && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
   });
+  
+  // Se não há colunas numéricas, contar registros agrupados por data
+  if (numericKeys.length === 0 && isDateField(groupBy)) {
+    const grouped = new Map<string, number>();
+    rawData.forEach(row => {
+      const key = formatDateLabel(String(row[groupBy] || ''));
+      grouped.set(key, (grouped.get(key) || 0) + 1);
+    });
+    const chartData = Array.from(grouped.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, count]) => ({ label, total: count }));
+    return { chartData, detectedKeys: ['total'] };
+  }
   
   const chartData = rawData
     .sort((a, b) => String(a[groupBy] || '').localeCompare(String(b[groupBy] || '')))
@@ -130,27 +224,48 @@ const processMultiSeriesData = (
 /**
  * Processa dados agrupados com aggregation (para pie, bar, funnel).
  * Suporta count sem campo numérico obrigatório.
+ * Resolve groupBy automaticamente se o campo configurado não existe.
  */
 const processGroupedData = (
   rawData: Record<string, unknown>[],
   config: WidgetConfig,
 ): any[] => {
-  const { metric = 'value', groupBy, aggregation = 'count' } = config;
+  if (rawData.length === 0) return [];
   
-  if (!groupBy) {
-    // Sem groupBy: retorna valor agregado único
+  const { metric = 'value', aggregation = 'count' } = config;
+  
+  // Resolver groupBy REAL
+  const configGroupBy = config.groupBy;
+  const resolvedGroupBy = configGroupBy 
+    ? resolveGroupByField(rawData, configGroupBy, false) 
+    : null;
+  
+  console.log('[processGroupedData] groupBy:', configGroupBy, '→', resolvedGroupBy);
+  
+  if (!resolvedGroupBy) {
+    // Sem groupBy válido: retorna valor agregado único
     if (aggregation === 'count') {
       return [{ label: 'Total', value: rawData.length, name: 'Total', stage: 'Total' }];
     }
+    // Tentar encontrar metric nos dados
+    const available = Object.keys(rawData[0]);
+    const realMetric = available.includes(metric) ? metric : available.find(k => {
+      if (/^(id|uuid|pk|org_id)$/i.test(k)) return false;
+      const v = rawData[0][k];
+      return typeof v === 'number';
+    });
+    
+    if (!realMetric) return [{ label: 'Total', value: rawData.length, name: 'Total', stage: 'Total' }];
+    
     const values = rawData
       .map(row => {
-        const val = row[metric];
+        const val = row[realMetric];
         if (val === null || val === undefined) return null;
         return typeof val === 'number' ? val : parseFloat(String(val)) || null;
       })
       .filter((v): v is number => v !== null);
     
-    if (values.length === 0) return [];
+    if (values.length === 0) return [{ label: 'Total', value: rawData.length, name: 'Total', stage: 'Total' }];
     
     const agg = aggregation === 'sum'
       ? values.reduce((a, b) => a + b, 0)
@@ -158,25 +273,31 @@ const processGroupedData = (
       ? values.reduce((a, b) => a + b, 0) / values.length
       : values.length;
     
-    return [{ label: metric, value: agg, name: metric, stage: metric }];
+    return [{ label: realMetric, value: agg, name: realMetric, stage: realMetric }];
   }
   
-  // Agrupar por campo
+  // Agrupar por campo resolvido
   const grouped = new Map<string, { count: number; values: number[] }>();
   
+  // Resolver metric real nos dados
+  const available = Object.keys(rawData[0]);
+  const realMetric = available.includes(metric) ? metric : null;
+  
   rawData.forEach(row => {
-    const rawKey = row[groupBy];
+    const rawKey = row[resolvedGroupBy];
     const key = rawKey != null && String(rawKey).trim() !== '' ? String(rawKey) : 'Outros';
     
     if (!grouped.has(key)) grouped.set(key, { count: 0, values: [] });
     const bucket = grouped.get(key)!;
     bucket.count++;
     
-    // Extrair valor numérico do metric (se existir)
-    const val = row[metric];
-    if (val !== null && val !== undefined) {
-      const num = typeof val === 'number' ? val : parseFloat(String(val));
-      if (!isNaN(num)) bucket.values.push(num);
+    // Extrair valor numérico do metric real (se existir)
+    if (realMetric) {
+      const val = row[realMetric];
+      if (val !== null && val !== undefined) {
+        const num = typeof val === 'number' ? val : parseFloat(String(val));
+        if (!isNaN(num)) bucket.values.push(num);
+      }
     }
   });
   
@@ -345,7 +466,8 @@ const WidgetRenderer = ({
   };
 
   // ========== Resolução de campo métrico ==========
-  // Estratégia limpa: config.metric (coluna real) → case-insensitive → targetMetric guia → primeiro numérico
+  // Estratégia: config.metric (coluna real) → case-insensitive → targetMetric guia → primeiro numérico
+  // IMPORTANTE: campos de data (created_at, etc) NÃO são métricas válidas
   const resolveMetricField = (
     data: Record<string, unknown>[],
     cfg: WidgetConfig,
@@ -353,73 +475,72 @@ const WidgetRenderer = ({
   ): string | null => {
     if (data.length === 0) return null;
     const available = Object.keys(data[0]);
+    
+    // Helper: rejeitar campos de data/timestamp como métrica
+    const isDateColumn = (col: string): boolean => {
+      const cl = col.toLowerCase();
+      return cl.includes('date') || cl.endsWith('_at') || cl === 'created' || cl === 'updated' || cl === 'timestamp' || cl === 'day' || cl === 'dia';
+    };
+    
+    // Helper: rejeitar campos de ID
+    const isIdColumn = (col: string): boolean => /^id$|^uuid$|^pk$|_id$|_uuid$|^org_/i.test(col);
+    
+    // Helper: verificar se coluna tem valores numéricos
+    const isNumericColumn = (col: string): boolean => {
+      const v = data[0][col];
+      return v !== undefined && v !== null && (typeof v === 'number' || !isNaN(parseFloat(String(v))));
+    };
 
-    // 1. Campo exato presente nos dados
-    if (cfg.metric && available.includes(cfg.metric)) {
-      // Rejeitar campos de data como métrica (são para groupBy)
-      const m = cfg.metric.toLowerCase();
-      if (m.includes('date') || m.endsWith('_at') || m === 'created' || m === 'updated') {
-        console.warn('[resolveMetricField] Ignorando campo de data como métrica:', cfg.metric);
-      } else {
-        return cfg.metric;
-      }
+    // 1. Campo exato presente nos dados (e não é data/ID)
+    if (cfg.metric && available.includes(cfg.metric) && !isDateColumn(cfg.metric) && !isIdColumn(cfg.metric)) {
+      return cfg.metric;
     }
 
-    // 2. Match case-insensitive
+    // 2. Match case-insensitive (excluindo datas)
     if (cfg.metric) {
       const lower = cfg.metric.toLowerCase();
-      const found = available.find(k => k.toLowerCase() === lower);
+      const found = available.find(k => k.toLowerCase() === lower && !isDateColumn(k) && !isIdColumn(k));
       if (found) return found;
     }
 
-    // 3. Match parcial (substring nos dois sentidos)
-    if (cfg.metric) {
+    // 3. Filtrar para campos numéricos úteis
+    const numericFields = available.filter(k => !isDateColumn(k) && !isIdColumn(k) && isNumericColumn(k));
+
+    // 4. Match parcial com cfg.metric (substring)
+    if (cfg.metric && numericFields.length > 0) {
       const lower = cfg.metric.toLowerCase();
-      const found = available.find(k => {
+      const found = numericFields.find(k => {
         const kl = k.toLowerCase();
         return kl.includes(lower) || lower.includes(kl);
       });
       if (found) return found;
     }
 
-    // 4. Usar targetMetric como guia semântico para encontrar o campo nos dados
-    if (cfg.targetMetric) {
+    // 5. Usar targetMetric como guia semântico
+    if (cfg.targetMetric && numericFields.length > 0) {
       const target = cfg.targetMetric.toLowerCase();
-      const found = available.find(k => {
-        const kl = k.toLowerCase();
-        return kl.includes(target) || target.includes(kl);
-      });
-      if (found) return found;
-
-      // Decomposição por partes (ex: "total_leads" → procurar campos com "total" ou "leads")
+      // Decomposição por partes (ex: "total_leads" → procurar "total" ou "leads")
       const parts = target.split(/[_\s]+/).filter(p => p.length >= 3);
       if (parts.length > 0) {
-        const found2 = available.find(k => {
+        const found = numericFields.find(k => {
           const kl = k.toLowerCase();
           return parts.some(p => kl.includes(p));
         });
-        if (found2) return found2;
+        if (found) return found;
       }
     }
 
-    // 5. Buscar pelo título do widget (termos-chave)
+    // 6. Buscar pelo título do widget (termos-chave)
     const tl = title.toLowerCase();
-    const numericFields = available.filter(k => {
-      if (/^id$|^uuid$|^pk$|_id$|_uuid$/i.test(k)) return false;
-      const v = data[0][k];
-      return v !== undefined && v !== null && (typeof v === 'number' || !isNaN(parseFloat(String(v))));
-    });
-
     if (numericFields.length > 0) {
-      // Mapeia termos do título para fragmentos de nome de campo
       const hints: Array<{ keywords: string[]; fragments: string[] }> = [
-        { keywords: ['lead', 'leads'], fragments: ['lead', 'entrada'] },
-        { keywords: ['receita', 'revenue', 'investimento', 'custo', 'spend'], fragments: ['spend', 'custo', 'receita', 'revenue', 'valor', 'investimento'] },
+        { keywords: ['lead', 'leads', 'total de'], fragments: ['lead', 'entrada', 'total', 'count'] },
+        { keywords: ['receita', 'revenue', 'investimento', 'custo', 'spend', 'valor'], fragments: ['spend', 'custo', 'receita', 'revenue', 'valor', 'investimento', 'price', 'amount', 'value'] },
         { keywords: ['convers', 'conversion'], fragments: ['meeting', 'convers', 'reuniao', 'done'] },
-        { keywords: ['taxa', 'rate'], fragments: ['rate', 'taxa', 'conv_', 'cpl', 'cp_'] },
+        { keywords: ['taxa', 'rate', 'cpl', 'cpm'], fragments: ['rate', 'taxa', 'conv', 'cpl', 'cp', 'percent'] },
         { keywords: ['reuni', 'meeting'], fragments: ['meeting', 'reuniao'] },
-        { keywords: ['mensagem', 'msg', 'message'], fragments: ['msg', 'mensag'] },
-        { keywords: ['ligac', 'chamad', 'call'], fragments: ['call', 'ligac'] },
+        { keywords: ['mensagem', 'msg', 'message'], fragments: ['msg', 'mensag', 'message'] },
+        { keywords: ['ligac', 'chamad', 'call'], fragments: ['call', 'ligac', 'phone'] },
       ];
 
       for (const h of hints) {
@@ -435,9 +556,12 @@ const WidgetRenderer = ({
       // Priorizar campos com sufixos de agregação (_total, _30d, etc.)
       const prioritized = [...numericFields].sort((a, b) => {
         const score = (f: string) => {
+          const fl = f.toLowerCase();
           let s = 0;
-          if (f.includes('_total')) s += 10;
-          if (/_\d+d/.test(f)) s += 5;
+          if (fl.includes('total')) s += 10;
+          if (fl.includes('count')) s += 8;
+          if (/_\d+d/.test(fl)) s += 5;
+          if (fl.includes('value') || fl.includes('valor')) s += 3;
           return s;
         };
         return score(b) - score(a);
@@ -445,6 +569,7 @@ const WidgetRenderer = ({
       return prioritized[0];
     }
 
+    // 7. Nenhum campo numérico → retorna null (fallback será count)
     return null;
   };
 
@@ -468,8 +593,9 @@ const WidgetRenderer = ({
     });
 
     if (!metricField) {
+      // Sem campo resolvido → contagem de registros é SEMPRE um fallback válido
       console.warn('[DashboardEngine] Nenhum campo encontrado. Fallback: row count =', rawData.length);
-      return aggregation === 'count' ? rawData.length : undefined;
+      return rawData.length;
     }
 
     // Extrair valores numéricos do campo
@@ -484,8 +610,9 @@ const WidgetRenderer = ({
       .filter((v): v is number => v !== null);
 
     if (values.length === 0) {
-      console.warn('[DashboardEngine] Sem valores numéricos no campo:', metricField);
-      return aggregation === 'count' ? rawData.length : undefined;
+      // Campo encontrado mas sem valores numéricos → contagem de registros
+      console.warn('[DashboardEngine] Sem valores numéricos no campo:', metricField, '→ usando row count');
+      return rawData.length;
     }
 
     // View agregada (1 row com KPIs pré-calculados) → retorna valor direto
@@ -511,7 +638,7 @@ const WidgetRenderer = ({
         break;
       case 'count':
       default:
-        result = values.length;
+        result = rawData.length; // count = número de registros, NÃO de valores
     }
 
     console.log('[DashboardEngine] Valor calculado:', result, '| campo:', metricField, '| agregação:', aggregation, '| linhas:', values.length);

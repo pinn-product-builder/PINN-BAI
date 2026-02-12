@@ -466,15 +466,44 @@ export const useApplyTemplate = () => {
 
       console.log('[useApplyTemplate] Tables detected:', tablesByPurpose);
 
-      // 5. Construir widgets com mapeamento inteligente
+      // 5. Descobrir nomes reais de colunas dos mapeamentos do usuario
+      // Isso é CRITICO: os nomes no template (created_date, lead_source, funnel_stage)
+      // não existem na tabela real do cliente — precisamos usar os nomes reais
+      const realColumnNames = new Set<string>();
+      const realDateColumns: string[] = [];
+      const realCategoricalColumns: string[] = [];
+      
+      for (const [, mapping] of mappingEntries) {
+        if (mapping.field) {
+          realColumnNames.add(mapping.field);
+          const fl = mapping.field.toLowerCase();
+          if (fl.includes('date') || fl.endsWith('_at') || fl.includes('dia') || fl.includes('day') || fl.includes('data') || fl.includes('created') || fl.includes('updated')) {
+            realDateColumns.push(mapping.field);
+          }
+          if (fl.includes('source') || fl.includes('origem') || fl.includes('canal') || fl.includes('status') || fl.includes('stage') || fl.includes('tipo') || fl.includes('type') || fl.includes('category') || fl.includes('etapa')) {
+            realCategoricalColumns.push(mapping.field);
+          }
+        }
+      }
+      
+      console.log('[useApplyTemplate] Real columns detected:', { realDateColumns, realCategoricalColumns, allColumns: [...realColumnNames] });
+
+      // 6. Construir widgets com mapeamento inteligente
       const widgetsToCreate = templateWidgets.map((tw, index) => {
         const cfg = tw.config as Record<string, unknown>;
         const mapping = resolveMapping(tw);
         const format = resolveFormat(tw);
 
+        // NÃO copiar cegamente o cfg do template — as colunas do template não existem
+        // nos dados do cliente. Copiar só campos de layout/comportamento, não de dados.
         const widgetConfig: Record<string, unknown> = {
-          ...cfg,
           format,
+          showTrend: cfg?.showTrend,
+          showSparkline: cfg?.showSparkline,
+          maxInsights: cfg?.maxInsights,
+          includeRecommendations: cfg?.includeRecommendations,
+          pageSize: cfg?.pageSize,
+          targetMetric: cfg?.targetMetric,
         };
 
         if (mapping) {
@@ -486,6 +515,33 @@ export const useApplyTemplate = () => {
             widgetConfig.dataSource = mapping.sourceTable;
             widgetConfig.sourceTable = mapping.sourceTable;
           }
+        } else {
+          // SEM mapeamento — usar defaults inteligentes por tipo
+          // NÃO definir metric (deixar DashboardEngine auto-detectar)
+          widgetConfig.aggregation = cfg?.aggregation || 'count';
+        }
+
+        // Definir groupBy inteligente por tipo de widget (usando colunas REAIS)
+        const widgetType = tw.type;
+        if (widgetType === 'area_chart' || widgetType === 'line_chart') {
+          // Charts temporais precisam de uma coluna de data REAL
+          widgetConfig.groupBy = realDateColumns[0] || 'created_at';
+        } else if (widgetType === 'pie_chart' || widgetType === 'bar_chart') {
+          // Charts categóricos precisam de coluna REAL de categorias
+          widgetConfig.groupBy = realCategoricalColumns[0] || 'source';
+          widgetConfig.aggregation = 'count';
+        } else if (widgetType === 'funnel') {
+          // Funil precisa de coluna de status/stage REAL
+          const stageCol = realCategoricalColumns.find(c => {
+            const cl = c.toLowerCase();
+            return cl.includes('stage') || cl.includes('etapa') || cl.includes('status') || cl.includes('fase');
+          }) || realCategoricalColumns[0] || 'status';
+          widgetConfig.groupBy = stageCol;
+          widgetConfig.aggregation = 'count';
+        } else if (widgetType === 'table') {
+          // Tabelas: NÃO definir columns — deixar TableWidget auto-detectar
+          // As columns do template (name, email, source) podem não existir
+          delete widgetConfig.columns;
         }
         
         // Se ainda sem dataSource, usar resolução inteligente por tipo de widget
@@ -497,11 +553,18 @@ export const useApplyTemplate = () => {
           }
         }
 
+        // Fallback final: usar dataSource global
+        if (!widgetConfig.dataSource && globalFallback) {
+          widgetConfig.dataSource = globalFallback;
+          widgetConfig.sourceTable = globalFallback;
+        }
+
         console.log('[useApplyTemplate]', tw.title, '→', {
           metric: widgetConfig.metric,
           targetMetric: widgetConfig.targetMetric,
           dataSource: widgetConfig.dataSource,
           aggregation: widgetConfig.aggregation,
+          groupBy: widgetConfig.groupBy,
           format: widgetConfig.format,
           mappingFound: !!mapping,
         });
