@@ -38,125 +38,165 @@ interface WidgetConfig {
   targetMetric?: string;
   transformation?: string;
   format?: 'number' | 'currency' | 'percentage';
+  // Multi-série para gráficos de evolução
+  dataKeys?: string[];
+  seriesLabels?: Record<string, string>;
+  showTrend?: boolean;
+  showSparkline?: boolean;
 }
 
-// Process raw data into chart-compatible format
-const processChartData = (
+// ============================================================
+// PROCESSAMENTO DE DADOS PARA GRÁFICOS
+// ============================================================
+
+/**
+ * Formata uma data string para label curto (ex: "15 Jan", "23 Fev")
+ */
+const formatDateLabel = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return `${date.getDate()} ${months[date.getMonth()]}`;
+  } catch {
+    return dateStr;
+  }
+};
+
+/**
+ * Verifica se um campo de groupBy é temporal (dia/data)
+ */
+const isDateField = (field: string): boolean => {
+  const lower = field.toLowerCase();
+  return ['day', 'date', 'created_at', 'updated_at', 'dia', 'data'].some(k => lower.includes(k));
+};
+
+/**
+ * Processa dados multi-série para gráficos de evolução temporal.
+ * Retorna dados no formato Recharts: [{ day: "15 Jan", new_leads: 12, msg_in: 45, ... }, ...]
+ */
+const processMultiSeriesData = (
   rawData: Record<string, unknown>[],
   config: WidgetConfig,
-  widgetType: string
-): any[] => {
-  if (!rawData || rawData.length === 0) {
-    console.warn('[processChartData] No data provided', { widgetType, config });
-    return [];
+): { chartData: any[]; detectedKeys: string[] } => {
+  const groupBy = config.groupBy || 'day';
+  const explicitKeys = config.dataKeys || [];
+  
+  // Se temos dataKeys explícitos, usar diretamente
+  if (explicitKeys.length > 0) {
+    const chartData = rawData
+      .sort((a, b) => String(a[groupBy] || '').localeCompare(String(b[groupBy] || '')))
+      .map(row => {
+        const entry: Record<string, unknown> = {
+          label: isDateField(groupBy) ? formatDateLabel(String(row[groupBy])) : String(row[groupBy] || ''),
+        };
+        explicitKeys.forEach(key => {
+          const val = row[key];
+          entry[key] = val !== null && val !== undefined ? (typeof val === 'number' ? val : parseFloat(String(val)) || 0) : 0;
+        });
+        return entry;
+      });
+    return { chartData, detectedKeys: explicitKeys };
   }
   
-  const { metric = 'value', groupBy, aggregation = 'count' } = config;
+  // Auto-detectar colunas numéricas (excluindo groupBy e IDs)
+  if (rawData.length === 0) return { chartData: [], detectedKeys: [] };
   
-  console.log('[processChartData] Processing:', {
-    widgetType,
-    metric,
-    groupBy,
-    aggregation,
-    dataRows: rawData.length,
-    firstRowKeys: Object.keys(rawData[0] || {}),
+  const firstRow = rawData[0];
+  const skipPatterns = /^(id|uuid|pk|org_id|dashboard_id|created_at|updated_at)$/i;
+  const numericKeys = Object.keys(firstRow).filter(key => {
+    if (key === groupBy) return false;
+    if (skipPatterns.test(key)) return false;
+    const val = firstRow[key];
+    return val !== null && val !== undefined && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
   });
   
-  // For tables, return raw data
-  if (widgetType === 'table') {
-    return rawData;
-  }
+  const chartData = rawData
+    .sort((a, b) => String(a[groupBy] || '').localeCompare(String(b[groupBy] || '')))
+    .map(row => {
+      const entry: Record<string, unknown> = {
+        label: isDateField(groupBy) ? formatDateLabel(String(row[groupBy])) : String(row[groupBy] || ''),
+      };
+      numericKeys.forEach(key => {
+        const val = row[key];
+        entry[key] = val !== null && val !== undefined ? (typeof val === 'number' ? val : parseFloat(String(val)) || 0) : 0;
+      });
+      return entry;
+    });
   
-  // If no groupBy, create a single aggregated value
+  return { chartData, detectedKeys: numericKeys };
+};
+
+/**
+ * Processa dados agrupados com aggregation (para pie, bar, funnel).
+ * Suporta count sem campo numérico obrigatório.
+ */
+const processGroupedData = (
+  rawData: Record<string, unknown>[],
+  config: WidgetConfig,
+): any[] => {
+  const { metric = 'value', groupBy, aggregation = 'count' } = config;
+  
   if (!groupBy) {
-    // Filter out invalid values (null, undefined, NaN)
+    // Sem groupBy: retorna valor agregado único
+    if (aggregation === 'count') {
+      return [{ label: 'Total', value: rawData.length, name: 'Total', stage: 'Total' }];
+    }
     const values = rawData
       .map(row => {
         const val = row[metric];
         if (val === null || val === undefined) return null;
-        if (typeof val === 'number') return isNaN(val) ? null : val;
-        const parsed = parseFloat(String(val));
-        return isNaN(parsed) ? null : parsed;
+        return typeof val === 'number' ? val : parseFloat(String(val)) || null;
       })
       .filter((v): v is number => v !== null);
     
-    if (values.length === 0) {
-      console.warn('[processChartData] No valid values found for metric:', metric);
-      return [];
-    }
+    if (values.length === 0) return [];
     
-    const aggregatedValue = aggregation === 'sum'
+    const agg = aggregation === 'sum'
       ? values.reduce((a, b) => a + b, 0)
       : aggregation === 'avg'
       ? values.reduce((a, b) => a + b, 0) / values.length
       : values.length;
-      
-    return [{ label: metric, value: aggregatedValue, name: metric, stage: metric }];
+    
+    return [{ label: metric, value: agg, name: metric, stage: metric }];
   }
   
-  // Group by the specified field
-  const grouped = new Map<string, number[]>();
+  // Agrupar por campo
+  const grouped = new Map<string, { count: number; values: number[] }>();
   
   rawData.forEach(row => {
-    let key = String(row[groupBy] || 'Outros');
+    const rawKey = row[groupBy];
+    const key = rawKey != null && String(rawKey).trim() !== '' ? String(rawKey) : 'Outros';
     
-    // Handle date grouping - extract month/year
-    if (groupBy.includes('date') || groupBy.includes('created_at') || groupBy.includes('updated_at')) {
-      try {
-        const date = new Date(String(row[groupBy]));
-        if (!isNaN(date.getTime())) {
-          const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-          key = months[date.getMonth()];
-        }
-      } catch {
-        // Keep original key if date parsing fails
-      }
-    }
+    if (!grouped.has(key)) grouped.set(key, { count: 0, values: [] });
+    const bucket = grouped.get(key)!;
+    bucket.count++;
     
+    // Extrair valor numérico do metric (se existir)
     const val = row[metric];
-    let value: number | null = null;
-    
     if (val !== null && val !== undefined) {
-      if (typeof val === 'number' && !isNaN(val)) {
-        value = val;
-      } else {
-        const parsed = parseFloat(String(val));
-        if (!isNaN(parsed)) {
-          value = parsed;
-        }
-      }
-    }
-    
-    // Only add valid values
-    if (value !== null) {
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(value);
+      const num = typeof val === 'number' ? val : parseFloat(String(val));
+      if (!isNaN(num)) bucket.values.push(num);
     }
   });
   
-  // Apply aggregation
-  const result = Array.from(grouped.entries()).map(([label, values]) => {
+  return Array.from(grouped.entries()).map(([label, bucket]) => {
     let value: number;
-    switch (aggregation) {
-      case 'sum':
-        value = values.reduce((a, b) => a + b, 0);
-        break;
-      case 'avg':
-        value = values.reduce((a, b) => a + b, 0) / values.length;
-        break;
-      case 'min':
-        value = Math.min(...values);
-        break;
-      case 'max':
-        value = Math.max(...values);
-        break;
-      default:
-        value = values.length;
+    if (aggregation === 'count') {
+      value = bucket.count;
+    } else if (bucket.values.length === 0) {
+      value = bucket.count; // Fallback para count se não há valores numéricos
+    } else {
+      switch (aggregation) {
+        case 'sum': value = bucket.values.reduce((a, b) => a + b, 0); break;
+        case 'avg': value = bucket.values.reduce((a, b) => a + b, 0) / bucket.values.length; break;
+        case 'min': value = Math.min(...bucket.values); break;
+        case 'max': value = Math.max(...bucket.values); break;
+        default: value = bucket.count;
+      }
     }
     return { label, value, name: label, stage: label };
-  });
-  
-  return result;
+  }).sort((a, b) => b.value - a.value); // Ordenar por valor descendente
 };
 
 // Widget wrapper with source badge and controls
@@ -261,34 +301,13 @@ const WidgetRenderer = ({
   
   const rawData = externalData?.data || [];
   
-  // Debug logging - sempre logar para debug
-  if (!tableName) {
-    console.warn(`[WidgetRenderer] ${widget.title} (${widget.type}): NO TABLE NAME configured!`, {
-      config: config,
-      widgetId: widget.id,
-    });
-  }
-  
+  // Debug logging
   console.log(`[WidgetRenderer] ${widget.title} (${widget.type}):`, {
     tableName: tableName || 'NOT SET',
-    hasData: rawData.length > 0,
     dataCount: rawData.length,
-    firstRow: rawData[0] || null,
-    availableFields: rawData[0] ? Object.keys(rawData[0]) : [],
-    config: {
-      metric: config.metric,
-      aggregation: config.aggregation,
-      targetMetric: config.targetMetric,
-      dataSource: config.dataSource,
-      sourceTable: config.sourceTable,
-    },
-    externalDataSuccess: externalData?.success,
-    externalDataError: externalData?.error,
-    isLoading,
-    hasError: !!error,
+    firstRowKeys: rawData[0] ? Object.keys(rawData[0]) : [],
+    config: { metric: config.metric, aggregation: config.aggregation, dataSource: config.dataSource, groupBy: config.groupBy, dataKeys: config.dataKeys },
   });
-  
-  const chartData = processChartData(rawData, config, widget.type);
   
   // Extract error message
   let errorMessage: string | null = null;
@@ -522,10 +541,23 @@ const WidgetRenderer = ({
     error: errorMessage,
   };
   
+  // Tradução de nomes de colunas para labels amigáveis
+  const SERIES_LABELS: Record<string, string> = {
+    new_leads: 'Novos Leads',
+    leads_new: 'Novos Leads',
+    msg_in: 'Mensagens',
+    meetings_scheduled: 'Reuniões Agendadas',
+    meetings_booked: 'Reuniões Agendadas',
+    meetings_done: 'Reuniões Realizadas',
+    spend: 'Investimento',
+    calls_done: 'Ligações',
+    cpl: 'CPL',
+    ...(config.seriesLabels || {}),
+  };
+
   switch (widget.type) {
-    case 'metric_card':
+    case 'metric_card': {
       const metricValue = calculateMetricValue();
-      // Determinar formato: config.format > config.transformation > targetMetric > título
       const format = resolveFormat(config, widget.title || '');
       
       return (
@@ -541,71 +573,76 @@ const WidgetRenderer = ({
           />
         </WidgetWrapper>
       );
+    }
       
     case 'area_chart':
+    case 'line_chart': {
+      // Multi-série: processamento especial para gráficos temporais
+      const { chartData: multiData, detectedKeys } = processMultiSeriesData(rawData, config);
+      const seriesKeys = detectedKeys.length > 0 ? detectedKeys : ['value'];
+      
+      // Traduzir labels das séries
+      const translatedKeys = seriesKeys;
+      
+      const ChartComponent = widget.type === 'area_chart' ? AreaChartWidget : LineChartWidget;
+      
       return (
         <WidgetWrapper {...wrapperProps}>
-          <AreaChartWidget
+          <ChartComponent
             title={widget.title}
             description={widget.description || ''}
-            data={chartData}
+            data={multiData}
             xAxisKey="label"
-            dataKeys={['value']}
+            dataKeys={translatedKeys}
+            seriesLabels={SERIES_LABELS}
             isLoading={isLoading}
           />
         </WidgetWrapper>
       );
+    }
       
-    case 'bar_chart':
+    case 'bar_chart': {
+      const barData = processGroupedData(rawData, config);
       return (
         <WidgetWrapper {...wrapperProps}>
           <BarChartWidget
             title={widget.title}
             description={widget.description || ''}
-            data={chartData}
+            data={barData}
             isLoading={isLoading}
           />
         </WidgetWrapper>
       );
+    }
       
-    case 'line_chart':
-      return (
-        <WidgetWrapper {...wrapperProps}>
-          <LineChartWidget
-            title={widget.title}
-            description={widget.description || ''}
-            data={chartData}
-            dataKeys={['value']}
-            xAxisKey="label"
-            isLoading={isLoading}
-          />
-        </WidgetWrapper>
-      );
-      
-    case 'pie_chart':
+    case 'pie_chart': {
+      const pieData = processGroupedData(rawData, config);
       return (
         <WidgetWrapper {...wrapperProps}>
           <PieChartWidget
             title={widget.title}
             description={widget.description || ''}
-            data={chartData}
+            data={pieData}
             isDonut={true}
             isLoading={isLoading}
           />
         </WidgetWrapper>
       );
+    }
       
-    case 'funnel':
+    case 'funnel': {
+      const funnelData = processGroupedData(rawData, config);
       return (
         <WidgetWrapper {...wrapperProps}>
           <FunnelWidget
             title={widget.title}
             description={widget.description || ''}
-            data={chartData}
+            data={funnelData}
             isLoading={isLoading}
           />
         </WidgetWrapper>
       );
+    }
       
     case 'table':
       return (

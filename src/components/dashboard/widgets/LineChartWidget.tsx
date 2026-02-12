@@ -19,6 +19,7 @@ interface LineChartWidgetProps {
   data?: Array<{ label: string; [key: string]: unknown }>;
   dataKeys?: string[];
   xAxisKey?: string;
+  seriesLabels?: Record<string, string>;
   isLoading?: boolean;
 }
 
@@ -30,35 +31,44 @@ const CHART_COLORS = [
   'hsl(var(--chart-5))',
 ];
 
-const LABEL_MAP: Record<string, string> = {
+const DEFAULT_LABEL_MAP: Record<string, string> = {
   value: 'Valor',
   leads: 'Leads',
+  new_leads: 'Novos Leads',
   revenue: 'Receita',
   conversions: 'Conversões',
   messages: 'Mensagens',
+  msg_in: 'Mensagens',
+  meetings_scheduled: 'Reuniões Agendadas',
+  meetings_done: 'Reuniões Realizadas',
+  spend: 'Investimento',
+  calls_done: 'Ligações',
   status: 'Status',
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-popover/95 backdrop-blur-md border border-border/60 rounded-lg shadow-xl p-3 min-w-[140px]">
-        <p className="text-xs font-semibold text-foreground mb-2 border-b border-border/40 pb-1.5">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center justify-between gap-4 text-xs py-0.5">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
-              <span className="text-muted-foreground">{LABEL_MAP[entry.name] || entry.name}</span>
+const createCustomTooltip = (labelMap: Record<string, string>) => {
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-popover/95 backdrop-blur-md border border-border/60 rounded-lg shadow-xl p-3 min-w-[160px]">
+          <p className="text-xs font-semibold text-foreground mb-2 border-b border-border/40 pb-1.5">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center justify-between gap-4 text-xs py-0.5">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                <span className="text-muted-foreground">{labelMap[entry.name] || entry.name}</span>
+              </div>
+              <span className="font-semibold text-foreground tabular-nums">
+                {typeof entry.value === 'number' ? entry.value.toLocaleString('pt-BR') : entry.value}
+              </span>
             </div>
-            <span className="font-semibold text-foreground tabular-nums">
-              {typeof entry.value === 'number' ? entry.value.toLocaleString('pt-BR') : entry.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+  return CustomTooltip;
 };
 
 const LineChartWidget = ({
@@ -67,9 +77,12 @@ const LineChartWidget = ({
   data = [],
   dataKeys = ['value'],
   xAxisKey = 'label',
+  seriesLabels,
   isLoading = false,
 }: LineChartWidgetProps) => {
   const hasRealData = data.length > 0;
+  const LABEL_MAP = { ...DEFAULT_LABEL_MAP, ...(seriesLabels || {}) };
+  const CustomTooltip = createCustomTooltip(LABEL_MAP);
 
   if (isLoading) {
     return (
