@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Sparkles } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Eye, Sparkles, CheckCircle2, LayoutTemplate, BarChart3, PieChart, Table2, TrendingUp, Target, Lightbulb } from 'lucide-react';
 
 import DashboardPreview from '../preview/DashboardPreview';
 import WidgetRecommendationList from '../WidgetRecommendationList';
@@ -47,6 +48,8 @@ interface PreviewStepProps {
   widgets: DashboardWidgetConfig[];
   plan: 1 | 2 | 3 | 4;
   onUpdate: (widgets: DashboardWidgetConfig[]) => void;
+  hasTemplate?: boolean;
+  templateName?: string;
 }
 
 const DEFAULT_SIZES: Record<string, { w: number; h: number }> = {
@@ -62,8 +65,140 @@ const DEFAULT_SIZES: Record<string, { w: number; h: number }> = {
   insight_card: { w: 6, h: 2 },
 };
 
-const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) => {
-  const [showPreview, setShowPreview] = useState(true);
+const WIDGET_ICONS: Record<string, React.ElementType> = {
+  metric_card: TrendingUp,
+  area_chart: BarChart3,
+  line_chart: BarChart3,
+  bar_chart: BarChart3,
+  pie_chart: PieChart,
+  donut_chart: PieChart,
+  funnel: Target,
+  table: Table2,
+  insight_card: Lightbulb,
+};
+
+const PreviewStep = ({ mappings, widgets, plan, onUpdate, hasTemplate, templateName }: PreviewStepProps) => {
+  const [showPreview, setShowPreview] = useState(false);
+
+  // =================================================================
+  // MODO TEMPLATE: mostrar os widgets do template já selecionado
+  // =================================================================
+  if (hasTemplate && widgets.length > 0) {
+    // Agrupar widgets por tipo para exibição bonita
+    const metricCards = widgets.filter(w => w.type === 'metric_card');
+    const charts = widgets.filter(w => ['area_chart', 'line_chart', 'bar_chart', 'pie_chart', 'donut_chart'].includes(w.type));
+    const funnels = widgets.filter(w => w.type === 'funnel');
+    const tables = widgets.filter(w => w.type === 'table');
+    const insights = widgets.filter(w => w.type === 'insight_card');
+
+    return (
+      <div className="space-y-8">
+        {/* Header */}
+        <div>
+          <h2 className="text-xl font-semibold text-foreground mb-2">
+            Dashboard Pronto para Criação
+          </h2>
+          <p className="text-muted-foreground">
+            O template <strong className="text-accent">{templateName || 'selecionado'}</strong> será 
+            aplicado com {widgets.length} widgets, cada um conectado aos seus dados reais via mapeamento.
+          </p>
+        </div>
+
+        {/* Template Summary Card */}
+        <Card className="p-6 bg-accent/5 border-accent/20">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
+              <LayoutTemplate className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">{templateName || 'Template Premium'}</h3>
+              <p className="text-sm text-muted-foreground">{widgets.length} widgets configurados</p>
+            </div>
+            <Badge className="ml-auto bg-accent/20 text-accent border-0">Pronto</Badge>
+          </div>
+
+          {/* Widget groups */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
+            {metricCards.length > 0 && (
+              <div className="text-center p-3 rounded-lg bg-background/60">
+                <TrendingUp className="w-5 h-5 mx-auto mb-1 text-emerald-500" />
+                <div className="text-lg font-bold">{metricCards.length}</div>
+                <div className="text-xs text-muted-foreground">KPIs</div>
+              </div>
+            )}
+            {charts.length > 0 && (
+              <div className="text-center p-3 rounded-lg bg-background/60">
+                <BarChart3 className="w-5 h-5 mx-auto mb-1 text-blue-500" />
+                <div className="text-lg font-bold">{charts.length}</div>
+                <div className="text-xs text-muted-foreground">Gráficos</div>
+              </div>
+            )}
+            {funnels.length > 0 && (
+              <div className="text-center p-3 rounded-lg bg-background/60">
+                <Target className="w-5 h-5 mx-auto mb-1 text-orange-500" />
+                <div className="text-lg font-bold">{funnels.length}</div>
+                <div className="text-xs text-muted-foreground">Funis</div>
+              </div>
+            )}
+            {tables.length > 0 && (
+              <div className="text-center p-3 rounded-lg bg-background/60">
+                <Table2 className="w-5 h-5 mx-auto mb-1 text-purple-500" />
+                <div className="text-lg font-bold">{tables.length}</div>
+                <div className="text-xs text-muted-foreground">Tabelas</div>
+              </div>
+            )}
+            {insights.length > 0 && (
+              <div className="text-center p-3 rounded-lg bg-background/60">
+                <Lightbulb className="w-5 h-5 mx-auto mb-1 text-yellow-500" />
+                <div className="text-lg font-bold">{insights.length}</div>
+                <div className="text-xs text-muted-foreground">Insights IA</div>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Widget list */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+            Widgets incluídos
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {widgets.map((w, i) => {
+              const Icon = WIDGET_ICONS[w.type] || BarChart3;
+              return (
+                <div key={w.id || i} className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50">
+                  <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{w.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{w.description || w.type.replace(/_/g, ' ')}</p>
+                  </div>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 ml-auto" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Mapping info */}
+        {mappings.length > 0 && (
+          <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-foreground">{mappings.length} mapeamentos</strong> serão usados para 
+              conectar os widgets aos dados reais da tabela <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                {mappings[0]?.sourceTable || '...'}
+              </code>
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // =================================================================
+  // MODO SEM TEMPLATE: gerar recomendações AI (fluxo original)
+  // =================================================================
 
   // Use the recommendation hook
   const {
@@ -74,7 +209,7 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
   } = useWidgetRecommendations({
     mappings,
     plan,
-    enabled: mappings.length >= 2,
+    enabled: mappings.length >= 2 && !hasTemplate,
   });
 
   // Fallback to local generation if needed
@@ -119,16 +254,11 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
         dataMapping: widgetMappings,
         config: {
           ...rec.config,
-          // Include data source from mapping for dynamic dashboard - each widget uses its own table
           dataSource: widgetTable,
           sourceTable: widgetTable,
-          // Use sourceField (actual column name) not targetMetric
           metric: firstMapping?.sourceField || null,
-          // Include aggregation from mapping
           aggregation: firstMapping?.aggregation || 'count',
-          // Include transformation for format detection
           transformation: firstMapping?.transformation || 'none',
-          // Store targetMetric for reference
           targetMetric: firstMapping?.targetMetric || null,
           animate: true,
           showTooltip: true,
@@ -163,7 +293,7 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate }: PreviewStepProps) =>
         </h2>
         <p className="text-muted-foreground">
           Baseado nos mapeamentos, sugerimos os widgets mais adequados. 
-          Cada gráfico está vinculado à sua própria tabela de origem - o dashboard suporta múltiplas fontes de dados.
+          Cada gráfico está vinculado à sua própria tabela de origem.
         </p>
       </div>
 

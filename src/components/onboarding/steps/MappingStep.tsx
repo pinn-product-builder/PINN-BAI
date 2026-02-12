@@ -119,9 +119,17 @@ const TARGET_METRICS: { value: string; label: string; description: string }[] = 
 
 const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, orgId }: MappingStepProps) => {
   const { toast } = useToast();
-  const [selectedTable, setSelectedTable] = useState<string>(
-    integration?.tables?.[0]?.name || ''
-  );
+  // Selecionar primeira tabela NÃO de sistema
+  const initialTable = (() => {
+    const all = integration?.tables || [];
+    const filtered = all.filter(t => {
+      const n = t.name.toLowerCase();
+      const sysPatterns = ['table_overview', 'schema_migration', '_prisma_', 'pg_', 'information_schema', 'supabase_', '_migrations'];
+      return !sysPatterns.some(p => n.includes(p)) && t.rowCount > 0;
+    });
+    return (filtered.length > 0 ? filtered[0] : all[0])?.name || '';
+  })();
+  const [selectedTable, setSelectedTable] = useState<string>(initialTable);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<MappingSuggestion[]>([]);
   const [aiSummary, setAiSummary] = useState('');
@@ -137,8 +145,22 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
   // Saved metrics hook
   const { savedMetrics, saveMetric, incrementUsage } = useSavedMetrics(orgId || null);
 
-  const tables = integration?.tables || [];
-  const currentTable = tables.find(t => t.name === selectedTable);
+  // Filtrar tabelas de sistema/metadados que não são dados do cliente
+  const SYSTEM_TABLE_PATTERNS = [
+    'table_overview', 'schema_migration', '_prisma_', 'pg_', 'information_schema',
+    'auth.', 'storage.', 'supabase_', '_migrations', 'spatial_ref',
+    'geography_columns', 'geometry_columns', 'raster_columns',
+  ];
+  const allTables = integration?.tables || [];
+  const tables = allTables.filter(t => {
+    const name = t.name.toLowerCase();
+    // Excluir tabelas que parecem ser de sistema
+    if (SYSTEM_TABLE_PATTERNS.some(p => name.includes(p))) return false;
+    // Excluir tabelas com 0 registros
+    if (t.rowCount === 0) return false;
+    return true;
+  });
+  const currentTable = tables.find(t => t.name === selectedTable) || allTables.find(t => t.name === selectedTable);
   const columns = currentTable?.columns || [];
 
   // Derived counters for suggestions

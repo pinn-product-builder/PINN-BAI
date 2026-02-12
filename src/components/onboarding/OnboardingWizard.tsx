@@ -396,6 +396,8 @@ const OnboardingWizard = () => {
             widgets={state.selectedWidgets}
             plan={state.organization.plan}
             onUpdate={updateWidgets}
+            hasTemplate={!!state.selectedTemplateId}
+            templateName={state.selectedTemplate?.name}
           />
         );
       case 6:
