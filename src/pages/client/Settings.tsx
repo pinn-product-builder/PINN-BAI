@@ -119,6 +119,8 @@ const ClientSettings = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-settings', orgId] });
       queryClient.invalidateQueries({ queryKey: ['organization'] });
+      // Trigger theme refetch so sidebar updates immediately
+      window.dispatchEvent(new Event('org-settings-updated'));
       toast({ title: 'Configurações salvas', description: 'Suas personalizações foram aplicadas com sucesso.' });
     },
     onError: () => {
