@@ -1,24 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import {
-  Plus,
-  Share2,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Download,
-  Filter,
-  Layout,
-  Calendar,
-  ChevronDown,
-  Sparkles,
-  Volume2,
-  Mic2,
-  Play,
-  Monitor,
-  Database,
   Loader2,
-  TrendingDown
+  TrendingDown,
+  Volume2,
+  Play,
+  Sparkles,
+  Mic2,
+  BarChart3,
+  MessageSquare,
+  Phone,
+  LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -27,57 +30,58 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ReportGenerator } from '@/lib/report-generator';
 import { useDashboardNarrative } from '@/hooks/useDashboardNarrative';
 
+const DASH_ICONS: Record<string, React.ReactNode> = {
+  'Executivo': <LayoutDashboard className="w-4 h-4" />,
+  'Tráfego Pago': <BarChart3 className="w-4 h-4" />,
+  'Conversas': <MessageSquare className="w-4 h-4" />,
+  'Ligações VAPI': <Phone className="w-4 h-4" />,
+};
+
 const Dashboard = () => {
   const { orgId } = useParams();
   const { toast } = useToast();
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedDashId, setSelectedDashId] = useState<string | null>(null);
 
-  // Fetch the default dashboard for this organization
-  const { data: dashboard, isLoading: isLoadingDash } = useQuery({
-    queryKey: ['org-dashboard', orgId],
+  // Fetch ALL dashboards for this org
+  const { data: dashboards, isLoading: isLoadingDashes } = useQuery({
+    queryKey: ['org-dashboards', orgId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('dashboards')
         .select('*')
         .eq('org_id', orgId)
-        .eq('is_default', true)
-        .maybeSingle();
+        .order('is_default', { ascending: false })
+        .order('name');
 
       if (error) throw error;
-      return data;
+      return data || [];
     },
+    enabled: !!orgId,
   });
 
+  // Auto-select default dashboard
+  const activeDash = dashboards?.find(d => d.id === selectedDashId) 
+    || dashboards?.find(d => d.is_default) 
+    || dashboards?.[0];
+
   // Generate dynamic narrative
-  const { narrative, isLoading: isLoadingNarrative } = useDashboardNarrative(dashboard?.id, orgId);
+  const { narrative, isLoading: isLoadingNarrative } = useDashboardNarrative(activeDash?.id, orgId);
 
   const handleExportPDF = async () => {
-    if (!dashboard) return;
+    if (!activeDash) return;
     setIsExporting(true);
-
-    toast({
-      title: "Gerando Relatório",
-      description: "Capturando dados e aplicando branding Pinn...",
-    });
-
+    toast({ title: "Gerando Relatório", description: "Capturando dados e aplicando branding Pinn..." });
     try {
       await ReportGenerator.generateDashboardPDF('dashboard-content', {
-        title: dashboard.name || 'Executive Dashboard',
-        organizationName: 'Sua Organização', // Em breve puxar nome real da org
-        aiSnapshot: "Olá! Hoje notamos um crescimento atípico de 22% nos leads provenientes do LinkedIn. Sua taxa de conversão geral está estável em 12.5%, mas o ticket médio subiu para R$ 2.4k.",
+        title: activeDash.name || 'Dashboard',
+        organizationName: 'Sua Organização',
+        aiSnapshot: narrative?.text || '',
       });
-
-      toast({
-        title: "Relatório Concluído",
-        description: "O PDF foi gerado com sucesso.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro ao exportar",
-        description: "Não foi possível gerar o PDF.",
-        variant: "destructive",
-      });
+      toast({ title: "Relatório Concluído", description: "O PDF foi gerado com sucesso." });
+    } catch {
+      toast({ title: "Erro ao exportar", description: "Não foi possível gerar o PDF.", variant: "destructive" });
     } finally {
       setIsExporting(false);
     }
@@ -85,16 +89,8 @@ const Dashboard = () => {
 
   const handleVoiceBriefing = () => {
     setIsVoiceActive(true);
-    toast({
-      title: "CEO Voice Mode Ativado",
-      description: "A IA está preparando seu resumo executivo em áudio...",
-    });
-
-    // Use narrative text or fallback
-    const textToSpeak = narrative?.text || 
-      "Olá! Hoje notamos um crescimento atípico de vinte e dois por cento nos leads provenientes do LinkedIn. Sua taxa de conversão geral está estável, mas o ticket médio subiu para dois mil e quatrocentos reais.";
-
-    // Simulate TTS
+    toast({ title: "CEO Voice Mode Ativado", description: "A IA está preparando seu resumo executivo em áudio..." });
+    const textToSpeak = narrative?.text || "Nenhum insight disponível no momento.";
     setTimeout(() => {
       setIsVoiceActive(false);
       const utterance = new SpeechSynthesisUtterance(textToSpeak);
@@ -107,12 +103,33 @@ const Dashboard = () => {
     <div className="p-6 lg:p-8 space-y-6 pb-32">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
-            {dashboard?.name || 'Tráfego Pago'}
-          </h1>
+        <div className="space-y-2">
+          {/* Dashboard Selector Dropdown */}
+          <div className="flex items-center gap-3">
+            <Select
+              value={activeDash?.id || ''}
+              onValueChange={(id) => setSelectedDashId(id)}
+            >
+              <SelectTrigger className="w-[260px] h-10 text-base font-bold border-border/50 bg-card/80 backdrop-blur-sm">
+                <div className="flex items-center gap-2">
+                  {activeDash && DASH_ICONS[activeDash.name]}
+                  <SelectValue placeholder="Selecionar dashboard" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border z-50">
+                {dashboards?.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    <div className="flex items-center gap-2">
+                      {DASH_ICONS[d.name] || <LayoutDashboard className="w-4 h-4" />}
+                      <span>{d.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <p className="text-sm text-muted-foreground">
-            Performance de investimento em mídia — últimos 30 dias
+            {activeDash?.description || 'Performance dos últimos 30 dias'}
           </p>
         </div>
 
@@ -168,7 +185,7 @@ const Dashboard = () => {
                     narrative.trend === 'down' && "bg-red-500/10 text-red-500",
                     narrative.trend === 'stable' && "bg-muted text-muted-foreground"
                   )}>
-                    {narrative.trend === 'up' && <TrendingUp className="w-2.5 h-2.5" />}
+                    {narrative.trend === 'up' && <TrendingUpIcon className="w-2.5 h-2.5" />}
                     {narrative.trend === 'down' && <TrendingDown className="w-2.5 h-2.5" />}
                     {narrative.trend === 'up' && 'Alta'}
                     {narrative.trend === 'down' && 'Baixa'}
@@ -205,11 +222,8 @@ const Dashboard = () => {
 
       {/* Dashboard Widgets */}
       <div id="dashboard-content">
-        {dashboard?.id ? (
-          <>
-            {console.log('[Dashboard] Rendering DashboardEngine with dashboardId:', dashboard.id)}
-            <DashboardEngine dashboardId={dashboard.id} />
-          </>
+        {activeDash?.id ? (
+          <DashboardEngine dashboardId={activeDash.id} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => (
@@ -218,23 +232,12 @@ const Dashboard = () => {
           </div>
         )}
       </div>
-
-      {/* Floating Action */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button size="sm" className="h-10 px-5 rounded-full font-medium shadow-lg gap-2 text-xs">
-          <Layout className="w-4 h-4" />
-          Smart CRM
-          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center text-[9px] text-primary-foreground font-bold">
-            12
-          </div>
-        </Button>
-      </div>
     </div>
   );
 };
 
-// Placeholder icon until I can confirm icons
-const TrendingUp = ({ className }: { className?: string }) => (
+// Placeholder icon
+const TrendingUpIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
   </svg>
