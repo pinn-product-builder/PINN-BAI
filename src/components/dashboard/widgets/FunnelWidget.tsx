@@ -19,8 +19,19 @@ const FUNNEL_COLORS = [
 ];
 
 // Prettify stage names
+const STAGE_MAP: Record<string, string> = {
+  new: 'Novos',
+  qualified: 'Qualificados',
+  in_analysis: 'Em Análise',
+  proposal: 'Proposta',
+  converted: 'Convertidos',
+  lost: 'Perdidos',
+};
+
 const prettifyStage = (raw: string): string => {
   if (!raw || raw === 'null' || raw === 'undefined') return 'Outros';
+  const lower = raw.toLowerCase().trim();
+  if (STAGE_MAP[lower]) return STAGE_MAP[lower];
   if (/^[A-ZÁÉÍÓÚÀÂÊÔÃÕÇ]/.test(raw) && raw.includes(' ')) return raw;
   return raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
 };
@@ -118,10 +129,11 @@ const FunnelWidget = ({
                   {/* Stage row: label — bar — count */}
                   <div className="flex items-center gap-3">
                     {/* Stage name */}
-                    <div className="w-24 shrink-0">
-                      <span className="text-xs font-medium text-foreground truncate block">
+                    <div className="w-28 shrink-0">
+                      <span className="text-xs font-semibold text-foreground truncate block" title={item.stage}>
                         {item.stage}
                       </span>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">{item.value.toLocaleString('pt-BR')}</span>
                     </div>
 
                     {/* Bar */}
