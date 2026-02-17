@@ -963,133 +963,139 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
     );
   }
 
-  // Layout premium inspirado nos templates Pinn (hero KPIs + seções bem definidas)
-  // Ordena widgets pela posição definida no template
+  // Layout premium inspirado no dashboard Afonsina de referência
   const sortedWidgets = [...widgets].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
   // Agrupamentos por tipo
   const metricWidgets = sortedWidgets.filter(w => w.type === 'metric_card');
   const timeSeriesCharts = sortedWidgets.filter(w => ['area_chart', 'line_chart'].includes(w.type));
+  const funnelWidgets = sortedWidgets.filter(w => w.type === 'funnel');
   const barCharts = sortedWidgets.filter(w => w.type === 'bar_chart');
   const pieCharts = sortedWidgets.filter(w => w.type === 'pie_chart');
-  const funnelWidgets = sortedWidgets.filter(w => w.type === 'funnel');
   const tableWidgets = sortedWidgets.filter(w => w.type === 'table');
   const insightWidgets = sortedWidgets.filter(w => w.type === 'insight_card');
 
-  // KPIs: adaptar quantidade ao que existe (3→3cols, 4→4cols, 5+→5cols)
+  // Reference layout: 5 hero KPIs + 4 secondary KPIs
   const heroCount = Math.min(metricWidgets.length, 5);
   const heroMetrics = metricWidgets.slice(0, heroCount);
   const secondaryMetrics = metricWidgets.slice(heroCount);
 
-  // Marca widgets já usados para evitar duplicação em "outras visões"
-  const usedIds = new Set<string>([
-    ...heroMetrics,
-    ...secondaryMetrics,
-    ...timeSeriesCharts,
-    ...barCharts,
-    ...pieCharts,
-    ...funnelWidgets,
-    ...tableWidgets,
-    ...insightWidgets,
-  ].map(w => w.id));
-
-  const otherWidgets = sortedWidgets.filter(w => !usedIds.has(w.id));
-
-  // Helper para mapear "size" do template em col-span responsivo
-  const sizeToCols = (size?: string | null) => {
-    switch (size) {
-      case 'small':
-        return 'lg:col-span-3'; // 1/4
-      case 'medium':
-        return 'lg:col-span-6'; // 1/2
-      case 'large':
-        return 'lg:col-span-8'; // 2/3
-      case 'full':
-        return 'lg:col-span-12'; // full
-      default:
-        return 'lg:col-span-4'; // fallback agradável
-    }
-  };
+  // Pair tables for side-by-side layout
+  const firstTablePair = tableWidgets.slice(0, 2);
+  const remainingTables = tableWidgets.slice(2);
 
   return (
-    <div className="space-y-10 pb-24">
-      {/* Hero KPIs no topo */}
+    <div className="space-y-8 pb-24">
+      {/* Section: Indicadores Principais */}
       {heroMetrics.length > 0 && (
         <section>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-[0.18em]">
-              Visão Geral
-            </h2>
-          </div>
+          <h2 className="text-sm font-semibold text-foreground mb-3">Indicadores Principais</h2>
           <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
             heroMetrics.length >= 5 ? 'xl:grid-cols-5' : 
             heroMetrics.length === 4 ? 'xl:grid-cols-4' : 
             heroMetrics.length === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-2'
           }`}>
             {heroMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[140px]">
-                <WidgetRenderer 
-                  widget={widget} 
-                  orgId={orgId || ''}
-                  onRemove={handleDelete}
-                />
+              <div key={widget.id} className="min-h-[130px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Métricas secundárias em grid fluido */}
+      {/* Secondary KPIs row */}
       {secondaryMetrics.length > 0 && (
         <section>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
-              KPIs Secundários
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
+            secondaryMetrics.length >= 4 ? 'xl:grid-cols-4' : 
+            secondaryMetrics.length === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-2'
+          }`}>
             {secondaryMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[130px]">
-                <WidgetRenderer 
-                  widget={widget} 
-                  orgId={orgId || ''}
-                  onRemove={handleDelete}
-                />
+              <div key={widget.id} className="min-h-[120px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Gráficos principais (time series + distribuição lado a lado) */}
-      {(timeSeriesCharts.length > 0 || barCharts.length > 0 || pieCharts.length > 0 || funnelWidgets.length > 0) && (
+      {/* Evolução Diária (area/line) + Pipeline de Conversão (funnel) — side by side */}
+      {(timeSeriesCharts.length > 0 || funnelWidgets.length > 0) && (
         <section>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
-              Análise Visual
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Evolução temporal: largura total se só 1 gráfico */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {timeSeriesCharts.map(widget => (
               <div 
                 key={widget.id} 
-                className={`min-h-[320px] ${timeSeriesCharts.length === 1 ? 'lg:col-span-2' : ''}`}
+                className={`min-h-[380px] ${
+                  funnelWidgets.length > 0 ? 'lg:col-span-7' : 'lg:col-span-12'
+                }`}
               >
-                <WidgetRenderer 
-                  widget={widget} 
-                  orgId={orgId || ''}
-                  onRemove={handleDelete}
-                />
-              </div>
-            ))}
-            {/* Barras, pizza e funil em grid de 2 colunas */}
-            {barCharts.map(widget => (
-              <div key={widget.id} className="min-h-[320px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
             ))}
             {funnelWidgets.map(widget => (
+              <div 
+                key={widget.id} 
+                className={`min-h-[380px] ${
+                  timeSeriesCharts.length > 0 ? 'lg:col-span-5' : 'lg:col-span-12'
+                }`}
+              >
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* First table pair + Insights IA — side by side */}
+      {(firstTablePair.length > 0 || insightWidgets.length > 0) && (
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {firstTablePair[0] && (
+              <div className="min-h-[340px]">
+                <WidgetRenderer widget={firstTablePair[0]} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            )}
+            {insightWidgets.length > 0 ? (
+              insightWidgets.map(widget => (
+                <div key={widget.id} className="min-h-[340px]">
+                  <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+                </div>
+              ))
+            ) : firstTablePair[1] ? (
+              <div className="min-h-[340px]">
+                <WidgetRenderer widget={firstTablePair[1]} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ) : null}
+          </div>
+        </section>
+      )}
+
+      {/* Second table pair (Reuniões do Mês + Lista de Leads) — side by side */}
+      {(firstTablePair[1] && insightWidgets.length > 0) || remainingTables.length > 0 ? (
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* If insights took the spot of table[1], render table[1] here */}
+            {firstTablePair[1] && insightWidgets.length > 0 && (
+              <div className="min-h-[340px]">
+                <WidgetRenderer widget={firstTablePair[1]} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            )}
+            {remainingTables.map(widget => (
+              <div key={widget.id} className="min-h-[340px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Bar charts + Pie charts if any */}
+      {(barCharts.length > 0 || pieCharts.length > 0) && (
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {barCharts.map(widget => (
               <div key={widget.id} className="min-h-[320px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
@@ -1097,75 +1103,6 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
             {pieCharts.map(widget => (
               <div key={widget.id} className="min-h-[320px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Tabelas em largura quase total */}
-      {tableWidgets.length > 0 && (
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
-              Detalhamento
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 gap-6">
-            {tableWidgets.map(widget => (
-              <div key={widget.id} className="min-h-[420px]">
-                <WidgetRenderer 
-                  widget={widget} 
-                  orgId={orgId || ''}
-                  onRemove={handleDelete}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Cartas de insight da IA */}
-      {insightWidgets.length > 0 && (
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
-              Insights da IA
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {insightWidgets.map(widget => (
-              <div key={widget.id} className="min-h-[220px]">
-                <WidgetRenderer 
-                  widget={widget} 
-                  orgId={orgId || ''}
-                  onRemove={handleDelete}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Widgets extras em um grid premium responsivo usando o size do template */}
-      {otherWidgets.length > 0 && (
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-[0.18em]">
-              Outras Visões
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {otherWidgets.map(widget => (
-              <div 
-                key={widget.id} 
-                className={`min-h-[260px] ${sizeToCols(widget.size)}`}
-              >
-                <WidgetRenderer 
-                  widget={widget} 
-                  orgId={orgId || ''}
-                  onRemove={handleDelete}
-                />
               </div>
             ))}
           </div>
