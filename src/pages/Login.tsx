@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,66 +13,26 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [shouldRedirect, setShouldRedirect] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
-  const { signIn, profile, roles, isPlatformAdmin, isLoading: authLoading, refreshProfile } = useAuth();
-  const hasRedirected = useRef(false);
+  const { signIn, user, profile, roles, isPlatformAdmin, isLoading: authLoading } = useAuth();
 
-  const from = (location.state as { from?: Location })?.from?.pathname;
-
-  // Redirect if already logged in
+  // Single redirect effect — fires when auth state settles
   useEffect(() => {
-    if (!authLoading && profile && roles.length > 0 && !shouldRedirect) {
-      if (isPlatformAdmin || roles.includes('platform_admin')) {
-        navigate('/admin/hq', { replace: true });
-      } else if (profile.org_id) {
-        navigate(`/client/${profile.org_id}/dashboard`, { replace: true });
-      }
-    }
-  }, [authLoading, profile, roles, isPlatformAdmin, navigate, shouldRedirect]);
+    if (authLoading || !user) return;
+    // Wait until profile & roles are loaded
+    if (!profile || roles.length === 0) return;
 
-  // Handle redirect after profile and roles are loaded
-  useEffect(() => {
-    // Only redirect if we should and haven't already redirected
-    if (!shouldRedirect || hasRedirected.current || authLoading) {
-      return;
-    }
-
-    // Wait for profile and roles to be available
-    if (roles.length === 0 && !profile) {
-      return;
-    }
-
-    // Prevent multiple redirects
-    hasRedirected.current = true;
-
-    // Platform admin should go to settings
-    if (isPlatformAdmin || roles.includes('platform_admin')) {
+    if (isPlatformAdmin) {
       navigate('/admin/hq', { replace: true });
-    } 
-    // Client users should go to their organization's dashboard
-    else if (profile?.org_id) {
+    } else if (profile.org_id) {
       navigate(`/client/${profile.org_id}/dashboard`, { replace: true });
-    } 
-    // Fallback - should not happen, but handle gracefully
-    else {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível determinar sua organização. Entre em contato com o suporte.',
-        variant: 'destructive',
-      });
-      setIsLoading(false);
-      setShouldRedirect(false);
-      hasRedirected.current = false;
     }
-  }, [shouldRedirect, profile, roles, isPlatformAdmin, authLoading, navigate, toast]);
+  }, [authLoading, user, profile, roles, isPlatformAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    hasRedirected.current = false;
 
     const { error } = await signIn(email, password);
 
@@ -92,12 +52,19 @@ const Login = () => {
       className: 'bg-primary text-primary-foreground border-none',
     });
 
-    // Refresh profile to ensure we have latest data
-    await refreshProfile();
-
-    // Trigger redirect check
-    setShouldRedirect(true);
+    // The onAuthStateChange listener in AuthContext will update user/profile/roles,
+    // which triggers the useEffect above to redirect.
+    // Keep loading state — redirect will unmount this component.
   };
+
+  // Show loading if auth is still initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#050505]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#050505] relative overflow-hidden text-white font-sans selection:bg-primary/30">
