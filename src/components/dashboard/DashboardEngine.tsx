@@ -15,6 +15,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { DashboardWidget } from '@/lib/types';
 import { useExternalData } from '@/hooks/useExternalData';
+import { findWidgetConfig } from '@/lib/afonsinaWidgetConfig';
+import { REFERENCE_MAPPINGS } from '@/lib/referenceMappings';
 
 // Import chart widgets
 import MetricCard from '@/components/dashboard/widgets/MetricCard';
@@ -519,7 +521,6 @@ const WidgetRenderer = ({
     // 5. Usar targetMetric como guia semântico
     if (cfg.targetMetric && numericFields.length > 0) {
       const target = cfg.targetMetric.toLowerCase();
-      // Decomposição por partes (ex: "total_leads" → procurar "total" ou "leads")
       const parts = target.split(/[_\s]+/).filter(p => p.length >= 3);
       if (parts.length > 0) {
         const found = numericFields.find(k => {
@@ -527,6 +528,48 @@ const WidgetRenderer = ({
           return parts.some(p => kl.includes(p));
         });
         if (found) return found;
+      }
+    }
+
+    // 5.5. NOVO: Usar Afonsina config como lookup inteligente
+    // Se o widget tem um título que corresponde a um widget Afonsina,
+    // usar o metricField da configuração para encontrar o campo nos dados
+    const afonsinaConfig = findWidgetConfig(title, widget.type);
+    if (afonsinaConfig && numericFields.length > 0) {
+      const afonsinaField = afonsinaConfig.metricField.toLowerCase();
+      const match = numericFields.find(k => k.toLowerCase() === afonsinaField);
+      if (match) {
+        console.log(`[resolveMetricField] Afonsina match: ${title} → ${match}`);
+        return match;
+      }
+      // Match parcial com campo Afonsina
+      const partialMatch = numericFields.find(k => {
+        const kl = k.toLowerCase();
+        return kl.includes(afonsinaField) || afonsinaField.includes(kl);
+      });
+      if (partialMatch) {
+        console.log(`[resolveMetricField] Afonsina partial match: ${title} → ${partialMatch}`);
+        return partialMatch;
+      }
+    }
+
+    // 5.6. NOVO: Usar reference mappings como fallback
+    if (cfg.targetMetric && numericFields.length > 0) {
+      const refMapping = REFERENCE_MAPPINGS.find(m => {
+        const tl = cfg.targetMetric!.toLowerCase();
+        const ml = m.targetMetric.toLowerCase();
+        return tl === ml || tl.includes(ml) || ml.includes(tl);
+      });
+      if (refMapping) {
+        // Procurar os fieldNames do reference mapping nos dados disponíveis
+        for (const view of refMapping.views) {
+          const fieldLower = view.fieldName.toLowerCase();
+          const match = numericFields.find(k => k.toLowerCase() === fieldLower);
+          if (match) {
+            console.log(`[resolveMetricField] Reference mapping: ${cfg.targetMetric} → ${match}`);
+            return match;
+          }
+        }
       }
     }
 
