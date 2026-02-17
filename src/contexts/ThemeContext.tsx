@@ -19,6 +19,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Check if we're in admin context
     const isAdminContext = location.pathname.startsWith('/admin') || isPlatformAdmin;
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    // Listen for settings updates to refetch org data
+    useEffect(() => {
+        const handler = () => setRefreshKey((k) => k + 1);
+        window.addEventListener('org-settings-updated', handler);
+        return () => window.removeEventListener('org-settings-updated', handler);
+    }, []);
 
     useEffect(() => {
         const fetchOrg = async () => {
@@ -55,7 +63,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
 
         fetchOrg();
-    }, [profile?.org_id, isAdminContext, isPlatformAdmin, location.pathname]);
+    }, [profile?.org_id, isAdminContext, isPlatformAdmin, location.pathname, refreshKey]);
 
     // Reset to admin theme (black and orange)
     const resetToAdminTheme = () => {

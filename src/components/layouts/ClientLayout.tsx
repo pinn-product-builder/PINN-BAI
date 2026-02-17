@@ -55,13 +55,17 @@ const ClientLayout = () => {
           {/* Logo */}
           <div className="flex items-center gap-3 p-6 border-b border-sidebar-border">
             {organization?.logo_url ? (
-              <img src={organization.logo_url} alt="Logo" className="w-9 h-9 object-contain" />
+              <img src={organization.logo_url} alt={organization.name} className="h-9 max-w-[160px] object-contain" />
             ) : (
-              <img src="/pinn-logo.svg" alt="Pinn Logo" className="h-8 w-auto object-contain" />
+              <>
+                <img src="/pinn-logo.svg" alt="Pinn Logo" className="h-8 w-auto object-contain" />
+              </>
             )}
-            <span className="text-xl font-bold text-sidebar-foreground truncate">
-              {organization?.name || 'Pinn BAI'}
-            </span>
+            {!organization?.logo_url && (
+              <span className="text-xl font-bold text-sidebar-foreground truncate">
+                {organization?.name || 'Pinn BAI'}
+              </span>
+            )}
           </div>
 
           <div className="p-4 border-b border-sidebar-border">
