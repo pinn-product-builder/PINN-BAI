@@ -186,11 +186,9 @@ const MetricCard = ({
           <p className="text-2xl font-bold text-foreground tracking-tight leading-none">
             {hasValue ? formatDisplayValue(displayValue) : '-'}
           </p>
-          {hasValue && metricLabel && (
-            <p className="text-[11px] text-muted-foreground/70 mt-1 font-medium">
-              {metricLabel}
-            </p>
-          )}
+          <p className="text-[11px] text-muted-foreground/70 mt-1 font-medium">
+            {metricLabel || 'Últimos 30 dias'}
+          </p>
         </div>
       </div>
 

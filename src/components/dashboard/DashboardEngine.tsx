@@ -694,7 +694,6 @@ const WidgetRenderer = ({
   };
   
   const wrapperProps = {
-    sourceTable: tableName,
     onRefresh: tableName ? handleRefresh : undefined,
     onRemove: handleRemove,
     isRefreshing,
