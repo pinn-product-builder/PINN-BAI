@@ -13,6 +13,7 @@ import {
   Gauge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const navItems = [
   { path: '/admin/hq', label: 'Pinn Command', icon: LayoutDashboard },
@@ -78,14 +79,17 @@ const AdminLayout = () => {
                   <p className="text-xs text-sidebar-foreground/60">Plataforma</p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                onClick={async () => { await signOut(); navigate('/login'); }}
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <ThemeToggle />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  onClick={async () => { await signOut(); navigate('/login'); }}
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
