@@ -2,6 +2,7 @@
  * Mapeamentos de referência baseados no projeto Afonsina (pinnbai)
  * Define quais campos usar para cada métrica em cada view
  */
+import { findWidgetConfig as findWidgetConfigByTitle } from '@/lib/afonsinaWidgetConfig';
 
 export interface ReferenceMapping {
   targetMetric: string;
@@ -209,8 +210,7 @@ export function findFieldByWidgetTitle(
   availableFields: string[]
 ): { viewName: string; fieldName: string; aggregation: string } | null {
   // Primeiro, tentar usar a configuração completa do Afonsina
-  const { findWidgetConfig } = require('@/lib/afonsinaWidgetConfig');
-  const widgetConfig = findWidgetConfig(widgetTitle);
+  const widgetConfig = findWidgetConfigByTitle(widgetTitle);
   
   if (widgetConfig) {
     // Verificar se a view está disponível

@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { findWidgetConfig, type WidgetViewMapping } from '@/lib/afonsinaWidgetConfig';
+import { findReferenceMapping } from '@/lib/referenceMappings';
 
 type WidgetType = Database['public']['Enums']['widget_type'];
 
@@ -506,8 +508,50 @@ export const useApplyTemplate = () => {
           targetMetric: cfg?.targetMetric,
         };
 
-        if (mapping) {
-          // Mapeamento encontrado — preencher metric + dataSource reais
+        // ================================================================
+        // ESTRATÉGIA DE RESOLUÇÃO MULTI-CAMADA (Afonsina → Mapping → Fallback)
+        // ================================================================
+        
+        // Camada 1: Verificar se temos configuração Afonsina para este widget
+        const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
+        
+        // Lista de views disponíveis nos mapeamentos do usuário
+        const userAvailableViews = [...new Set(mappingEntries.map(([, m]) => m.sourceTable).filter(Boolean))] as string[];
+        
+        if (afonsinaConfig && userAvailableViews.includes(afonsinaConfig.viewName)) {
+          // Afonsina config + view existe nos dados do cliente → MATCH PERFEITO
+          console.log(`[useApplyTemplate] Afonsina match: ${tw.title} → ${afonsinaConfig.viewName}.${afonsinaConfig.metricField}`);
+          widgetConfig.dataSource = afonsinaConfig.viewName;
+          widgetConfig.sourceTable = afonsinaConfig.viewName;
+          widgetConfig.metric = afonsinaConfig.metricField;
+          widgetConfig.aggregation = afonsinaConfig.aggregation;
+          if (afonsinaConfig.format) widgetConfig.format = afonsinaConfig.format;
+          if (afonsinaConfig.groupBy) widgetConfig.groupBy = afonsinaConfig.groupBy;
+        } else if (afonsinaConfig) {
+          // Afonsina config existe mas a view NÃO está nos mapeamentos do usuário
+          // Tentar reference mapping com views disponíveis
+          const targetMetric = (cfg?.targetMetric as string) || '';
+          const refMapping = targetMetric ? findReferenceMapping(targetMetric, userAvailableViews) : null;
+          
+          if (refMapping && userAvailableViews.includes(refMapping.viewName)) {
+            console.log(`[useApplyTemplate] Reference mapping: ${tw.title} → ${refMapping.viewName}.${refMapping.fieldName}`);
+            widgetConfig.dataSource = refMapping.viewName;
+            widgetConfig.sourceTable = refMapping.viewName;
+            widgetConfig.metric = refMapping.fieldName;
+            widgetConfig.aggregation = refMapping.aggregation;
+            if (afonsinaConfig.groupBy) widgetConfig.groupBy = afonsinaConfig.groupBy;
+          } else if (mapping) {
+            // Fallback para mapeamento do usuário
+            widgetConfig.metric = mapping.field;
+            widgetConfig.aggregation = mapping.aggregation || cfg?.aggregation || 'count';
+            widgetConfig.transformation = mapping.transformation || 'none';
+            if (mapping.sourceTable) {
+              widgetConfig.dataSource = mapping.sourceTable;
+              widgetConfig.sourceTable = mapping.sourceTable;
+            }
+          }
+        } else if (mapping) {
+          // Camada 2: Sem Afonsina config → usar mapeamento do usuário
           widgetConfig.metric = mapping.field;
           widgetConfig.aggregation = mapping.aggregation || cfg?.aggregation || 'count';
           widgetConfig.transformation = mapping.transformation || 'none';
@@ -516,32 +560,31 @@ export const useApplyTemplate = () => {
             widgetConfig.sourceTable = mapping.sourceTable;
           }
         } else {
-          // SEM mapeamento — usar defaults inteligentes por tipo
-          // NÃO definir metric (deixar DashboardEngine auto-detectar)
+          // Camada 3: SEM mapeamento → usar defaults inteligentes por tipo
           widgetConfig.aggregation = cfg?.aggregation || 'count';
         }
 
         // Definir groupBy inteligente por tipo de widget (usando colunas REAIS)
+        // Só definir se não foi definido pela resolução Afonsina acima
         const widgetType = tw.type;
-        if (widgetType === 'area_chart' || widgetType === 'line_chart') {
-          // Charts temporais precisam de uma coluna de data REAL
-          widgetConfig.groupBy = realDateColumns[0] || 'created_at';
-        } else if (widgetType === 'pie_chart' || widgetType === 'bar_chart') {
-          // Charts categóricos precisam de coluna REAL de categorias
-          widgetConfig.groupBy = realCategoricalColumns[0] || 'source';
-          widgetConfig.aggregation = 'count';
-        } else if (widgetType === 'funnel') {
-          // Funil precisa de coluna de status/stage REAL
-          const stageCol = realCategoricalColumns.find(c => {
-            const cl = c.toLowerCase();
-            return cl.includes('stage') || cl.includes('etapa') || cl.includes('status') || cl.includes('fase');
-          }) || realCategoricalColumns[0] || 'status';
-          widgetConfig.groupBy = stageCol;
-          widgetConfig.aggregation = 'count';
-        } else if (widgetType === 'table') {
-          // Tabelas: NÃO definir columns — deixar TableWidget auto-detectar
-          // As columns do template (name, email, source) podem não existir
-          delete widgetConfig.columns;
+        if (!widgetConfig.groupBy) {
+          if (widgetType === 'area_chart' || widgetType === 'line_chart') {
+            widgetConfig.groupBy = realDateColumns[0] || 'day';
+          } else if (widgetType === 'pie_chart' || widgetType === 'bar_chart') {
+            widgetConfig.groupBy = realCategoricalColumns[0] || 'source';
+            if (!widgetConfig.aggregation || widgetConfig.aggregation === 'count') {
+              widgetConfig.aggregation = 'count';
+            }
+          } else if (widgetType === 'funnel') {
+            const stageCol = realCategoricalColumns.find(c => {
+              const cl = c.toLowerCase();
+              return cl.includes('stage') || cl.includes('etapa') || cl.includes('status') || cl.includes('fase');
+            }) || realCategoricalColumns[0] || 'status';
+            widgetConfig.groupBy = stageCol;
+            if (!widgetConfig.aggregation) widgetConfig.aggregation = 'count';
+          } else if (widgetType === 'table') {
+            delete widgetConfig.columns;
+          }
         }
         
         // Se ainda sem dataSource, usar resolução inteligente por tipo de widget
