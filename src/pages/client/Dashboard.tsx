@@ -109,10 +109,10 @@ const Dashboard = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
-            Visão Executiva
+            {dashboard?.name || 'Tráfego Pago'}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Panorama completo de performance dos últimos 30 dias
+            Performance de investimento em mídia — últimos 30 dias
           </p>
         </div>
 

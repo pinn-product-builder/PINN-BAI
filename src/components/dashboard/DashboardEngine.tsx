@@ -975,10 +975,10 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   const tableWidgets = sortedWidgets.filter(w => w.type === 'table');
   const insightWidgets = sortedWidgets.filter(w => w.type === 'insight_card');
 
-  // Reference layout: 5 hero KPIs + 4 secondary KPIs
-  const heroCount = Math.min(metricWidgets.length, 5);
+  const heroCount = Math.min(metricWidgets.length, 4);
   const heroMetrics = metricWidgets.slice(0, heroCount);
-  const secondaryMetrics = metricWidgets.slice(heroCount);
+  const secondaryMetrics = metricWidgets.slice(heroCount, heroCount + 4);
+  const extraMetrics = metricWidgets.slice(heroCount + 4);
 
   // Pair tables for side-by-side layout
   const firstTablePair = tableWidgets.slice(0, 2);
@@ -989,12 +989,8 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
       {/* Section: Indicadores Principais */}
       {heroMetrics.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Indicadores Principais</h2>
-          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
-            heroMetrics.length >= 5 ? 'xl:grid-cols-5' : 
-            heroMetrics.length === 4 ? 'xl:grid-cols-4' : 
-            heroMetrics.length === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-2'
-          }`}>
+          <h2 className="text-sm font-semibold text-foreground mb-3">Últimos 30 Dias</h2>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
             {heroMetrics.map(widget => (
               <div key={widget.id} className="min-h-[130px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
@@ -1007,11 +1003,21 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
       {/* Secondary KPIs row */}
       {secondaryMetrics.length > 0 && (
         <section>
-          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
-            secondaryMetrics.length >= 4 ? 'xl:grid-cols-4' : 
-            secondaryMetrics.length === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-2'
-          }`}>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
             {secondaryMetrics.map(widget => (
+              <div key={widget.id} className="min-h-[120px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Extra metrics if any */}
+      {extraMetrics.length > 0 && (
+        <section>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {extraMetrics.map(widget => (
               <div key={widget.id} className="min-h-[120px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
