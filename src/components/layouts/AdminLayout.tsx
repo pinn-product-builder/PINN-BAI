@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   BarChart3,
@@ -26,6 +27,7 @@ const navItems = [
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,7 +82,7 @@ const AdminLayout = () => {
                 variant="ghost"
                 size="icon"
                 className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                onClick={() => navigate('/login')}
+                onClick={async () => { await signOut(); navigate('/login'); }}
               >
                 <LogOut className="w-4 h-4" />
               </Button>
