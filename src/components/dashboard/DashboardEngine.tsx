@@ -678,19 +678,39 @@ const WidgetRenderer = ({
     return result;
   };
   
-  // Get metric label for display (estilo do print)
-  const getMetricLabel = (): string | undefined => {
-    if (!rawData.length) return undefined;
+  // Friendly subtitle based on metric/widget context
+  const METRIC_SUBTITLES: Record<string, string> = {
+    custo_total: 'Acumulado do mês',
+    spend: 'Acumulado do mês',
+    spend_30d: 'Acumulado do mês',
+    investimento: 'Acumulado do mês',
+    leads: 'Últimos 30 dias',
+    leads_total_30d: 'Últimos 30 dias',
+    leads_new: 'Últimos 30 dias',
+    new_leads: 'Últimos 30 dias',
+    entradas: 'Últimos 30 dias',
+    msg_in_30d: 'Últimos 30 dias',
+    taxa_entrada: 'Média 30 dias',
+    conversion_rate: 'Média 30 dias',
+    conv_lead_to_meeting_30d: 'Média 30 dias',
+    cpl: 'Média 30 dias',
+    cpl_30d: 'Média 30 dias',
+    cpm: 'Média 30 dias',
+    cp_meeting_booked_30d: 'Média 30 dias',
+    meetings_booked: 'Últimos 30 dias',
+    meetings_booked_30d: 'Últimos 30 dias',
+    meetings_done: 'Últimos 30 dias',
+    meetings_done_30d: 'Últimos 30 dias',
+    calls_done: 'Últimos 30 dias',
+  };
+
+  const getMetricSubtitle = (): string => {
     const metricField = config.metric;
-    if (!metricField) {
-      // Try to find the first numeric field
-      const firstRow = rawData[0];
-      const numericField = Object.keys(firstRow).find(key => 
-        typeof firstRow[key] === 'number'
-      );
-      return numericField || undefined;
+    if (metricField) {
+      const lower = metricField.toLowerCase().trim();
+      if (METRIC_SUBTITLES[lower]) return METRIC_SUBTITLES[lower];
     }
-    return metricField;
+    return 'Últimos 30 dias';
   };
   
   const wrapperProps = {
@@ -728,7 +748,7 @@ const WidgetRenderer = ({
             format={format}
             isLoading={isLoading && !errorMessage}
             showSparkline={!!metricValue}
-            metricLabel={getMetricLabel()}
+            metricLabel={getMetricSubtitle()}
           />
         </WidgetWrapper>
       );
