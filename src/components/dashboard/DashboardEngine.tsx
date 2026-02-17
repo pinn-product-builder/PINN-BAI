@@ -989,14 +989,13 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   const tableWidgets = sortedWidgets.filter(w => w.type === 'table');
   const insightWidgets = sortedWidgets.filter(w => w.type === 'insight_card');
 
+  // Combine tables + bar charts sorted by position for side-by-side pairing
+  const tablesAndBars = [...tableWidgets, ...barCharts].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
   const heroCount = Math.min(metricWidgets.length, 4);
   const heroMetrics = metricWidgets.slice(0, heroCount);
   const secondaryMetrics = metricWidgets.slice(heroCount, heroCount + 4);
   const extraMetrics = metricWidgets.slice(heroCount + 4);
-
-  // Pair tables for side-by-side layout
-  const firstTablePair = tableWidgets.slice(0, 2);
-  const remainingTables = tableWidgets.slice(2);
 
   return (
     <div className="space-y-8 pb-24">
@@ -1068,58 +1067,36 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* First table pair + Insights IA — side by side */}
-      {(firstTablePair.length > 0 || insightWidgets.length > 0) && (
+      {/* Tables + Bar charts combined, paired side-by-side */}
+      {tablesAndBars.length > 0 && (
         <section>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {firstTablePair[0] && (
-              <div className="min-h-[340px]">
-                <WidgetRenderer widget={firstTablePair[0]} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            )}
-            {insightWidgets.length > 0 ? (
-              insightWidgets.map(widget => (
-                <div key={widget.id} className="min-h-[340px]">
-                  <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-                </div>
-              ))
-            ) : firstTablePair[1] ? (
-              <div className="min-h-[340px]">
-                <WidgetRenderer widget={firstTablePair[1]} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ) : null}
-          </div>
-        </section>
-      )}
-
-      {/* Second table pair (Reuniões do Mês + Lista de Leads) — side by side */}
-      {(firstTablePair[1] && insightWidgets.length > 0) || remainingTables.length > 0 ? (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* If insights took the spot of table[1], render table[1] here */}
-            {firstTablePair[1] && insightWidgets.length > 0 && (
-              <div className="min-h-[340px]">
-                <WidgetRenderer widget={firstTablePair[1]} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            )}
-            {remainingTables.map(widget => (
+            {tablesAndBars.map(widget => (
               <div key={widget.id} className="min-h-[340px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
             ))}
           </div>
         </section>
-      ) : null}
+      )}
 
-      {/* Bar charts + Pie charts if any */}
-      {(barCharts.length > 0 || pieCharts.length > 0) && (
+      {/* Insights IA */}
+      {insightWidgets.length > 0 && (
         <section>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {barCharts.map(widget => (
-              <div key={widget.id} className="min-h-[320px]">
+            {insightWidgets.map(widget => (
+              <div key={widget.id} className="min-h-[340px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Pie charts if any */}
+      {pieCharts.length > 0 && (
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {pieCharts.map(widget => (
               <div key={widget.id} className="min-h-[320px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
