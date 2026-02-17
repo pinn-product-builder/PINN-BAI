@@ -108,12 +108,8 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-primary font-semibold text-[10px] uppercase tracking-[0.2em]">
-            <Sparkles className="w-3 h-3" />
-            Dashboard Executivo
-          </div>
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
-            {dashboard?.name || 'Visão Executiva'}
+            Visão Executiva
           </h1>
           <p className="text-sm text-muted-foreground">
             Panorama completo de performance dos últimos 30 dias
@@ -129,7 +125,7 @@ const Dashboard = () => {
             disabled={isExporting}
           >
             {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-            Exportar PDF
+            Relatório PDF
           </Button>
           <Button
             variant="outline"
@@ -147,11 +143,7 @@ const Dashboard = () => {
             ) : (
               <Volume2 className="w-3.5 h-3.5" />
             )}
-            Briefing IA
-          </Button>
-          <Button size="sm" className="h-9 px-4 rounded-lg text-xs font-medium gap-1.5">
-            <Plus className="w-3.5 h-3.5" />
-            Widget
+            CEO Briefing
           </Button>
         </div>
       </div>
