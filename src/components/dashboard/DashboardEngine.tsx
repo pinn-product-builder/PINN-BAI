@@ -339,16 +339,6 @@ const WidgetWrapper = ({
   error?: string | null;
 }) => (
   <div className="relative group h-full">
-    {/* Source badge — discrete top-left */}
-    {sourceTable && (
-      <Badge 
-        variant="secondary" 
-        className="absolute -top-2.5 left-3 z-10 text-[9px] px-1.5 py-0 h-[18px] flex items-center gap-1 bg-muted/80 backdrop-blur-sm border-border/50 font-mono"
-      >
-        <Database className="w-2.5 h-2.5" />
-        {sourceTable}
-      </Badge>
-    )}
     {/* Hover controls — top-right */}
     <div className="absolute -top-2.5 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
       {onRefresh && (
