@@ -20,13 +20,13 @@ const Login = () => {
   const { signIn, profile, roles, isPlatformAdmin, isLoading: authLoading, refreshProfile } = useAuth();
   const hasRedirected = useRef(false);
 
-  const from = (location.state as { from?: Location })?.from?.pathname || '/admin/settings';
+  const from = (location.state as { from?: Location })?.from?.pathname;
 
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && profile && roles.length > 0 && !shouldRedirect) {
       if (isPlatformAdmin || roles.includes('platform_admin')) {
-        navigate('/admin/settings', { replace: true });
+        navigate('/admin/hq', { replace: true });
       } else if (profile.org_id) {
         navigate(`/client/${profile.org_id}/dashboard`, { replace: true });
       }
@@ -50,7 +50,7 @@ const Login = () => {
 
     // Platform admin should go to settings
     if (isPlatformAdmin || roles.includes('platform_admin')) {
-      navigate('/admin/settings', { replace: true });
+      navigate('/admin/hq', { replace: true });
     } 
     // Client users should go to their organization's dashboard
     else if (profile?.org_id) {
