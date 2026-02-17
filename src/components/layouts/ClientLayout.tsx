@@ -21,10 +21,8 @@ import { Sparkles } from 'lucide-react';
 
 const navItems = [
   { path: 'dashboard', label: 'Centro de Comando', icon: LayoutDashboard },
-  { path: 'crm', label: 'Smart CRM', icon: Layout },
   { path: 'import', label: 'Conector de Dados', icon: Upload },
   { path: 'insights', label: 'Inteligência IA', icon: Lightbulb },
-  { path: 'datasets', label: 'Fontes de Dados', icon: Database },
   { path: 'settings', label: 'White Label', icon: Settings },
 ];
 
