@@ -17,8 +17,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [organization, setOrganization] = useState<Organization | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Check if we're in admin context
-    const isAdminContext = location.pathname.startsWith('/admin') || isPlatformAdmin;
+    // Check if we're in admin context (only admin routes, not client routes even for platform admins)
+    const isAdminContext = location.pathname.startsWith('/admin');
+    const isClientContext = location.pathname.startsWith('/client');
     const [refreshKey, setRefreshKey] = useState(0);
 
     // Listen for settings updates to refetch org data
@@ -30,17 +31,19 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     useEffect(() => {
         const fetchOrg = async () => {
-            // If admin context OR platform admin, always use admin theme (black/orange)
-            // Never apply organization colors to admin
-            if (isAdminContext || isPlatformAdmin) {
+            // If admin context and not in client area, use admin theme
+            if (isAdminContext && !isClientContext) {
                 setOrganization(null);
                 resetToAdminTheme();
                 setIsLoading(false);
                 return;
             }
 
-            // Only apply organization colors for client users (not admin)
-            if (!profile?.org_id) {
+            // For client context, extract orgId from URL path
+            const clientOrgMatch = location.pathname.match(/^\/client\/([^/]+)/);
+            const targetOrgId = clientOrgMatch ? clientOrgMatch[1] : profile?.org_id;
+
+            if (!targetOrgId) {
                 setOrganization(null);
                 resetToAdminTheme();
                 setIsLoading(false);
@@ -50,7 +53,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const { data, error } = await supabase
                 .from('organizations')
                 .select('*')
-                .eq('id', profile.org_id)
+                .eq('id', targetOrgId)
                 .single();
 
             if (!error && data) {
@@ -63,7 +66,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
 
         fetchOrg();
-    }, [profile?.org_id, isAdminContext, isPlatformAdmin, location.pathname, refreshKey]);
+    }, [profile?.org_id, isAdminContext, isClientContext, isPlatformAdmin, location.pathname, refreshKey]);
 
     // Reset to admin theme (black and orange)
     const resetToAdminTheme = () => {
@@ -71,19 +74,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         
         // Admin theme: Black background, Orange accents
         // Reset to default values from index.css
+        root.style.removeProperty('--primary');
         root.style.removeProperty('--accent');
         root.style.removeProperty('--ring');
         root.style.removeProperty('--sidebar-primary');
+        root.style.removeProperty('--sidebar-ring');
         root.style.removeProperty('--sidebar-background');
         root.style.removeProperty('--chart-1');
         root.style.removeProperty('font-family');
-        
-        // Ensure admin uses orange (not blue)
-        // Primary orange: 25 100% 50% (#ff6900)
-        root.style.setProperty('--accent', '38 100% 50%'); // Amber glow
-        root.style.setProperty('--ring', '38 100% 50%'); // Orange ring
-        root.style.setProperty('--sidebar-primary', '25 100% 50%'); // Luminous orange
-        root.style.setProperty('--chart-1', '25 100% 50%'); // Orange for charts
     };
 
     const applyTheme = (org: any) => {
@@ -122,20 +120,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (org.primary_color) {
             const hsl = hexToHSL(org.primary_color);
+            root.style.setProperty('--primary', hsl);
             root.style.setProperty('--accent', hsl);
             root.style.setProperty('--ring', hsl);
             root.style.setProperty('--sidebar-primary', hsl);
-            // We can also adjust chart-1 to match primary
+            root.style.setProperty('--sidebar-ring', hsl);
             root.style.setProperty('--chart-1', hsl);
-        }
-
-        if (org.secondary_color) {
-            const hsl = hexToHSL(org.secondary_color);
-            root.style.setProperty('--sidebar-background', hsl);
-        }
-
-        if (org.font_family) {
-            root.style.setProperty('font-family', org.font_family + ', sans-serif');
         }
     };
 
