@@ -8,7 +8,7 @@ interface NarrativeInsight {
 }
 
 /**
- * Hook to generate AI narrative summary based on dashboard widgets data
+ * Hook to generate narrative summary based on dashboard widgets data
  */
 export const useDashboardNarrative = (dashboardId: string | undefined, orgId: string | undefined) => {
   const { data: widgetsAndData, isLoading } = useQuery({
@@ -25,31 +25,37 @@ export const useDashboardNarrative = (dashboardId: string | undefined, orgId: st
         .order('position', { ascending: true });
 
       if (error) throw error;
-      if (!widgets || widgets.length === 0) return { widgets: [], metricData: [] };
+      if (!widgets || widgets.length === 0) return { widgets: [], externalData: null };
 
-      // Get metric widgets and fetch their data
-      const metricWidgets = widgets.filter(w => w.type === 'metric_card').slice(0, 3);
-      const metricData: Array<{ widget: typeof widgets[0]; data: any }> = [];
+      // Find the main data source from widgets
+      const dataSources = new Set<string>();
+      widgets.forEach(w => {
+        const config = (w.config || {}) as any;
+        const table = config.dataSource || config.sourceTable;
+        if (table) dataSources.add(table);
+      });
 
-      for (const widget of metricWidgets) {
-        const config = (widget.config || {}) as any;
-        const tableName = config.dataSource || config.sourceTable;
-        if (!tableName) continue;
-
+      // Fetch data from first source
+      const primaryTable = Array.from(dataSources)[0];
+      let externalData: any[] = [];
+      
+      if (primaryTable) {
         try {
           const { data } = await supabase.functions.invoke('fetch-client-data', {
-            body: { orgId, tableName, limit: 100 },
+            body: { orgId, tableName: primaryTable, limit: 100 },
           });
-          metricData.push({ widget, data });
+          if (data?.success && data.data) {
+            externalData = data.data;
+          }
         } catch {
-          // skip failed fetches
+          // skip
         }
       }
 
-      return { widgets, metricData };
+      return { widgets, externalData, primaryTable };
     },
     enabled: !!dashboardId && !!orgId,
-    staleTime: 30000,
+    staleTime: 60000,
     refetchOnWindowFocus: false,
   });
 
@@ -61,47 +67,61 @@ export const useDashboardNarrative = (dashboardId: string | undefined, orgId: st
       };
     }
 
-    const insights: string[] = [];
-    let trend: 'up' | 'down' | 'stable' = 'stable';
-
-    for (const { widget, data } of widgetsAndData.metricData) {
-      if (!data?.success || !data.data || data.data.length === 0) continue;
-
-      const config = (widget.config || {}) as any;
-      const metricField = config.metric || 'value';
-      const values = data.data
-        .map((row: any) => {
-          const val = row[metricField];
-          return typeof val === 'number' ? val : parseFloat(String(val)) || 0;
-        })
-        .filter((v: number) => !isNaN(v));
-
-      if (values.length > 0) {
-        const total = values.reduce((a: number, b: number) => a + b, 0);
-        const avg = total / values.length;
-
-        if (widget.title.toLowerCase().includes('lead')) {
-          insights.push(`${total} leads no período`);
-          if (total > 50) trend = 'up';
-        } else if (widget.title.toLowerCase().includes('receita') || widget.title.toLowerCase().includes('revenue')) {
-          insights.push(`Receita total de R$ ${total.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`);
-          if (total > 10000) trend = 'up';
-        } else if (widget.title.toLowerCase().includes('conversão') || widget.title.toLowerCase().includes('conversion')) {
-          insights.push(`Taxa de conversão de ${avg.toFixed(1)}%`);
-          if (avg > 10) trend = 'up';
-        }
-      }
-    }
-
-    if (insights.length === 0) {
+    const data = widgetsAndData.externalData || [];
+    const totalRecords = data.length;
+    
+    if (totalRecords === 0) {
       return {
         text: "Seus dados estão sendo processados. Os insights aparecerão aqui em breve.",
         trend: 'stable',
       };
     }
 
+    const insights: string[] = [];
+    let trend: 'up' | 'down' | 'stable' = 'stable';
+
+    // Analyze the data dynamically based on available fields
+    const fields = totalRecords > 0 ? Object.keys(data[0]) : [];
+    
+    // Count records
+    insights.push(`${totalRecords} registros encontrados`);
+
+    // Check for reunion/meeting fields
+    const reuniaoField = fields.find(f => f.toLowerCase().includes('reuniao') && !f.includes('_at'));
+    if (reuniaoField) {
+      const withMeeting = data.filter((r: any) => r[reuniaoField] === true).length;
+      if (withMeeting > 0) {
+        const rate = ((withMeeting / totalRecords) * 100).toFixed(0);
+        insights.push(`${withMeeting} com reunião (${rate}%)`);
+        if (parseInt(rate) > 20) trend = 'up';
+      }
+    }
+
+    // Check for destination/interest fields
+    const destinoField = fields.find(f => f.toLowerCase().includes('destino') || f.toLowerCase().includes('interesse'));
+    if (destinoField) {
+      const withDestino = data.filter((r: any) => r[destinoField] && String(r[destinoField]).trim() !== '').length;
+      if (withDestino > 0) {
+        insights.push(`${withDestino} com destino definido`);
+      }
+    }
+
+    // Check for date fields to determine recency
+    const dateField = fields.find(f => f.toLowerCase().includes('data_criacao') || f.toLowerCase().includes('created_at'));
+    if (dateField) {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const recentCount = data.filter((r: any) => {
+        try { return new Date(r[dateField]) >= sevenDaysAgo; } catch { return false; }
+      }).length;
+      if (recentCount > 0) {
+        insights.push(`${recentCount} novos nos últimos 7 dias`);
+        if (recentCount > totalRecords * 0.3) trend = 'up';
+      }
+    }
+
     const highlight = insights[0] || '';
-    const text = `Olá! ${insights.join('. ')}. ${insights.length > 1 ? 'Continue monitorando suas métricas para identificar oportunidades de crescimento.' : 'Mantenha o foco nas estratégias que estão gerando resultados.'}`;
+    const text = `Resumo: ${insights.join(' · ')}. ${trend === 'up' ? 'Tendência positiva detectada!' : 'Continue monitorando suas métricas.'}`;
 
     return { text, highlight, trend };
   };

@@ -17,7 +17,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, orgId } = await req.json();
+    const { messages, orgId, mode } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -39,14 +39,6 @@ serve(async (req) => {
         .eq("id", orgId)
         .single();
 
-      // Get recent leads summary
-      const { data: leads } = await supabase
-        .from("leads")
-        .select("id, name, status, source, value, created_at")
-        .eq("org_id", orgId)
-        .order("created_at", { ascending: false })
-        .limit(500);
-
       // Get integrations
       const { data: integrations } = await supabase
         .from("integrations")
@@ -65,58 +57,97 @@ serve(async (req) => {
         .select("source_table, source_column, target_metric, transform_type")
         .eq("org_id", orgId);
 
-      // Also fetch external data if integration exists
+      // Fetch external data from client's Supabase
       let externalDataContext = "";
       if (integrations && integrations.length > 0) {
         const supabaseIntegration = integrations.find(i => i.type === "supabase" && i.status === "connected");
         if (supabaseIntegration) {
           const config = supabaseIntegration.config as any;
-          if (config?.supabaseUrl && config?.supabaseAnonKey) {
+          // Support both field name conventions
+          const projectUrl = config?.projectUrl || config?.supabaseUrl;
+          const anonKey = config?.anonKey || config?.supabaseAnonKey;
+          
+          if (projectUrl && anonKey) {
             try {
-              const extClient = createClient(config.supabaseUrl, config.supabaseAnonKey);
+              const extClient = createClient(projectUrl, anonKey);
               
-              // Try to fetch from common views/tables
-              const viewsToTry = [
-                "vw_dashboard_kpis_30d_v3",
-                "vw_afonsina_custos_funil_dia",
-                "vw_dashboard_daily_60d_v3",
-                "vw_funnel_current_v3",
-              ];
+              // Get the tables configured for this org's widgets
+              const widgetTables = new Set<string>();
+              dashboards?.forEach(d => {
+                (d.dashboard_widgets as any[])?.forEach(w => {
+                  const wConfig = w.config as any;
+                  const table = wConfig?.dataSource || wConfig?.sourceTable;
+                  if (table) widgetTables.add(table);
+                });
+              });
 
-              for (const viewName of viewsToTry) {
+              // Fetch data from each configured table
+              for (const tableName of widgetTables) {
                 try {
-                  const { data: viewData, error } = await extClient
-                    .from(viewName)
+                  const { data: tableData, error } = await extClient
+                    .from(tableName)
                     .select("*")
-                    .limit(30);
+                    .limit(50);
 
-                  if (!error && viewData && viewData.length > 0) {
-                    externalDataContext += `\n### Dados de ${viewName} (${viewData.length} registros)\n`;
-                    externalDataContext += `Colunas: ${Object.keys(viewData[0]).join(", ")}\n`;
+                  if (!error && tableData && tableData.length > 0) {
+                    externalDataContext += `\n### Tabela: ${tableName} (${tableData.length} registros)\n`;
+                    externalDataContext += `Colunas: ${Object.keys(tableData[0]).join(", ")}\n`;
                     
-                    // Add sample data (first 5 rows)
+                    // Add all data rows (up to 50)
                     externalDataContext += `Dados:\n`;
-                    viewData.slice(0, 10).forEach((row, i) => {
+                    tableData.forEach((row, i) => {
                       const vals = Object.entries(row)
+                        .filter(([_, v]) => v !== null && v !== undefined && v !== '')
                         .map(([k, v]) => `${k}: ${v}`)
                         .join(", ");
-                      externalDataContext += `  ${i + 1}. ${vals}\n`;
+                      if (vals) externalDataContext += `  ${i + 1}. ${vals}\n`;
                     });
 
                     // Add aggregations for numeric fields
-                    const numericFields = Object.keys(viewData[0]).filter(k => typeof viewData[0][k] === 'number');
+                    const numericFields = Object.keys(tableData[0]).filter(k => typeof tableData[0][k] === 'number');
                     if (numericFields.length > 0) {
                       externalDataContext += `Totais:\n`;
                       for (const field of numericFields) {
-                        const values = viewData.map(r => Number(r[field]) || 0);
+                        const values = tableData.map(r => Number(r[field]) || 0);
                         const sum = values.reduce((a, b) => a + b, 0);
                         const avg = sum / values.length;
                         externalDataContext += `  ${field}: soma=${sum.toFixed(2)}, média=${avg.toFixed(2)}, min=${Math.min(...values).toFixed(2)}, max=${Math.max(...values).toFixed(2)}\n`;
                       }
                     }
+                    
+                    // Add boolean field summaries
+                    const boolFields = Object.keys(tableData[0]).filter(k => typeof tableData[0][k] === 'boolean');
+                    if (boolFields.length > 0) {
+                      externalDataContext += `Campos booleanos:\n`;
+                      for (const field of boolFields) {
+                        const trueCount = tableData.filter(r => r[field] === true).length;
+                        externalDataContext += `  ${field}: ${trueCount} verdadeiros de ${tableData.length} (${((trueCount/tableData.length)*100).toFixed(1)}%)\n`;
+                      }
+                    }
+                    
+                    // Add text field distribution (top values)
+                    const textFields = Object.keys(tableData[0]).filter(k => {
+                      const v = tableData[0][k];
+                      return typeof v === 'string' && !k.includes('id') && !k.includes('_at') && !k.includes('link') && !k.includes('resumo');
+                    });
+                    if (textFields.length > 0) {
+                      externalDataContext += `Distribuição por campo:\n`;
+                      for (const field of textFields) {
+                        const dist: Record<string, number> = {};
+                        tableData.forEach(r => {
+                          const val = r[field];
+                          if (val && String(val).trim()) {
+                            dist[String(val)] = (dist[String(val)] || 0) + 1;
+                          }
+                        });
+                        if (Object.keys(dist).length > 0 && Object.keys(dist).length <= 20) {
+                          externalDataContext += `  ${field}: ${Object.entries(dist).map(([k, v]) => `${k}(${v})`).join(', ')}\n`;
+                        }
+                      }
+                    }
                   }
                 } catch {
-                  // View doesn't exist, skip
+                  // Table doesn't exist, skip
                 }
               }
             } catch (e) {
@@ -126,92 +157,133 @@ serve(async (req) => {
         }
       }
 
-      // Build context summary
+      // Get internal leads too
+      const { data: leads } = await supabase
+        .from("leads")
+        .select("id, name, status, source, value, created_at")
+        .eq("org_id", orgId)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
       const leadsCount = leads?.length || 0;
       const convertedLeads = leads?.filter(l => l.status === "converted").length || 0;
-      const totalValue = leads?.reduce((sum, l) => sum + (l.value || 0), 0) || 0;
-      
-      const leadsBySource = leads?.reduce((acc, l) => {
-        const src = l.source || "unknown";
-        acc[src] = (acc[src] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>) || {};
-
-      const leadsByStatus = leads?.reduce((acc, l) => {
-        const st = l.status || "unknown";
-        acc[st] = (acc[st] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>) || {};
-
-      // Recent leads (last 7 days)
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const recentLeads = leads?.filter(l => new Date(l.created_at) >= sevenDaysAgo) || [];
-
-      // Last 30 days
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const monthLeads = leads?.filter(l => new Date(l.created_at) >= thirtyDaysAgo) || [];
 
       dataContext = `
 ## Contexto dos Dados da Organização "${org?.name || 'Cliente'}"
 
-### Resumo de Leads (últimos ${leadsCount} registros disponíveis)
-- Total de Leads: ${leadsCount}
-- Leads Convertidos: ${convertedLeads}
-- Taxa de Conversão: ${leadsCount > 0 ? ((convertedLeads / leadsCount) * 100).toFixed(1) : 0}%
-- Valor Total em Pipeline: R$ ${totalValue.toLocaleString('pt-BR')}
-
-### Leads últimos 30 dias
-- Novos leads no mês: ${monthLeads.length}
-- Convertidos no mês: ${monthLeads.filter(l => l.status === 'converted').length}
-
-### Leads últimos 7 dias
-- Novos leads na semana: ${recentLeads.length}
-- Valor médio: R$ ${recentLeads.length > 0 ? (recentLeads.reduce((s, l) => s + (l.value || 0), 0) / recentLeads.length).toFixed(2) : 0}
-
-### Distribuição por Fonte
-${Object.entries(leadsBySource).map(([src, count]) => `- ${src}: ${count} leads`).join('\n')}
-
-### Distribuição por Status
-${Object.entries(leadsByStatus).map(([st, count]) => `- ${st}: ${count} leads`).join('\n')}
+### Leads Internos (Pinn)
+- Total: ${leadsCount}
+- Convertidos: ${convertedLeads}
 
 ### Integrações Ativas
-${integrations?.map(i => `- ${i.name} (${i.type}): ${i.status}`).join('\n') || 'Nenhuma integração configurada'}
+${integrations?.map(i => `- ${i.name} (${i.type}): ${i.status}`).join('\n') || 'Nenhuma'}
 
 ### Dashboards Configurados
-${dashboards?.map(d => `- ${d.name}: ${d.dashboard_widgets?.length || 0} widgets`).join('\n') || 'Nenhum dashboard configurado'}
+${dashboards?.map(d => `- ${d.name}: ${(d.dashboard_widgets as any[])?.length || 0} widgets`).join('\n') || 'Nenhum'}
 
-### Mapeamentos de Dados
-${mappings?.map(m => `- ${m.source_table}.${m.source_column} → ${m.target_metric} (${m.transform_type})`).join('\n') || 'Sem mapeamentos'}
+### Mapeamentos
+${mappings?.map(m => `- ${m.source_table}.${m.source_column} → ${m.target_metric}`).join('\n') || 'Sem mapeamentos'}
 
-### Top 10 Leads por Valor
-${leads?.sort((a, b) => (b.value || 0) - (a.value || 0)).slice(0, 10).map(l => `- ${l.name}: R$ ${(l.value || 0).toLocaleString('pt-BR')} (${l.status})`).join('\n') || 'Sem dados'}
-
-${externalDataContext ? `### Dados Externos (Supabase do Cliente)\n${externalDataContext}` : ''}
+${externalDataContext ? `### Dados Externos (Supabase do Cliente)\n${externalDataContext}` : '### Sem dados externos conectados'}
 `;
     }
 
-    const systemPrompt = `Você é o Pinn AI, um assistente inteligente especializado em análise de dados de negócios.
-Você tem acesso aos dados reais da organização do usuário e deve responder perguntas sobre métricas, leads, conversões e tendências.
-
-SUAS CAPACIDADES:
-- Analisar tendências de leads e conversões
-- Identificar padrões de performance por canal
-- Gerar relatórios textuais detalhados
-- Alertar sobre anomalias nos dados
-- Recomendar ações baseadas nos dados
-- Explicar métricas e KPIs de forma clara
+    // Mode-specific system prompts
+    let systemPrompt: string;
+    
+    if (mode === 'insights') {
+      systemPrompt = `Você é o Pinn AI, especialista em análise de dados de negócios. 
+Analise os dados fornecidos e gere exatamente 3 insights acionáveis no formato JSON.
 
 REGRAS:
-- Seja objetivo, use dados concretos e forneça insights acionáveis.
-- Sempre que possível, inclua números, porcentagens e comparações.
-- Quando apropriado, sugira visualizações ou análises adicionais.
-- Responda sempre em português brasileiro.
-- Use formatação Markdown para melhor legibilidade (negrito, listas, tabelas).
-- Se for perguntado algo que não está nos dados, informe educadamente.
-- Arredonde valores monetários para facilitar leitura.
-- Para tendências, compare períodos quando possível.
+- Responda APENAS com JSON válido, sem markdown ou texto extra
+- Use os dados REAIS fornecidos, nunca invente números
+- Cada insight deve ter: type (recommendation|alert|trend), priority (high|medium|low), content (texto conciso em pt-BR)
+- Priorize insights sobre: conversão, oportunidades perdidas, padrões de comportamento
+
+Formato esperado:
+[
+  {"type": "recommendation", "priority": "high", "content": "..."},
+  {"type": "alert", "priority": "medium", "content": "..."},
+  {"type": "trend", "priority": "low", "content": "..."}
+]
+
+${dataContext}`;
+
+      // Non-streaming for insights mode
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: "Gere 3 insights baseados nos dados acima." },
+          ],
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required" }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const errorText = await response.text();
+        console.error("AI gateway error:", status, errorText);
+        return new Response(JSON.stringify({ error: "AI gateway error" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const aiResult = await response.json();
+      const rawContent = aiResult.choices?.[0]?.message?.content || "[]";
+      
+      // Parse JSON from AI response (may have markdown fences)
+      let insights;
+      try {
+        const cleaned = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        insights = JSON.parse(cleaned);
+      } catch {
+        console.error("Failed to parse insights JSON:", rawContent);
+        insights = [
+          { type: "recommendation", priority: "medium", content: "Dados insuficientes para gerar insights automáticos. Adicione mais registros." }
+        ];
+      }
+
+      return new Response(JSON.stringify({ insights }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Default: streaming chat mode
+    systemPrompt = `Você é o Pinn AI, um assistente inteligente especializado em análise de dados de negócios.
+Você tem acesso aos dados reais da organização do usuário.
+
+CAPACIDADES:
+- Analisar tendências de leads e conversões
+- Identificar padrões de performance
+- Gerar relatórios detalhados
+- Alertar sobre anomalias
+- Recomendar ações baseadas nos dados
+- Explicar métricas e KPIs
+
+REGRAS:
+- Seja objetivo, use dados concretos
+- Inclua números, porcentagens e comparações
+- Responda em português brasileiro
+- Use Markdown para legibilidade
+- Se algo não está nos dados, informe
 
 ${dataContext}`;
 
@@ -233,22 +305,19 @@ ${dataContext}`;
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({ error: "Payment required" }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
       return new Response(JSON.stringify({ error: "AI gateway error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
