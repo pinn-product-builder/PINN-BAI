@@ -631,6 +631,25 @@ const WidgetRenderer = ({
       return rawData.length;
     }
 
+    // Check if the metric field is boolean (e.g., reuniao, reuniao_agendada)
+    const sampleVal = rawData.find(r => r[metricField] !== null && r[metricField] !== undefined)?.[metricField];
+    const isBooleanField = typeof sampleVal === 'boolean';
+
+    if (isBooleanField) {
+      const trueCount = rawData.filter(r => r[metricField] === true).length;
+      const format = resolveFormat(config, widget.title || '');
+      
+      if (format === 'percentage') {
+        // For percentage format on boolean fields, return the rate (0-100)
+        const rate = rawData.length > 0 ? (trueCount / rawData.length) * 100 : 0;
+        console.log('[DashboardEngine] Boolean percentage:', metricField, '→', rate.toFixed(1), '%');
+        return parseFloat(rate.toFixed(1));
+      }
+      
+      console.log('[DashboardEngine] Boolean count:', metricField, '→', trueCount, 'de', rawData.length);
+      return trueCount;
+    }
+
     // Extrair valores numéricos do campo
     const values = rawData
       .map(row => {
@@ -671,7 +690,7 @@ const WidgetRenderer = ({
         break;
       case 'count':
       default:
-        result = rawData.length; // count = número de registros, NÃO de valores
+        result = rawData.length;
     }
 
     console.log('[DashboardEngine] Valor calculado:', result, '| campo:', metricField, '| agregação:', aggregation, '| linhas:', values.length);

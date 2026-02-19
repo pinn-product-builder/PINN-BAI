@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.suggest-mappings]
 verify_jwt = false
+
+[functions.fetch-client-data]
+verify_jwt = false
+
+[functions.create-org-admin]
+verify_jwt = false
