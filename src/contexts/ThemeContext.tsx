@@ -79,6 +79,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         root.style.removeProperty('--ring');
         root.style.removeProperty('--sidebar-primary');
         root.style.removeProperty('--sidebar-ring');
+        root.style.removeProperty('--sidebar-accent');
         root.style.removeProperty('--sidebar-background');
         root.style.removeProperty('--chart-1');
         root.style.removeProperty('font-family');
@@ -125,6 +126,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             root.style.setProperty('--ring', hsl);
             root.style.setProperty('--sidebar-primary', hsl);
             root.style.setProperty('--sidebar-ring', hsl);
+            root.style.setProperty('--sidebar-accent', hsl);
             root.style.setProperty('--chart-1', hsl);
         }
     };
