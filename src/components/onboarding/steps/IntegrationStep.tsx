@@ -143,9 +143,9 @@ const IntegrationStep = ({ integration, onUpdate }: IntegrationStepProps) => {
         // Transform Google Sheets response to tables format
         const sheetsData = data as { 
           success: boolean; 
-          columns: { name: string; type: string; nullable: boolean; sampleValues: unknown[] }[];
-          rows: Record<string, unknown>[];
-          sheetName: string;
+          columns: { name: string; type: string; sampleValues: unknown[] }[];
+          sampleData: Record<string, unknown>[];
+          rowCount: number;
           error?: string;
         };
         
@@ -156,15 +156,15 @@ const IntegrationStep = ({ integration, onUpdate }: IntegrationStepProps) => {
         result = {
           success: true,
           tables: [{
-            name: sheetsData.sheetName || 'Sheet1',
-            columns: sheetsData.columns.map(col => ({
+            name: sheetsConfig.sheetName || 'Sheet1',
+            columns: (sheetsData.columns || []).map(col => ({
               name: col.name,
               type: col.type as 'string' | 'number' | 'date' | 'boolean' | 'unknown',
-              nullable: col.nullable,
-              sampleValues: col.sampleValues,
+              nullable: true,
+              sampleValues: col.sampleValues || [],
             })),
-            rowCount: sheetsData.rows.length,
-            sampleData: sheetsData.rows.slice(0, 3),
+            rowCount: sheetsData.rowCount || 0,
+            sampleData: (sheetsData.sampleData || []).slice(0, 3),
           }],
         };
       } else if (selectedType === 'api') {
