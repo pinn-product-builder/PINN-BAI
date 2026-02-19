@@ -9,6 +9,7 @@ const corsHeaders = {
 interface RequestBody {
   projectUrl: string;
   anonKey: string;
+  serviceRoleKey?: string;
 }
 
 interface ColumnInfo {
@@ -32,11 +33,11 @@ serve(async (req) => {
   }
 
   try {
-    const { projectUrl, anonKey }: RequestBody = await req.json();
+    const { projectUrl, anonKey, serviceRoleKey }: RequestBody = await req.json();
 
-    if (!projectUrl || !anonKey) {
+    if (!projectUrl || (!anonKey && !serviceRoleKey)) {
       return new Response(
-        JSON.stringify({ success: false, error: 'URL e Anon Key são obrigatórios' }),
+        JSON.stringify({ success: false, error: 'URL e pelo menos uma Key são obrigatórios' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -49,8 +50,11 @@ serve(async (req) => {
       );
     }
 
-    // Create client to external Supabase
-    const externalSupabase = createClient(projectUrl, anonKey);
+    // Create client to external Supabase - prefer service role key for full access
+    const connectionKey = serviceRoleKey || anonKey;
+    const externalSupabase = createClient(projectUrl, connectionKey);
+    const usingServiceRole = !!serviceRoleKey;
+    console.log(`Connecting with ${usingServiceRole ? 'service_role' : 'anon'} key`);
 
     let tableNames: string[] = [];
     let discoveryMethod = 'unknown';
@@ -224,6 +228,13 @@ serve(async (req) => {
         'org_memberships', 'organizacoes', 'tags', 'usuarios', 'traffego',
         'user_access', 'user_agent',
         
+        // Ecológica patterns
+        'antiduplicatadas', 'catalogo_ecologica', 'eco_docs',
+        'ecologica_catalogo_itens', 'ecologica_catalogo_precos', 'ecologica_rag_chunks',
+        'ingest_keys', 'kommo_accounts', 'kommo_events_raw',
+        'kommo_leads_ecologica', 'kommo_talks',
+        'n8n_chat_histories', 'n8n_chat_histories1111',
+        
         // Afonsina views (vw_*)
         'vw_calls_by_assistant_daily', 'vw_calls_by_date_month_id', 'vw_calls_by_date_month_ut',
         'vw_calls_daily_by_assistant', 'vw_calls_daily_org_ut', 'vw_calls_helped_source',
@@ -284,45 +295,51 @@ serve(async (req) => {
       console.log(`Found ${tableNames.length} tables via pattern discovery`);
     }
 
-    // Now fetch detailed info for each accessible table
+    // Now fetch detailed info for accessible tables (parallel batches)
     const tables: TableInfo[] = [];
+    const detailBatchSize = 30;
 
-    for (const tableName of tableNames) {
-      try {
-        const { data, error, count } = await externalSupabase
-          .from(tableName)
-          .select('*', { count: 'exact', head: false })
-          .limit(5);
+    for (let i = 0; i < tableNames.length; i += detailBatchSize) {
+      const batch = tableNames.slice(i, i + detailBatchSize);
+      const results = await Promise.allSettled(
+        batch.map(async (tableName) => {
+          const { data, error, count } = await externalSupabase
+            .from(tableName)
+            .select('*', { count: 'exact', head: false })
+            .limit(5);
 
-        if (!error && data) {
-          // Extract column info from sample data
-          const columns: ColumnInfo[] = [];
-          if (data.length > 0) {
-            const sampleRow = data[0];
-            for (const [colName, value] of Object.entries(sampleRow)) {
-              const sampleValues = data
-                .map(row => (row as Record<string, unknown>)[colName])
-                .filter(v => v !== null && v !== undefined)
-                .slice(0, 3);
-
-              columns.push({
-                name: colName,
-                type: detectType(value),
-                nullable: data.some(row => (row as Record<string, unknown>)[colName] === null),
-                sampleValues,
-              });
+          if (!error && data) {
+            const columns: ColumnInfo[] = [];
+            if (data.length > 0) {
+              const sampleRow = data[0];
+              for (const [colName, value] of Object.entries(sampleRow)) {
+                const sampleValues = data
+                  .map(row => (row as Record<string, unknown>)[colName])
+                  .filter(v => v !== null && v !== undefined)
+                  .slice(0, 3);
+                columns.push({
+                  name: colName,
+                  type: detectType(value),
+                  nullable: data.some(row => (row as Record<string, unknown>)[colName] === null),
+                  sampleValues,
+                });
+              }
             }
+            return {
+              name: tableName,
+              columns,
+              rowCount: count || data.length,
+              sampleData: data as Record<string, unknown>[],
+            } as TableInfo;
           }
+          throw new Error('Not accessible');
+        })
+      );
 
-          tables.push({
-            name: tableName,
-            columns,
-            rowCount: count || data.length,
-            sampleData: data as Record<string, unknown>[],
-          });
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          tables.push(result.value);
         }
-      } catch {
-        // Table not accessible, skip
       }
     }
 
