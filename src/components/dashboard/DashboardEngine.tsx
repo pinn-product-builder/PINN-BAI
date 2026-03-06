@@ -1099,24 +1099,11 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Tables + Bar charts combined, paired side-by-side */}
-      {tablesAndBars.length > 0 && (
+      {/* Tables, Bar charts & Insights — paired side-by-side */}
+      {(tablesAndBars.length > 0 || insightWidgets.length > 0) && (
         <section>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {tablesAndBars.map(widget => (
-              <div key={widget.id} className="min-h-[340px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Insights IA */}
-      {insightWidgets.length > 0 && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {insightWidgets.map(widget => (
+            {[...tablesAndBars, ...insightWidgets].map(widget => (
               <div key={widget.id} className="min-h-[340px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
