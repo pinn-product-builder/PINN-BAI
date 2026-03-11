@@ -31,10 +31,13 @@ import InsightCard from '@/components/dashboard/widgets/InsightCard';
 interface WidgetConfig {
   dataSource?: string;
   metric?: string;
+  metricField?: string; // Alias usado em configs da BF Company
   groupBy?: string;
   aggregation?: 'sum' | 'count' | 'avg' | 'min' | 'max';
   columns?: string[];
   funnelField?: string;
+  funnelFields?: string[];
+  funnelStages?: string[];
   dateFormat?: string;
   sourceTable?: string;
   targetMetric?: string;
@@ -387,7 +390,12 @@ const WidgetRenderer = ({
   orgId: string;
   onRemove?: (widgetId: string) => void;
 }) => {
-  const config = (widget.config || {}) as WidgetConfig;
+  const rawConfig = (widget.config || {}) as WidgetConfig;
+  // Normalizar: metricField → metric (BF Company usa metricField no DB)
+  const config: WidgetConfig = {
+    ...rawConfig,
+    metric: rawConfig.metric || rawConfig.metricField,
+  };
   const tableName = config.dataSource || config.sourceTable;
   
   const { data: externalData, isLoading, error, refetch } = useExternalData(
@@ -834,7 +842,19 @@ const WidgetRenderer = ({
     }
       
     case 'funnel': {
-      const funnelData = processGroupedData(rawData, config);
+      let funnelData: any[];
+      
+      // Funil baseado em campos booleanos (BF Company: funnelFields + funnelStages)
+      if (config.funnelFields && config.funnelStages && rawData.length > 0) {
+        funnelData = config.funnelFields.map((field, i) => {
+          const label = config.funnelStages?.[i] || field;
+          const count = rawData.filter(row => row[field] === true).length;
+          return { label, value: count, name: label, stage: label };
+        });
+      } else {
+        funnelData = processGroupedData(rawData, config);
+      }
+      
       return (
         <WidgetWrapper {...wrapperProps}>
           <FunnelWidget
