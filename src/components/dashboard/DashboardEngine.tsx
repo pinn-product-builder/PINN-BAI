@@ -842,7 +842,19 @@ const WidgetRenderer = ({
     }
       
     case 'funnel': {
-      const funnelData = processGroupedData(rawData, config);
+      let funnelData: any[];
+      
+      // Funil baseado em campos booleanos (BF Company: funnelFields + funnelStages)
+      if (config.funnelFields && config.funnelStages && rawData.length > 0) {
+        funnelData = config.funnelFields.map((field, i) => {
+          const label = config.funnelStages?.[i] || field;
+          const count = rawData.filter(row => row[field] === true).length;
+          return { label, value: count, name: label, stage: label };
+        });
+      } else {
+        funnelData = processGroupedData(rawData, config);
+      }
+      
       return (
         <WidgetWrapper {...wrapperProps}>
           <FunnelWidget
