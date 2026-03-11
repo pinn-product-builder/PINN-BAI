@@ -146,9 +146,16 @@ const processMultiSeriesData = (
     console.warn('[processMultiSeriesData] Nenhum campo de agrupamento encontrado. Config:', configGroupBy, 'Disponíveis:', Object.keys(rawData[0]));
     // Fallback: agrupar por índice
     const firstRow = rawData[0];
+    const isSkipField = (k: string) => {
+      const l = k.toLowerCase();
+      return l === 'id' || l.endsWith('_id') || l === 'uuid' || l === 'pk' ||
+        l.endsWith('_at') || l.endsWith('_at_ts') || l.endsWith('_at_iso') || l.endsWith('_in_db_at') ||
+        ['timestamp', 'date', 'datetime', 'time', 'day', 'dia', 'data'].includes(l);
+    };
     const numericKeys = Object.keys(firstRow).filter(key => {
-      if (/^(id|uuid|pk|org_id|dashboard_id)$/i.test(key)) return false;
+      if (isSkipField(key)) return false;
       const val = firstRow[key];
+      if (typeof val === 'boolean') return true;
       return val !== null && val !== undefined && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
     });
     if (numericKeys.length === 0) return { chartData: [], detectedKeys: [] };
@@ -156,7 +163,7 @@ const processMultiSeriesData = (
       const entry: Record<string, unknown> = { label: `#${i + 1}` };
       numericKeys.forEach(key => {
         const val = row[key];
-        entry[key] = typeof val === 'number' ? val : parseFloat(String(val)) || 0;
+        entry[key] = typeof val === 'boolean' ? (val ? 1 : 0) : (typeof val === 'number' ? val : parseFloat(String(val)) || 0);
       });
       return entry;
     });
