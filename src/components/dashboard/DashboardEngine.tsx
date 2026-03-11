@@ -200,11 +200,12 @@ const processMultiSeriesData = (
     const lower = key.toLowerCase();
     // Pular campos de ID (lead_id, pipeline_id, status_id, org_id, etc.)
     if (lower === 'id' || lower.endsWith('_id') || lower === 'uuid' || lower === 'pk') return true;
-    // Pular campos de timestamp/data (created_at, updated_at_ts, closed_at_ts, synced_at, inserted_at, etc.)
+    // Pular campos de timestamp/data
     if (lower.endsWith('_at') || lower.endsWith('_at_ts') || lower.endsWith('_at_iso') || lower.endsWith('_in_db_at')) return true;
     if (lower === 'created_at' || lower === 'updated_at' || lower === 'synced_at' || lower === 'inserted_at') return true;
-    // Pular campos que são claramente timestamps pelo padrão de nome
     if (['timestamp', 'date', 'datetime', 'time', 'day', 'dia', 'data'].includes(lower)) return true;
+    // Pular campos de texto/nome que podem ser parseados como número acidentalmente
+    if (['name', 'nome', 'email', 'phone', 'telefone', 'company', 'empresa', 'responsible_user_name', 'slug', 'description', 'descricao', 'notes', 'observacoes', 'address', 'endereco', 'url', 'link'].includes(lower)) return true;
     return false;
   };
   const numericKeys = Object.keys(firstRow).filter(key => {
