@@ -34,9 +34,11 @@ const CHART_COLORS = [
 const DEFAULT_LABEL_MAP: Record<string, string> = {
   value: 'Valor',
   value2: 'Valor 2',
+  total: 'Total',
   leads: 'Leads',
   new_leads: 'Novos Leads',
   leads_new: 'Novos Leads',
+  leads_total: 'Total de Leads',
   revenue: 'Receita',
   conversions: 'Conversões',
   messages: 'Mensagens',
@@ -47,6 +49,15 @@ const DEFAULT_LABEL_MAP: Record<string, string> = {
   spend: 'Investimento',
   calls_done: 'Ligações',
   cpl: 'CPL',
+  // Campos Kommo
+  hermes_entrada: 'Entrada',
+  hermes_encaminhado: 'Encaminhado',
+  encaminhado: 'Encaminhado',
+  atendimento_feito: 'Atendimento Feito',
+  reuniao_confirmada: 'Reunião Confirmada',
+  reuniao_realizada: 'Reunião Realizada',
+  venda: 'Venda',
+  desqualificado: 'Desqualificado',
 };
 
 const createCustomTooltip = (labelMap: Record<string, string>) => {
