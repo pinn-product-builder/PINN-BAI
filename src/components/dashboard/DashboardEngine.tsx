@@ -31,10 +31,13 @@ import InsightCard from '@/components/dashboard/widgets/InsightCard';
 interface WidgetConfig {
   dataSource?: string;
   metric?: string;
+  metricField?: string; // Alias usado em configs da BF Company
   groupBy?: string;
   aggregation?: 'sum' | 'count' | 'avg' | 'min' | 'max';
   columns?: string[];
   funnelField?: string;
+  funnelFields?: string[];
+  funnelStages?: string[];
   dateFormat?: string;
   sourceTable?: string;
   targetMetric?: string;
