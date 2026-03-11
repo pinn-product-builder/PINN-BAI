@@ -196,16 +196,25 @@ const processMultiSeriesData = (
   
   // Auto-detectar colunas numéricas (excluindo groupBy, IDs e timestamps)
   const firstRow = rawData[0];
+  // Campos permitidos no gráfico de evolução (apenas métricas relevantes do Kommo)
+  const ALLOWED_CHART_FIELDS = new Set([
+    'encaminhado',
+    'atendimento_feito',
+    'reuniao_confirmada',
+    'reuniao_realizada',
+    'venda',
+    'desqualificado',
+    'entrada',
+    'hermes_entrada',
+  ]);
+
   const isSkippableField = (key: string): boolean => {
     const lower = key.toLowerCase();
-    // Pular campos de ID (lead_id, pipeline_id, status_id, org_id, etc.)
-    if (lower === 'id' || lower.endsWith('_id') || lower === 'uuid' || lower === 'pk') return true;
-    // Pular campos de timestamp/data
-    if (lower.endsWith('_at') || lower.endsWith('_at_ts') || lower.endsWith('_at_iso') || lower.endsWith('_in_db_at')) return true;
-    if (lower === 'created_at' || lower === 'updated_at' || lower === 'synced_at' || lower === 'inserted_at') return true;
-    if (['timestamp', 'date', 'datetime', 'time', 'day', 'dia', 'data'].includes(lower)) return true;
-    // Pular campos de texto/nome que podem ser parseados como número acidentalmente
-    if (['name', 'nome', 'email', 'phone', 'telefone', 'company', 'empresa', 'responsible_user_name', 'slug', 'description', 'descricao', 'notes', 'observacoes', 'address', 'endereco', 'url', 'link'].includes(lower)) return true;
+    // Se temos campos permitidos explícitos e o campo não está na lista, pular
+    if (ALLOWED_CHART_FIELDS.size > 0) {
+      // Permitir apenas campos da whitelist
+      if (!ALLOWED_CHART_FIELDS.has(lower)) return true;
+    }
     return false;
   };
   const numericKeys = Object.keys(firstRow).filter(key => {
