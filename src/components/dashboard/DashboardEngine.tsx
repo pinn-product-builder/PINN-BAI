@@ -146,9 +146,16 @@ const processMultiSeriesData = (
     console.warn('[processMultiSeriesData] Nenhum campo de agrupamento encontrado. Config:', configGroupBy, 'Disponíveis:', Object.keys(rawData[0]));
     // Fallback: agrupar por índice
     const firstRow = rawData[0];
+    const isSkipField = (k: string) => {
+      const l = k.toLowerCase();
+      return l === 'id' || l.endsWith('_id') || l === 'uuid' || l === 'pk' ||
+        l.endsWith('_at') || l.endsWith('_at_ts') || l.endsWith('_at_iso') || l.endsWith('_in_db_at') ||
+        ['timestamp', 'date', 'datetime', 'time', 'day', 'dia', 'data'].includes(l);
+    };
     const numericKeys = Object.keys(firstRow).filter(key => {
-      if (/^(id|uuid|pk|org_id|dashboard_id)$/i.test(key)) return false;
+      if (isSkipField(key)) return false;
       const val = firstRow[key];
+      if (typeof val === 'boolean') return true;
       return val !== null && val !== undefined && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
     });
     if (numericKeys.length === 0) return { chartData: [], detectedKeys: [] };
@@ -156,7 +163,7 @@ const processMultiSeriesData = (
       const entry: Record<string, unknown> = { label: `#${i + 1}` };
       numericKeys.forEach(key => {
         const val = row[key];
-        entry[key] = typeof val === 'number' ? val : parseFloat(String(val)) || 0;
+        entry[key] = typeof val === 'boolean' ? (val ? 1 : 0) : (typeof val === 'number' ? val : parseFloat(String(val)) || 0);
       });
       return entry;
     });
@@ -187,13 +194,25 @@ const processMultiSeriesData = (
     return { chartData, detectedKeys: validExplicitKeys };
   }
   
-  // Auto-detectar colunas numéricas (excluindo groupBy e IDs)
+  // Auto-detectar colunas numéricas (excluindo groupBy, IDs e timestamps)
   const firstRow = rawData[0];
-  const skipPatterns = /^(id|uuid|pk|org_id|dashboard_id|created_at|updated_at)$/i;
+  const isSkippableField = (key: string): boolean => {
+    const lower = key.toLowerCase();
+    // Pular campos de ID (lead_id, pipeline_id, status_id, org_id, etc.)
+    if (lower === 'id' || lower.endsWith('_id') || lower === 'uuid' || lower === 'pk') return true;
+    // Pular campos de timestamp/data (created_at, updated_at_ts, closed_at_ts, synced_at, inserted_at, etc.)
+    if (lower.endsWith('_at') || lower.endsWith('_at_ts') || lower.endsWith('_at_iso') || lower.endsWith('_in_db_at')) return true;
+    if (lower === 'created_at' || lower === 'updated_at' || lower === 'synced_at' || lower === 'inserted_at') return true;
+    // Pular campos que são claramente timestamps pelo padrão de nome
+    if (['timestamp', 'date', 'datetime', 'time', 'day', 'dia', 'data'].includes(lower)) return true;
+    return false;
+  };
   const numericKeys = Object.keys(firstRow).filter(key => {
     if (key === groupBy) return false;
-    if (skipPatterns.test(key)) return false;
+    if (isSkippableField(key)) return false;
     const val = firstRow[key];
+    // Aceitar booleanos como numéricos (true=1, false=0) para campos como "encaminhado", "venda"
+    if (typeof val === 'boolean') return true;
     return val !== null && val !== undefined && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
   });
   
@@ -218,7 +237,7 @@ const processMultiSeriesData = (
       };
       numericKeys.forEach(key => {
         const val = row[key];
-        entry[key] = val !== null && val !== undefined ? (typeof val === 'number' ? val : parseFloat(String(val)) || 0) : 0;
+        entry[key] = typeof val === 'boolean' ? (val ? 1 : 0) : (val !== null && val !== undefined ? (typeof val === 'number' ? val : parseFloat(String(val)) || 0) : 0);
       });
       return entry;
     });
