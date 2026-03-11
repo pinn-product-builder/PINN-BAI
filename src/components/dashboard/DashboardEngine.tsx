@@ -390,7 +390,12 @@ const WidgetRenderer = ({
   orgId: string;
   onRemove?: (widgetId: string) => void;
 }) => {
-  const config = (widget.config || {}) as WidgetConfig;
+  const rawConfig = (widget.config || {}) as WidgetConfig;
+  // Normalizar: metricField → metric (BF Company usa metricField no DB)
+  const config: WidgetConfig = {
+    ...rawConfig,
+    metric: rawConfig.metric || rawConfig.metricField,
+  };
   const tableName = config.dataSource || config.sourceTable;
   
   const { data: externalData, isLoading, error, refetch } = useExternalData(
