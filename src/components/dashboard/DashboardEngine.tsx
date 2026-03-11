@@ -237,7 +237,7 @@ const processMultiSeriesData = (
       };
       numericKeys.forEach(key => {
         const val = row[key];
-        entry[key] = val !== null && val !== undefined ? (typeof val === 'number' ? val : parseFloat(String(val)) || 0) : 0;
+        entry[key] = typeof val === 'boolean' ? (val ? 1 : 0) : (val !== null && val !== undefined ? (typeof val === 'number' ? val : parseFloat(String(val)) || 0) : 0);
       });
       return entry;
     });
