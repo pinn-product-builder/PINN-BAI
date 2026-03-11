@@ -24,9 +24,9 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify authorization
+    // Verify authorization (just check presence, JWT validation done by Supabase Auth)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -35,10 +35,8 @@ serve(async (req) => {
       );
     }
 
-    // Create internal client to fetch integration config
-    const internalSupabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Create internal client with service role key to bypass RLS for integration lookup
+    const internalSupabase = createClient(supabaseUrl, serviceRoleKey);
 
     const { orgId, tableName, columns, filters, limit = 1000, orderBy, orderAsc = true }: FetchRequest = await req.json();
 
