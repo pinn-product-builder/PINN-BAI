@@ -770,6 +770,7 @@ const WidgetRenderer = ({
   const SERIES_LABELS: Record<string, string> = {
     new_leads: 'Novos Leads',
     leads_new: 'Novos Leads',
+    leads_total: 'Total de Leads',
     msg_in: 'Mensagens',
     meetings_scheduled: 'Reuniões Agendadas',
     meetings_booked: 'Reuniões Agendadas',
@@ -777,6 +778,16 @@ const WidgetRenderer = ({
     spend: 'Investimento',
     calls_done: 'Ligações',
     cpl: 'CPL',
+    total: 'Total',
+    // Campos Kommo
+    hermes_entrada: 'Entrada',
+    hermes_encaminhado: 'Encaminhado',
+    encaminhado: 'Encaminhado',
+    atendimento_feito: 'Atendimento Feito',
+    reuniao_confirmada: 'Reunião Confirmada',
+    reuniao_realizada: 'Reunião Realizada',
+    venda: 'Venda',
+    desqualificado: 'Desqualificado',
     ...(config.seriesLabels || {}),
   };
 
