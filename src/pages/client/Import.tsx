@@ -170,7 +170,7 @@ const ClientImport = () => {
         { 'Vendas': 7000, 'Leads': 150, 'Data': '2024-02-02', 'Canal': 'LinkedIn' },
         { 'Vendas': 3000, 'Leads': 80, 'Data': '2024-02-03', 'Canal': 'Referral' }
       ]);
-      const recommendations = DataProfiler.recommendWidgets(profiled, organization?.plan || 1);
+      const recommendations = DataProfiler.recommendWidgets(profiled, String(organization?.plan || 1));
 
       const widgetsToInsert = recommendations.map((rec, idx) => ({
         dashboard_id: dashboard.id,

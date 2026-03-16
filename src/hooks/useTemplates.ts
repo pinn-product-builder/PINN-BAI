@@ -551,7 +551,7 @@ export const useApplyTemplate = () => {
             widgetConfig.sourceTable = refMapping.viewName;
             widgetConfig.metric = refMapping.fieldName;
             widgetConfig.aggregation = refMapping.aggregation;
-            if (afonsinaConfig.groupBy) widgetConfig.groupBy = afonsinaConfig.groupBy;
+            // groupBy not available on ResolvedMapping
           } else if (mapping) {
             // Fallback para mapeamento do usuário
             widgetConfig.metric = mapping.field;

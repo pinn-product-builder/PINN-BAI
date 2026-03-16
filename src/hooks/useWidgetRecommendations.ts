@@ -217,7 +217,7 @@ export function generateLocalRecommendations(
         groupBy: dateField,
         aggregation: 'sum',
         format: 'number',
-        isAggregatedView: false,
+        // isAggregatedView removed - not part of WidgetConfig
         showGrid: true,
         animate: true,
         curveType: 'smooth',
