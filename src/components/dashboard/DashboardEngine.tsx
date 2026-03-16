@@ -15,7 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { DashboardWidget } from '@/lib/types';
 import { useExternalData } from '@/hooks/useExternalData';
-import { findWidgetConfig } from '@/lib/afonsinaWidgetConfig';
+import { resolveByWidgetTitle } from '@/lib/referenceMappings';
 import { REFERENCE_MAPPINGS } from '@/lib/referenceMappings';
 
 // Import chart widgets
@@ -43,6 +43,9 @@ interface WidgetConfig {
   targetMetric?: string;
   transformation?: string;
   format?: 'number' | 'currency' | 'percentage';
+  // Flag: view já retorna dados agregados (1 row = 1 período de KPIs)
+  // Quando true, o engine NÃO aplica SUM/COUNT — retorna o valor direto do campo
+  isAggregatedView?: boolean;
   // Multi-série para gráficos de evolução
   dataKeys?: string[];
   seriesLabels?: Record<string, string>;
@@ -194,34 +197,30 @@ const processMultiSeriesData = (
     return { chartData, detectedKeys: validExplicitKeys };
   }
   
-  // Auto-detectar colunas numéricas (excluindo groupBy, IDs e timestamps)
+  // Auto-detectar colunas numéricas usando detecção semântica genérica.
+  // Rejeita: IDs, timestamps, textos, colunas com cardinalidade baixa (categorias).
   const firstRow = rawData[0];
-  // Campos permitidos no gráfico de evolução (apenas métricas relevantes do Kommo)
-  const ALLOWED_CHART_FIELDS = new Set([
-    'encaminhado',
-    'atendimento_feito',
-    'reuniao_confirmada',
-    'reuniao_realizada',
-    'venda',
-    'desqualificado',
-    'entrada',
-    'hermes_entrada',
-  ]);
 
   const isSkippableField = (key: string): boolean => {
     const lower = key.toLowerCase();
-    // Se temos campos permitidos explícitos e o campo não está na lista, pular
-    if (ALLOWED_CHART_FIELDS.size > 0) {
-      // Permitir apenas campos da whitelist
-      if (!ALLOWED_CHART_FIELDS.has(lower)) return true;
-    }
+    // IDs e chaves estrangeiras — nunca são métricas
+    if (/^id$|^uuid$|^pk$|_id$|_uuid$|^org_id$|^user_id$|^integration_id$/i.test(key)) return true;
+    // Timestamps e datas — usados só como groupBy, não como série
+    if (lower.endsWith('_at') || lower.endsWith('_ts') || lower.endsWith('_date') ||
+        ['created', 'updated', 'deleted', 'timestamp', 'datetime'].some(t => lower.includes(t))) return true;
+    // Campos claramente textuais ou de baixa utilidade
+    if (['name', 'nome', 'email', 'phone', 'telefone', 'descr', 'observ', 'comment',
+         'label', 'slug', 'url', 'token', 'hash', 'type', 'tipo', 'category', 'categoria'].some(t => lower.includes(t))) return true;
+    // Campos de status/origem são boas dimensões mas não séries temporais
+    if (['status', 'stage', 'etapa', 'fase', 'source', 'origem', 'canal', 'channel'].some(t => lower === t)) return true;
     return false;
   };
+
   const numericKeys = Object.keys(firstRow).filter(key => {
     if (key === groupBy) return false;
     if (isSkippableField(key)) return false;
     const val = firstRow[key];
-    // Aceitar booleanos como numéricos (true=1, false=0) para campos como "encaminhado", "venda"
+    // Aceitar booleanos como numéricos (true=1, false=0)
     if (typeof val === 'boolean') return true;
     return val !== null && val !== undefined && (typeof val === 'number' || !isNaN(parseFloat(String(val))));
   });
@@ -561,7 +560,7 @@ const WidgetRenderer = ({
     // 5.5. NOVO: Usar Afonsina config como lookup inteligente
     // Se o widget tem um título que corresponde a um widget Afonsina,
     // usar o metricField da configuração para encontrar o campo nos dados
-    const afonsinaConfig = findWidgetConfig(title, widget.type);
+    const afonsinaConfig = resolveByWidgetTitle(title, []);
     if (afonsinaConfig && numericFields.length > 0) {
       const afonsinaField = afonsinaConfig.metricField.toLowerCase();
       const match = numericFields.find(k => k.toLowerCase() === afonsinaField);
@@ -677,7 +676,6 @@ const WidgetRenderer = ({
       const format = resolveFormat(config, widget.title || '');
       
       if (format === 'percentage') {
-        // For percentage format on boolean fields, return the rate (0-100)
         const rate = rawData.length > 0 ? (trueCount / rawData.length) * 100 : 0;
         console.log('[DashboardEngine] Boolean percentage:', metricField, '→', rate.toFixed(1), '%');
         return parseFloat(rate.toFixed(1));
@@ -699,12 +697,23 @@ const WidgetRenderer = ({
       .filter((v): v is number => v !== null);
 
     if (values.length === 0) {
-      // Campo encontrado mas sem valores numéricos → contagem de registros
       console.warn('[DashboardEngine] Sem valores numéricos no campo:', metricField, '→ usando row count');
       return rawData.length;
     }
 
-    // View agregada (1 row com KPIs pré-calculados) → retorna valor direto
+    // View agregada (flag explícita OU 1 row com KPIs pré-calculados) → retorna valor direto
+    // Detectar automaticamente se a view é KPI: nome contém vw_*, kpi, _30d, _60d, summary
+    const tableName = (config.dataSource || config.sourceTable || '').toLowerCase();
+    const isViewKpi = config.isAggregatedView ||
+      /^vw_|^view_/i.test(tableName) ||
+      /kpi|_30d|_60d|_7d|summary|overview/i.test(tableName);
+
+    if (isViewKpi && values.length >= 1) {
+      // View KPI: retorna o primeiro valor sem re-agregar (evita double-sum)
+      console.log('[DashboardEngine] View KPI detectada, valor direto:', values[0], '| tabela:', tableName);
+      return values[0];
+    }
+
     if (rawData.length === 1 && values.length === 1) {
       console.log('[DashboardEngine] View agregada (1 row), retornando valor direto:', values[0]);
       return values[0];

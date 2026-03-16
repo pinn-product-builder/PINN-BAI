@@ -161,8 +161,9 @@ const OnboardingWizard = () => {
             aggregation: m.aggregation || 'count',
             sourceTable: m.sourceTable,
             transformation: m.transformation || 'none',
+            groupByField: m.groupByField,
           },
-        }), {} as Record<string, { field: string; aggregation: string; sourceTable?: string; transformation?: string }>);
+        }), {} as Record<string, { field: string; aggregation: string; sourceTable?: string; transformation?: string; groupByField?: string }>);
 
         await applyTemplate.mutateAsync({
           templateId: state.selectedTemplateId,
@@ -173,17 +174,37 @@ const OnboardingWizard = () => {
       } 
       // Or create widgets from manual selection — enriquecer com dataSource
       else if (state.selectedWidgets.length > 0) {
-        // Descobrir melhor tabela para cada tipo
         const allTables = state.mappings.map(m => m.sourceTable).filter(Boolean);
         const primaryTable = state.primaryTable || allTables[0] || state.integration?.tables?.[0]?.name;
-        
+
+        // Helper: detecta view KPI agregada
+        const isAggView = (t?: string | null): boolean => {
+          if (!t) return false;
+          const tl = t.toLowerCase();
+          return /^vw_|^view_/i.test(tl) || /kpi|_30d|_60d|_7d|summary|overview|dashboard/i.test(tl);
+        };
+
         const widgetsToCreate = state.selectedWidgets.map((w, index) => {
-          const config = { ...(w.config || {}) };
-          // Garantir que cada widget tem um dataSource
+          const config = { ...(w.config || {}) } as Record<string, unknown>;
+
+          // Garantir dataSource
           if (!config.dataSource && primaryTable) {
             config.dataSource = primaryTable;
-            config.sourceTable = primaryTable;
           }
+          // Sincronizar sourceTable
+          if (config.dataSource && !config.sourceTable) {
+            config.sourceTable = config.dataSource;
+          }
+
+          // Marcar se é view agregada (evita double-sum no engine)
+          if (config.dataSource && config.isAggregatedView === undefined) {
+            config.isAggregatedView = isAggView(config.dataSource as string);
+            // Gráficos temporais nunca são agregados
+            if (w.type === 'area_chart' || w.type === 'line_chart') {
+              config.isAggregatedView = false;
+            }
+          }
+
           return {
             dashboard_id: dashboard.id,
             title: w.title,
@@ -204,7 +225,28 @@ const OnboardingWizard = () => {
       else if (state.mappings.length > 0) {
         const primaryTable = state.primaryTable || state.mappings[0]?.sourceTable || state.integration?.tables?.[0]?.name;
         if (primaryTable) {
-          // Criar 5 widgets mínimos com os mapeamentos disponíveis
+
+          // Helper: detecta se uma tabela é view KPI agregada
+          const isAggView = (t?: string | null): boolean => {
+            if (!t) return false;
+            const tl = t.toLowerCase();
+            return /^vw_|^view_/i.test(tl) || /kpi|_30d|_60d|_7d|summary|overview|dashboard/i.test(tl);
+          };
+
+          // Helper: campo de data real nos mapeamentos
+          const realDateField = state.mappings.find(m =>
+            m.targetMetric === 'created_date' ||
+            /^(day|dia|date|data|created_at|event_day)$/i.test(m.sourceField) ||
+            /date|dia|day|created/i.test(m.sourceField)
+          )?.sourceField || 'day';
+
+          // View de séries temporais (daily/60d) para gráficos
+          const timeseriesMapping = state.mappings.find(m => {
+            const tl = m.sourceTable.toLowerCase();
+            return /daily|diario|_60d|_90d/i.test(tl);
+          });
+          const timeseriesTable = timeseriesMapping?.sourceTable || primaryTable;
+
           const fallbackWidgets: Array<{
             dashboard_id: string;
             title: string;
@@ -214,37 +256,48 @@ const OnboardingWizard = () => {
             description: string | null;
           }> = [];
 
-          // KPIs dos primeiros 3 mapeamentos
+          // KPIs dos primeiros 3 mapeamentos — com config completo e correto
           state.mappings.slice(0, 3).forEach((m, i) => {
             const prettyTitle = m.targetMetric.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const table = m.sourceTable || primaryTable;
             fallbackWidgets.push({
               dashboard_id: dashboard.id,
               title: prettyTitle,
               type: 'metric_card',
               position: i,
               config: {
-                dataSource: m.sourceTable || primaryTable,
-                sourceTable: m.sourceTable || primaryTable,
-                metric: m.sourceField,
+                dataSource: table,
+                sourceTable: table,
+                metric: m.sourceField,           // coluna real
                 targetMetric: m.targetMetric,
-                aggregation: m.aggregation || 'count',
-                format: m.transformation === 'currency' ? 'currency' : m.transformation === 'percentage' ? 'percentage' : 'number',
+                aggregation: m.aggregation || (m.transformation === 'percentage' ? 'avg' : 'sum'),
+                format: m.transformation === 'currency' ? 'currency'
+                  : m.transformation === 'percentage' ? 'percentage' : 'number',
+                transformation: m.transformation || 'none',
+                isAggregatedView: isAggView(table),
+                showTrend: true,
+                showSparkline: true,
               },
               description: null,
             });
           });
 
-          // Gráfico de evolução
+          // Gráfico de evolução — usa view daily e campo de data real
           fallbackWidgets.push({
             dashboard_id: dashboard.id,
             title: 'Evolução',
             type: 'area_chart',
             position: fallbackWidgets.length,
             config: {
-              dataSource: primaryTable,
-              sourceTable: primaryTable,
-              groupBy: 'created_at',
-              aggregation: 'count',
+              dataSource: timeseriesTable,
+              sourceTable: timeseriesTable,
+              metric: timeseriesMapping?.sourceField,
+              groupBy: realDateField,
+              aggregation: 'sum',
+              format: 'number',
+              isAggregatedView: false,  // séries temporais sempre multi-row
+              gradientFill: true,
+              showGrid: true,
             },
             description: 'Evolução ao longo do tempo',
           });
@@ -258,6 +311,7 @@ const OnboardingWizard = () => {
             config: {
               dataSource: primaryTable,
               sourceTable: primaryTable,
+              pageSize: 10,
             },
             description: 'Registros mais recentes',
           });

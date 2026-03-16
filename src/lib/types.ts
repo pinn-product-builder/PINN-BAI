@@ -359,4 +359,41 @@ export const targetMetricLabels: Record<TargetMetric, { label: string; descripti
   lead_source: { label: 'Origem do Lead', description: 'Canal de aquisição', icon: 'globe' },
   created_date: { label: 'Data de Criação', description: 'Data do registro', icon: 'calendar' },
   custom: { label: 'Métrica Customizada', description: 'Defina sua própria métrica', icon: 'settings' },
-};
+
+// ============= Data Profiler Types (v2) =============
+// Exportados aqui para evitar importação circular com data-profiler.ts
+
+export type ColumnSemantics =
+  | 'metric_count'
+  | 'metric_currency'
+  | 'metric_percentage'
+  | 'metric_rate'
+  | 'dimension_date'
+  | 'dimension_category'
+  | 'dimension_id'
+  | 'text_descriptive'
+  | 'unknown';
+
+export interface TableSchema {
+  tableName: string;
+  isAggregatedView: boolean;
+  priority: number;
+  columns: {
+    name: string;
+    type: string;
+    semantics: ColumnSemantics;
+    relevance: number;
+    suggestedAggregation: 'sum' | 'avg' | 'count' | 'min' | 'max';
+    suggestedFormat: 'number' | 'currency' | 'percentage' | 'date' | 'text';
+  }[];
+}
+
+// ============= Client Preset =============
+
+/** Identificador de preset de mapeamento por cliente */
+export type ClientPresetKey = 'afonsina-oliveira' | 'generic';
+
+export interface ClientMappingPreset {
+  orgSlug: ClientPresetKey;
+  useExactMapping: boolean;
+}

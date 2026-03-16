@@ -182,19 +182,134 @@ function generateRecommendations(
   const patterns = detectDataPatterns(mappings);
   const addedTypes = new Set<string>();
 
-  // Generate metric cards for each relevant metric
+  // Índice rápido: targetMetric → mapping com source_column real
+  const mappingByTarget = new Map<string, DataMapping>();
+  for (const m of mappings) {
+    if (!mappingByTarget.has(m.target_metric)) {
+      mappingByTarget.set(m.target_metric, m);
+    }
+  }
+
+  // Detectar se a tabela de origem é uma view KPI agregada
+  const isAggregatedViewTable = (tableName: string): boolean => {
+    const t = tableName.toLowerCase();
+    return /^vw_|^view_/i.test(t) || /kpi|_30d|_60d|_7d|summary|overview|dashboard/i.test(t);
+  };
+
+  // Helper: montar config completo e correto para um metric_card
+  const buildMetricCardConfig = (
+    targetMetric: string,
+    format: string,
+  ): Record<string, unknown> => {
+    const m = mappingByTarget.get(targetMetric);
+    if (m) {
+      return {
+        // metric aponta para a coluna REAL na tabela real — nunca o nome semântico
+        metric: m.source_column,
+        dataSource: m.source_table,
+        sourceTable: m.source_table,
+        targetMetric,
+        aggregation: m.aggregation || (format === 'percentage' ? 'avg' : 'sum'),
+        format,
+        transformation: m.transform_type || format,
+        isAggregatedView: isAggregatedViewTable(m.source_table),
+        showTrend: true,
+        showSparkline: true,
+      };
+    }
+    // Sem mapping real: usar nome semântico como fallback (engine vai tentar resolver)
+    return {
+      metric: targetMetric,
+      targetMetric,
+      format,
+      showTrend: true,
+      showSparkline: true,
+    };
+  };
+
+  // Helper: montar config para gráficos temporais (area/line)
+  const buildTimeSeriesConfig = (
+    targetMetric: string,
+    format: string,
+  ): Record<string, unknown> => {
+    // Preferir view de séries temporais (daily, 60d) sobre KPI (30d)
+    const timeseriesMapping = mappings.find(m => {
+      const t = m.source_table.toLowerCase();
+      return m.target_metric === targetMetric && (/daily|diario|_60d|_90d/i.test(t));
+    }) || mappingByTarget.get(targetMetric);
+
+    const dateMapping = mappings.find(m =>
+      m.target_metric === 'created_date' ||
+      /day|dia|date|data|created_at/i.test(m.source_column)
+    );
+
+    const cfg: Record<string, unknown> = {
+      showGrid: true,
+      gradientFill: true,
+      animate: true,
+      curveType: 'smooth',
+      showTooltip: true,
+    };
+
+    if (timeseriesMapping) {
+      cfg.metric = timeseriesMapping.source_column;
+      cfg.dataSource = timeseriesMapping.source_table;
+      cfg.sourceTable = timeseriesMapping.source_table;
+      cfg.targetMetric = targetMetric;
+      cfg.aggregation = timeseriesMapping.aggregation || 'sum';
+      cfg.format = format;
+      cfg.isAggregatedView = false; // séries temporais têm múltiplos rows
+    }
+
+    if (dateMapping) {
+      cfg.groupBy = dateMapping.source_column;
+    } else {
+      cfg.groupBy = 'day'; // fallback comum em views diárias
+    }
+
+    return cfg;
+  };
+
+  // Helper: montar config para pie/bar (distribuição categórica)
+  const buildCategoricalConfig = (
+    categoryMetric: string,
+    valueMetric?: string,
+  ): Record<string, unknown> => {
+    const catMapping = mappingByTarget.get(categoryMetric);
+    const valMapping = valueMetric ? mappingByTarget.get(valueMetric) : undefined;
+
+    const cfg: Record<string, unknown> = {
+      showLabels: true,
+      showLegend: true,
+      animate: true,
+    };
+
+    if (catMapping) {
+      cfg.dataSource = catMapping.source_table;
+      cfg.sourceTable = catMapping.source_table;
+      cfg.groupBy = catMapping.source_column;
+    }
+    if (valMapping) {
+      cfg.metric = valMapping.source_column;
+      cfg.aggregation = valMapping.aggregation || 'count';
+    } else {
+      cfg.aggregation = 'count';
+    }
+
+    return cfg;
+  };
+
+  // ── Metric cards ─────────────────────────────────────────────────────────
   for (const mapping of mappings) {
     const metricConfig = METRIC_SCORES[mapping.target_metric];
-    
     if (metricConfig && metricConfig.widget === 'metric_card') {
-      // Avoid duplicate metric cards for the same target
       const key = `metric_card_${mapping.target_metric}`;
       if (addedTypes.has(key)) continue;
       addedTypes.add(key);
 
       const widgetDesc = WIDGET_DESCRIPTIONS[mapping.target_metric] || {
         title: mapping.target_metric.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-        description: `Métrica baseada no campo ${mapping.source_column} da tabela ${mapping.source_table}.`,
+        description: `Métrica de ${mapping.source_column} na tabela ${mapping.source_table}.`,
       };
 
       recommendations.push({
@@ -207,143 +322,128 @@ function generateRecommendations(
           patterns.hasCategoricalData,
           mappings.length
         ),
-        config: {
-          metric: mapping.target_metric,
-          showTrend: true,
-          showSparkline: true,
-          compareWithPrevious: true,
-          format: metricConfig.format || 'number',
-        },
-        basedOn: `Mapeamento: ${mapping.source_table}.${mapping.source_column} → ${mapping.target_metric}`,
+        config: buildMetricCardConfig(mapping.target_metric, metricConfig.format || 'number'),
+        basedOn: `${mapping.source_table}.${mapping.source_column} → ${mapping.target_metric}`,
       });
     }
   }
 
-  // Add area chart for temporal data
+  // ── Gráfico de área (evolução temporal) ──────────────────────────────────
+  const mainMetric = patterns.metrics.has('total_leads') ? 'total_leads'
+    : patterns.metrics.has('new_leads') ? 'new_leads'
+    : patterns.metrics.has('revenue') ? 'revenue'
+    : [...patterns.metrics][0];
+
   if (patterns.hasTemporalData || mappings.length > 0) {
     recommendations.push({
       type: 'area_chart',
       title: 'Evolução de Leads',
-      description: 'Gráfico de área mostrando a tendência de captação de leads ao longo do tempo, com preenchimento gradiente.',
+      description: 'Gráfico de área mostrando a tendência de captação ao longo do tempo.',
       score: calculateScore(88, patterns.hasTemporalData, patterns.hasCategoricalData, mappings.length),
-      config: {
-        showGrid: true,
-        gradientFill: true,
-        animate: true,
-        curveType: 'smooth',
-        showTooltip: true,
-      },
-      basedOn: patterns.hasTemporalData 
-        ? 'Dados temporais detectados nos mapeamentos' 
+      config: buildTimeSeriesConfig(mainMetric || 'total_leads', 'number'),
+      basedOn: patterns.hasTemporalData
+        ? 'Dados temporais detectados nos mapeamentos'
         : 'Widget padrão para visualização de tendências',
     });
   }
 
-  // Add line chart for trends - Available for all plans
-  if (patterns.hasTemporalData) {
+  // ── Gráfico de linha (conversões) ─────────────────────────────────────────
+  if (patterns.hasTemporalData && (patterns.metrics.has('conversions') || patterns.metrics.has('conversion_rate'))) {
+    const convMetric = patterns.metrics.has('conversion_rate') ? 'conversion_rate' : 'conversions';
     recommendations.push({
       type: 'line_chart',
       title: 'Tendência de Conversões',
-      description: 'Linha mostrando a evolução das conversões ao longo do tempo, ideal para comparar múltiplos períodos.',
-      score: calculateScore(82, patterns.hasTemporalData, patterns.hasCategoricalData, mappings.length),
-      config: {
-        showGrid: true,
-        animate: true,
-        curveType: 'smooth',
-        showTooltip: true,
-      },
-      basedOn: 'Dados temporais detectados nos mapeamentos',
+      description: 'Linha mostrando a evolução das conversões ao longo do tempo.',
+      score: calculateScore(82, true, patterns.hasCategoricalData, mappings.length),
+      config: buildTimeSeriesConfig(convMetric, convMetric === 'conversion_rate' ? 'percentage' : 'number'),
+      basedOn: 'Dados de conversão + temporais detectados',
     });
   }
 
-  // Add pie chart for categorical data - Available for all plans
+  // ── Pie chart (distribuição por origem) ───────────────────────────────────
   if (patterns.hasCategoricalData || patterns.metrics.has('lead_source')) {
     recommendations.push({
       type: 'pie_chart',
       title: 'Distribuição por Origem',
-      description: 'Gráfico de pizza mostrando a proporção de leads por canal de aquisição.',
+      description: 'Proporção de leads por canal de aquisição.',
       score: calculateScore(87, patterns.hasTemporalData, patterns.hasCategoricalData, mappings.length),
       config: {
-        showLabels: true,
-        showLegend: true,
+        ...buildCategoricalConfig('lead_source', mainMetric),
         innerRadius: 60,
-        animate: true,
       },
       basedOn: patterns.metrics.has('lead_source')
-        ? 'Mapeamento de lead_source detectado (dados categóricos)'
-        : 'Dados categóricos detectados nos mapeamentos',
+        ? 'Mapeamento de lead_source detectado'
+        : 'Dados categóricos detectados',
     });
   }
 
-  // Add funnel for stage data or leads+conversions - Available for all plans
-  if (
-    patterns.hasFunnelData || (patterns.metrics.has('total_leads') && patterns.metrics.has('conversions'))
-  ) {
+  // ── Funil ─────────────────────────────────────────────────────────────────
+  if (patterns.hasFunnelData || (patterns.metrics.has('total_leads') && patterns.metrics.has('conversions'))) {
+    const funnelMapping = mappingByTarget.get('funnel_stage') || mappingByTarget.get('total_leads');
     recommendations.push({
       type: 'funnel',
       title: 'Funil de Vendas',
-      description: 'Visualização completa do funil de conversão, mostrando a progressão de leads através de cada estágio até a venda.',
+      description: 'Progressão de leads pelo funil de conversão.',
       score: calculateScore(89, patterns.hasTemporalData, patterns.hasCategoricalData, mappings.length),
       config: {
+        dataSource: funnelMapping?.source_table,
+        sourceTable: funnelMapping?.source_table,
+        groupBy: funnelMapping?.source_column,
+        aggregation: 'count',
         funnelStages: ['Leads', 'Qualificados', 'Em Análise', 'Proposta', 'Convertidos'],
         animate: true,
         showLabels: true,
       },
       basedOn: patterns.hasFunnelData
         ? 'Mapeamento de funnel_stage detectado'
-        : 'Combinação leads + conversões permite visualização de funil',
+        : 'Combinação leads + conversões',
     });
   }
 
-  // Add bar chart for status distribution
+  // ── Bar chart (leads por status) ──────────────────────────────────────────
   if (patterns.hasCategoricalData || patterns.metrics.has('lead_source')) {
     recommendations.push({
       type: 'bar_chart',
       title: 'Leads por Status',
-      description: 'Distribuição de leads por estágio atual no pipeline de vendas. Identifique gargalos no processo.',
+      description: 'Distribuição de leads por estágio no pipeline.',
       score: calculateScore(83, patterns.hasTemporalData, patterns.hasCategoricalData, mappings.length),
       config: {
-        showLabels: true,
+        ...buildCategoricalConfig('funnel_stage', mainMetric),
         stacked: false,
-        animate: true,
         showTooltip: true,
       },
-      basedOn: 'Análise de status e categorias dos leads',
+      basedOn: 'Dados categóricos detectados',
     });
   }
 
-  // Add table widget (always useful)
+  // ── Tabela ────────────────────────────────────────────────────────────────
+  const leadsMapping = mappingByTarget.get('total_leads') || mappingByTarget.get('new_leads') || mappings[0];
   recommendations.push({
     type: 'table',
     title: 'Últimos Leads',
-    description: 'Tabela com os leads mais recentes, permitindo análise detalhada e busca por registros específicos.',
+    description: 'Registros mais recentes com análise detalhada.',
     score: 80,
     config: {
-      columns: ['name', 'email', 'source', 'status', 'value', 'created_at'],
+      dataSource: leadsMapping?.source_table,
+      sourceTable: leadsMapping?.source_table,
       pageSize: 10,
       sortable: true,
       searchable: true,
     },
-    basedOn: 'Widget padrão: tabela de dados para análise detalhada',
+    basedOn: `Tabela de dados: ${leadsMapping?.source_table || 'detectada automaticamente'}`,
   });
 
-  // Add insight card for AI features - Available for all plans
+  // ── Insight IA ────────────────────────────────────────────────────────────
   recommendations.push({
     type: 'insight_card',
     title: 'Insights IA',
-    description: 'Análises e recomendações inteligentes geradas automaticamente por IA, baseadas nos padrões detectados.',
+    description: 'Análises e recomendações inteligentes geradas automaticamente.',
     score: 75,
-    config: {
-      refreshInterval: 300,
-      animate: true,
-    },
+    config: { refreshInterval: 300, animate: true },
     basedOn: 'Funcionalidade IA disponível para todos os planos',
   });
 
-  // Sort by score (highest first)
-  recommendations.sort((a, b) => b.score - a.score);
-
-  return recommendations;
+  return recommendations.sort((a, b) => b.score - a.score);
 }
 
 serve(async (req) => {

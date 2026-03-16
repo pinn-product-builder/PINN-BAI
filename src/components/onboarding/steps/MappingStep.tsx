@@ -44,6 +44,8 @@ export interface DataMapping {
   transformation: string;
   aggregation?: string;
   format?: string;
+  /** Campo de data/tempo real nesta tabela (usado como groupBy em gráficos temporais) */
+  groupByField?: string;
 }
 
 interface MappingSuggestion {
@@ -95,6 +97,25 @@ const inferAggregation = (transformation: string, targetMetric: string): string 
   if (transformation === 'percentage') return 'avg';
   // Contadores padrão
   return 'count';
+};
+
+/**
+ * Detecta o campo de data/tempo mais adequado numa lista de sugestões da mesma tabela.
+ * Usado para popular groupByField nos mapeamentos, evitando hardcode de 'created_at'.
+ */
+const detectDateField = (
+  suggestions: Array<{ sourceField: string; sourceTable: string; transformation: string }>,
+  forTable: string
+): string | undefined => {
+  const tableSuggestions = suggestions.filter(s => s.sourceTable === forTable);
+  // Prioridade: transformation === 'date', depois padrões de nome comuns
+  const byTransform = tableSuggestions.find(s => s.transformation === 'date');
+  if (byTransform) return byTransform.sourceField;
+  const byName = tableSuggestions.find(s =>
+    /^(day|dia|date|data|created_at|event_day|day_brt|timestamp)$/i.test(s.sourceField) ||
+    /_at$|_ts$|_date$/i.test(s.sourceField)
+  );
+  return byName?.sourceField;
 };
 
 const TARGET_METRICS: { value: string; label: string; description: string }[] = [
@@ -395,6 +416,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
             targetMetric: suggestion.targetMetric,
             transformation: suggestion.transformation,
             aggregation: inferAggregation(suggestion.transformation, suggestion.targetMetric),
+            groupByField: detectDateField(validSuggestions, suggestion.sourceTable),
           }));
           onUpdate(autoMappings);
           
@@ -448,6 +470,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
         targetMetric: suggestion.targetMetric,
         transformation: suggestion.transformation,
         aggregation: inferAggregation(suggestion.transformation, suggestion.targetMetric),
+        groupByField: detectDateField(aiSuggestions, suggestion.sourceTable),
       }));
 
     if (acceptedMappings.length === 0) {
@@ -478,6 +501,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
         targetMetric: suggestion.targetMetric,
         transformation: suggestion.transformation,
         aggregation: inferAggregation(suggestion.transformation, suggestion.targetMetric),
+        groupByField: detectDateField(aiSuggestions, suggestion.sourceTable),
       }));
 
     if (acceptedMappings.length === 0) {

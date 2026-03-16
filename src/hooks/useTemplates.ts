@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
-import { findWidgetConfig, type WidgetViewMapping } from '@/lib/afonsinaWidgetConfig';
+import { resolveByWidgetTitle } from '@/lib/referenceMappings';
 import { findReferenceMapping } from '@/lib/referenceMappings';
 
 type WidgetType = Database['public']['Enums']['widget_type'];
@@ -278,6 +278,8 @@ export interface MetricMapping {
   sourceTable?: string;
   /** Tipo de transformação/formato (none, date, number, currency, percentage) */
   transformation?: string;
+  /** Campo de data/tempo real para groupBy em gráficos temporais */
+  groupByField?: string;
 }
 
 // =====================================================================
@@ -406,8 +408,9 @@ export const useApplyTemplate = () => {
         const t = mapping.sourceTable.toLowerCase();
         tableFrequency.set(mapping.sourceTable, (tableFrequency.get(mapping.sourceTable) || 0) + 1);
 
-        // KPI views (agregadas)
-        if (t.includes('kpi') || t.includes('_30d') || t.includes('_7d') || t.includes('summary') || t.includes('overview')) {
+        // KPI views (agregadas) — detectar por padrão de nome
+        if (t.includes('kpi') || t.includes('_30d') || t.includes('_7d') || t.includes('summary') || t.includes('overview') ||
+            /^vw_|^view_/i.test(t)) {
           tablesByPurpose.kpi = mapping.sourceTable;
         }
         // Daily/time-series views
@@ -476,13 +479,23 @@ export const useApplyTemplate = () => {
       const realCategoricalColumns: string[] = [];
       
       for (const [, mapping] of mappingEntries) {
+        // groupByField salvo no onboarding tem prioridade máxima
+        if ((mapping as any).groupByField) {
+          realDateColumns.unshift((mapping as any).groupByField);
+        }
         if (mapping.field) {
           realColumnNames.add(mapping.field);
           const fl = mapping.field.toLowerCase();
-          if (fl.includes('date') || fl.endsWith('_at') || fl.includes('dia') || fl.includes('day') || fl.includes('data') || fl.includes('created') || fl.includes('updated')) {
-            realDateColumns.push(mapping.field);
+          if (fl.includes('date') || fl.endsWith('_at') || fl.includes('dia') ||
+              fl === 'day' || fl === 'dia' || fl.includes('data') ||
+              fl.includes('created') || fl.includes('updated') || fl.includes('event_day')) {
+            if (!realDateColumns.includes(mapping.field)) {
+              realDateColumns.push(mapping.field);
+            }
           }
-          if (fl.includes('source') || fl.includes('origem') || fl.includes('canal') || fl.includes('status') || fl.includes('stage') || fl.includes('tipo') || fl.includes('type') || fl.includes('category') || fl.includes('etapa')) {
+          if (fl.includes('source') || fl.includes('origem') || fl.includes('canal') ||
+              fl.includes('status') || fl.includes('stage') || fl.includes('tipo') ||
+              fl.includes('type') || fl.includes('category') || fl.includes('etapa')) {
             realCategoricalColumns.push(mapping.field);
           }
         }
@@ -513,7 +526,7 @@ export const useApplyTemplate = () => {
         // ================================================================
         
         // Camada 1: Verificar se temos configuração Afonsina para este widget
-        const afonsinaConfig = findWidgetConfig(tw.title, tw.type);
+        const afonsinaConfig = resolveByWidgetTitle(tw.title, []);
         
         // Lista de views disponíveis nos mapeamentos do usuário
         const userAvailableViews = [...new Set(mappingEntries.map(([, m]) => m.sourceTable).filter(Boolean))] as string[];
@@ -559,17 +572,23 @@ export const useApplyTemplate = () => {
             widgetConfig.dataSource = mapping.sourceTable;
             widgetConfig.sourceTable = mapping.sourceTable;
           }
+          // Propagar groupByField do mapping quando disponível
+          if (mapping.groupByField && !widgetConfig.groupBy) {
+            widgetConfig.groupBy = mapping.groupByField;
+          }
         } else {
           // Camada 3: SEM mapeamento → usar defaults inteligentes por tipo
           widgetConfig.aggregation = cfg?.aggregation || 'count';
         }
 
         // Definir groupBy inteligente por tipo de widget (usando colunas REAIS)
-        // Só definir se não foi definido pela resolução Afonsina acima
+        // Prioridade: groupByField do mapping > realDateColumns > fallback 'day'
         const widgetType = tw.type;
         if (!widgetConfig.groupBy) {
           if (widgetType === 'area_chart' || widgetType === 'line_chart') {
-            widgetConfig.groupBy = realDateColumns[0] || 'day';
+            // Tentar groupByField do mapping resolvido primeiro
+            const mappingGroupBy = mapping?.groupByField;
+            widgetConfig.groupBy = mappingGroupBy || realDateColumns[0] || 'day';
           } else if (widgetType === 'pie_chart' || widgetType === 'bar_chart') {
             widgetConfig.groupBy = realCategoricalColumns[0] || 'source';
             if (!widgetConfig.aggregation || widgetConfig.aggregation === 'count') {
@@ -602,6 +621,23 @@ export const useApplyTemplate = () => {
           widgetConfig.sourceTable = globalFallback;
         }
 
+        // Garantir sourceTable sincronizado com dataSource
+        if (widgetConfig.dataSource && !widgetConfig.sourceTable) {
+          widgetConfig.sourceTable = widgetConfig.dataSource;
+        }
+
+        // Marcar se é view agregada (evita double-aggregation no engine)
+        if (widgetConfig.dataSource) {
+          const ds = String(widgetConfig.dataSource).toLowerCase();
+          widgetConfig.isAggregatedView =
+            /^vw_|^view_/i.test(ds) ||
+            /kpi|_30d|_60d|_7d|summary|overview/i.test(ds);
+          // Séries temporais NUNCA são views agregadas (têm múltiplos rows)
+          if (tw.type === 'area_chart' || tw.type === 'line_chart') {
+            widgetConfig.isAggregatedView = false;
+          }
+        }
+
         console.log('[useApplyTemplate]', tw.title, '→', {
           metric: widgetConfig.metric,
           targetMetric: widgetConfig.targetMetric,
@@ -609,6 +645,7 @@ export const useApplyTemplate = () => {
           aggregation: widgetConfig.aggregation,
           groupBy: widgetConfig.groupBy,
           format: widgetConfig.format,
+          isAggregatedView: widgetConfig.isAggregatedView,
           mappingFound: !!mapping,
         });
 
