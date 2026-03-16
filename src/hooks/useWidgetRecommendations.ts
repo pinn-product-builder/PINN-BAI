@@ -193,7 +193,7 @@ export function generateLocalRecommendations(
         dataSource: tsMapping?.sourceTable,
         sourceTable: tsMapping?.sourceTable,
         groupBy: dateField,
-        aggregation: tsMapping?.aggregation || 'sum',
+        aggregation: (tsMapping?.aggregation || 'sum') as WidgetConfig['aggregation'],
         format: 'number',
         isAggregatedView: false,
         gradientFill: true,
