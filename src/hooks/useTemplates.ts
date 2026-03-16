@@ -533,13 +533,12 @@ export const useApplyTemplate = () => {
         
         if (afonsinaConfig && userAvailableViews.includes(afonsinaConfig.viewName)) {
           // Afonsina config + view existe nos dados do cliente → MATCH PERFEITO
-          console.log(`[useApplyTemplate] Afonsina match: ${tw.title} → ${afonsinaConfig.viewName}.${afonsinaConfig.metricField}`);
+          console.log(`[useApplyTemplate] Afonsina match: ${tw.title} → ${afonsinaConfig.viewName}.${afonsinaConfig.fieldName}`);
           widgetConfig.dataSource = afonsinaConfig.viewName;
           widgetConfig.sourceTable = afonsinaConfig.viewName;
-          widgetConfig.metric = afonsinaConfig.metricField;
-          widgetConfig.aggregation = afonsinaConfig.aggregation;
-          if (afonsinaConfig.format) widgetConfig.format = afonsinaConfig.format;
-          if (afonsinaConfig.groupBy) widgetConfig.groupBy = afonsinaConfig.groupBy;
+          widgetConfig.metric = afonsinaConfig.fieldName;
+          widgetConfig.aggregation = afonsinaConfig.aggregation as any;
+          // format and groupBy not available on ResolvedMapping
         } else if (afonsinaConfig) {
           // Afonsina config existe mas a view NÃO está nos mapeamentos do usuário
           // Tentar reference mapping com views disponíveis
@@ -552,7 +551,7 @@ export const useApplyTemplate = () => {
             widgetConfig.sourceTable = refMapping.viewName;
             widgetConfig.metric = refMapping.fieldName;
             widgetConfig.aggregation = refMapping.aggregation;
-            if (afonsinaConfig.groupBy) widgetConfig.groupBy = afonsinaConfig.groupBy;
+            // groupBy not available on ResolvedMapping
           } else if (mapping) {
             // Fallback para mapeamento do usuário
             widgetConfig.metric = mapping.field;

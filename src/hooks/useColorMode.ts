@@ -4,7 +4,7 @@ export const useColorMode = () => {
   const [isDark, setIsDark] = useState(() => {
     const stored = localStorage.getItem('pinn-color-mode');
     if (stored) return stored === 'dark';
-    return true; // default dark
+    return false; // default light — matches pinnpb.com
   });
 
   useEffect(() => {
