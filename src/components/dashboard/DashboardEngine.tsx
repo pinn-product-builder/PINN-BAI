@@ -588,7 +588,7 @@ const WidgetRenderer = ({
       });
       if (refMapping) {
         // Procurar os fieldNames do reference mapping nos dados disponíveis
-        for (const view of refMapping.views) {
+        for (const vp of refMapping.viewPatterns) {
           const fieldLower = view.fieldName.toLowerCase();
           const match = numericFields.find(k => k.toLowerCase() === fieldLower);
           if (match) {
