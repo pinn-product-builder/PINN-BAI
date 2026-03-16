@@ -589,8 +589,8 @@ const WidgetRenderer = ({
       if (refMapping) {
         // Procurar os fieldNames do reference mapping nos dados disponíveis
         for (const vp of refMapping.viewPatterns) {
-          const fieldLower = view.fieldName.toLowerCase();
-          const match = numericFields.find(k => k.toLowerCase() === fieldLower);
+          const fieldLower = vp.fieldPattern.source.replace(/[\\^$]/g, '').toLowerCase();
+          const match = numericFields.find(k => k.toLowerCase().includes(fieldLower) || fieldLower.includes(k.toLowerCase()));
           if (match) {
             console.log(`[resolveMetricField] Reference mapping: ${cfg.targetMetric} → ${match}`);
             return match;

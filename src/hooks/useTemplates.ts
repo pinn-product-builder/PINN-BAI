@@ -537,7 +537,7 @@ export const useApplyTemplate = () => {
           widgetConfig.dataSource = afonsinaConfig.viewName;
           widgetConfig.sourceTable = afonsinaConfig.viewName;
           widgetConfig.metric = afonsinaConfig.fieldName;
-          widgetConfig.aggregation = afonsinaConfig.aggregation as WidgetConfig['aggregation'];
+          widgetConfig.aggregation = afonsinaConfig.aggregation as any;
           // format and groupBy not available on ResolvedMapping
         } else if (afonsinaConfig) {
           // Afonsina config existe mas a view NÃO está nos mapeamentos do usuário
