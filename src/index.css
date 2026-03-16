@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 /* ============================================================
-   Pinn BAI Design System — v2
-   Paleta oficial: Deep Space bg + Luminous Orange primary
-   + Solar Amber accent. Sidebar 100% alinhado com primary.
+   Pinn Design System — v3
+   Paleta: Clean white bg + Pinn Orange (#FF6600) primary
+   Alinhado com pinnpb.com — light-first, clean, profissional.
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
