@@ -176,6 +176,11 @@
   .pinn-card {
     @apply bg-card border border-border rounded-xl shadow-sm;
   }
+
+  /* Glass card — adapta-se a light e dark */
+  .glass-card {
+    @apply bg-card/80 border border-border backdrop-blur-xl shadow-sm;
+  }
 }
 
 /* ── Recharts overrides ── */
