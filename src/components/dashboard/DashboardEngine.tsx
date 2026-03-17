@@ -182,6 +182,37 @@ const processMultiSeriesData = (
   const validExplicitKeys = explicitKeys.filter(k => availableColumns.includes(k));
   
   if (validExplicitKeys.length > 0) {
+    // Detect if fields are boolean (need aggregation per group)
+    const sampleRow = rawData.find(r => validExplicitKeys.some(k => r[k] !== null && r[k] !== undefined));
+    const hasBooleanFields = sampleRow && validExplicitKeys.some(k => typeof sampleRow[k] === 'boolean');
+
+    if (hasBooleanFields) {
+      // Aggregate boolean fields: count true values per groupBy period
+      const grouped = new Map<string, Record<string, number>>();
+      rawData.forEach(row => {
+        const rawLabel = String(row[groupBy] || '');
+        const label = isDateField(groupBy) ? formatDateLabel(rawLabel) : rawLabel;
+        if (!grouped.has(label)) {
+          const entry: Record<string, number> = {};
+          validExplicitKeys.forEach(k => { entry[k] = 0; });
+          grouped.set(label, entry);
+        }
+        const bucket = grouped.get(label)!;
+        validExplicitKeys.forEach(k => {
+          const val = row[k];
+          if (typeof val === 'boolean') {
+            if (val) bucket[k]++;
+          } else {
+            bucket[k] += (typeof val === 'number' ? val : parseFloat(String(val)) || 0);
+          }
+        });
+      });
+      // Sort by original date order
+      const sortedLabels = [...grouped.keys()].sort();
+      const chartData = sortedLabels.map(label => ({ label, ...grouped.get(label)! }));
+      return { chartData, detectedKeys: validExplicitKeys };
+    }
+
     const chartData = rawData
       .sort((a, b) => String(a[groupBy] || '').localeCompare(String(b[groupBy] || '')))
       .map(row => {
