@@ -98,7 +98,7 @@ const Organizations = () => {
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="border-white/5 bg-white/5 backdrop-blur-sm">
+        <Card className="border border-border bg-card/80 backdrop-blur-sm shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -112,7 +112,7 @@ const Organizations = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-white/5 bg-white/5 backdrop-blur-sm">
+        <Card className="border border-border bg-card/80 backdrop-blur-sm shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -126,7 +126,7 @@ const Organizations = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-white/5 bg-white/5 backdrop-blur-sm">
+        <Card className="border border-border bg-card/80 backdrop-blur-sm shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -140,7 +140,7 @@ const Organizations = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-white/5 bg-white/5 backdrop-blur-sm">
+        <Card className="border border-border bg-card/80 backdrop-blur-sm shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -156,11 +156,11 @@ const Organizations = () => {
       </div>
 
       {/* Organizations table */}
-      <Card className="border-white/5 bg-white/5 backdrop-blur-sm">
+      <Card className="border border-border bg-card/80 backdrop-blur-sm shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Universo Pinn</CardTitle>
+              <CardTitle className="text-foreground">Universo Pinn</CardTitle>
               <CardDescription>
                 {filteredOrgs?.length || 0} organizações monitoradas
               </CardDescription>
@@ -171,7 +171,7 @@ const Organizations = () => {
                 placeholder="Filtrar por nome..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-white/5 border-white/10 rounded-xl"
+                className="pl-9 bg-muted/50 border-border rounded-xl"
               />
             </div>
           </div>
@@ -179,7 +179,7 @@ const Organizations = () => {
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent border-white/5">
+              <TableRow className="hover:bg-transparent border-border">
                 <TableHead className="text-muted-foreground">Organização</TableHead>
                 <TableHead className="text-muted-foreground">Admin</TableHead>
                 <TableHead className="text-muted-foreground">Plano</TableHead>
@@ -201,7 +201,7 @@ const Organizations = () => {
                   return (
                     <TableRow
                       key={org.id}
-                      className="border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                      className="border-border hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() => navigate(`/admin/organizations/${org.id}`)}
                     >
                       <TableCell>
@@ -224,7 +224,7 @@ const Organizations = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="border-white/10 text-white/60">
+                        <Badge variant="outline" className="border-border text-muted-foreground">
                           {planNames[org.plan] || `Plano ${org.plan}`}
                         </Badge>
                       </TableCell>

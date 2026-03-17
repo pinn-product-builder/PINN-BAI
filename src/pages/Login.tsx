@@ -47,11 +47,11 @@ const Login = () => {
       className="min-h-screen flex bg-background text-foreground overflow-hidden"
       style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}
     >
-      {/* ── Left panel — branding ── */}
-      <div className="hidden lg:flex flex-col justify-between w-[52%] p-14 relative overflow-hidden bg-foreground">
+      {/* ── Left panel — branding (always dark) ── */}
+      <div className="hidden lg:flex flex-col justify-between w-[52%] p-14 relative overflow-hidden bg-[#0a0a0a]">
         {/* Subtle warm grid */}
         <div className="absolute inset-0 opacity-[0.06]" style={{
-          backgroundImage: 'linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(#FF6900 1px, transparent 1px), linear-gradient(90deg, #FF6900 1px, transparent 1px)',
           backgroundSize: '48px 48px'
         }} />
         {/* Orange glow */}
@@ -65,7 +65,7 @@ const Login = () => {
 
         {/* Hero text */}
         <div className="relative z-10 space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/40 bg-primary/15 text-primary text-[11px] font-semibold uppercase tracking-widest">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#FF6900]/40 bg-[#FF6900]/15 text-[#FF6900] text-[11px] font-semibold uppercase tracking-widest">
             <Zap className="w-3 h-3 fill-current" />
             Business AI Intelligence
           </div>

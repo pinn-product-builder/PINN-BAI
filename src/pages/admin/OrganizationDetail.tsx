@@ -63,7 +63,7 @@ const OrganizationDetail = () => {
         return (
             <div className="p-8 text-center space-y-4">
                 <AlertTriangle className="w-12 h-12 text-destructive mx-auto" />
-                <h2 className="text-2xl font-bold">Organização não encontrada</h2>
+                <h2 className="text-2xl font-bold text-foreground">Organização não encontrada</h2>
                 <Button onClick={() => navigate('/admin/organizations')}>Voltar</Button>
             </div>
         );
@@ -97,7 +97,7 @@ const OrganizationDetail = () => {
                 <div className="flex items-center gap-3">
                     <Button
                         variant="outline"
-                        className="h-12 border-white/10"
+                        className="h-12"
                         onClick={() => navigate(`/client/${organization.id}/dashboard`)}
                     >
                         <ExternalLink className="w-4 h-4 mr-2" />
@@ -112,28 +112,28 @@ const OrganizationDetail = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Info Card */}
-                <Card className="lg:col-span-2 border-white/5 bg-white/5 backdrop-blur-xl">
+                <Card className="lg:col-span-2 border border-border bg-card/80 backdrop-blur-xl shadow-sm">
                     <CardHeader>
-                        <CardTitle>Visão Geral</CardTitle>
+                        <CardTitle className="text-foreground">Visão Geral</CardTitle>
                         <CardDescription>Dados cadastrais e técnicos</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-2 gap-8">
                             <div className="space-y-1">
                                 <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">ID da Organização</p>
-                                <p className="font-mono text-sm break-all">{organization.id}</p>
+                                <p className="font-mono text-sm text-foreground break-all">{organization.id}</p>
                             </div>
                             <div className="space-y-1">
                                 <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Slug (URL)</p>
-                                <p className="text-sm">{organization.slug}</p>
+                                <p className="text-sm text-foreground">{organization.slug}</p>
                             </div>
                             <div className="space-y-1">
                                 <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Administrador Responsável</p>
-                                <p className="text-sm font-medium">{organization.admin_name || 'Não definido'}</p>
+                                <p className="text-sm font-medium text-foreground">{organization.admin_name || 'Não definido'}</p>
                             </div>
                             <div className="space-y-1">
                                 <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">E-mail de Contato</p>
-                                <p className="text-sm">{organization.admin_email || 'Não definido'}</p>
+                                <p className="text-sm text-foreground">{organization.admin_email || 'Não definido'}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -141,22 +141,22 @@ const OrganizationDetail = () => {
 
                 {/* Quick Actions / Status */}
                 <div className="space-y-6">
-                    <Card className="border-white/5 bg-white/5 backdrop-blur-xl">
+                    <Card className="border border-border bg-card/80 backdrop-blur-xl shadow-sm">
                         <CardHeader>
-                            <CardTitle className="text-sm font-bold uppercase tracking-widest text-white/50">Métricas Rápidas</CardTitle>
+                            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Métricas Rápidas</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
                                 <div className="flex items-center gap-3">
                                     <LayoutDashboard className="w-4 h-4 text-accent" />
-                                    <span className="text-sm">Dashboards</span>
+                                    <span className="text-sm text-foreground">Dashboards</span>
                                 </div>
-                                <span className="font-bold">1</span>
+                                <span className="font-bold text-foreground">1</span>
                             </div>
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
                                 <div className="flex items-center gap-3">
                                     <Database className="w-4 h-4 text-accent" />
-                                    <span className="text-sm">Integrações</span>
+                                    <span className="text-sm text-foreground">Integrações</span>
                                 </div>
                                 <span className="text-xs text-muted-foreground italic">Nenhuma ativa</span>
                             </div>
