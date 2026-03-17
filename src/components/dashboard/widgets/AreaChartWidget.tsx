@@ -31,6 +31,31 @@ const CHART_COLORS = [
   'hsl(var(--chart-5))',
 ];
 
+// Cores fixas para séries conhecidas (evita repetição quando há >5 séries)
+const SERIES_COLOR_MAP: Record<string, string> = {
+  // BF / Kommo (pipeline)
+  encaminhado: 'hsl(var(--chart-5))', // roxo
+  atendimento_feito: 'hsl(var(--success))', // verde
+  reuniao_confirmada: 'hsl(var(--chart-2))', // amarelo/amber
+  reuniao_realizada: 'hsl(var(--info))', // azul
+  venda: 'hsl(var(--chart-1))', // laranja
+  desqualificado: 'hsl(var(--destructive))', // vermelho
+  hermes_entrada: 'hsl(var(--chart-3))', // verde alternativo
+};
+
+const EXTENDED_COLORS = [
+  ...CHART_COLORS,
+  'hsl(var(--primary))',
+  'hsl(var(--accent))',
+  'hsl(var(--success))',
+  'hsl(var(--info))',
+  'hsl(var(--warning))',
+  'hsl(var(--destructive))',
+];
+
+const getSeriesColor = (key: string, index: number) =>
+  SERIES_COLOR_MAP[key] || EXTENDED_COLORS[index % EXTENDED_COLORS.length];
+
 const DEFAULT_LABEL_MAP: Record<string, string> = {
   value: 'Valor',
   value2: 'Valor 2',
@@ -150,8 +175,8 @@ const AreaChartWidget = ({
                 <defs>
                   {dataKeys.map((key, index) => (
                     <linearGradient key={key} id={`area-grad-${key}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={CHART_COLORS[index % CHART_COLORS.length]} stopOpacity={0.35} />
-                      <stop offset="95%" stopColor={CHART_COLORS[index % CHART_COLORS.length]} stopOpacity={0} />
+                      <stop offset="0%" stopColor={getSeriesColor(key, index)} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={getSeriesColor(key, index)} stopOpacity={0} />
                     </linearGradient>
                   ))}
                 </defs>
@@ -185,10 +210,10 @@ const AreaChartWidget = ({
                 {dataKeys.map((key, index) => (
                   <Area
                     key={key}
-                    type="monotone"
+                    type="linear"
                     dataKey={key}
                     name={key}
-                    stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                    stroke={getSeriesColor(key, index)}
                     strokeWidth={2}
                     fill={`url(#area-grad-${key})`}
                     dot={false}
