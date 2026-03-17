@@ -562,7 +562,7 @@ const WidgetRenderer = ({
     // usar o metricField da configuração para encontrar o campo nos dados
     const afonsinaConfig = resolveByWidgetTitle(title, []);
     if (afonsinaConfig && numericFields.length > 0) {
-      const afonsinaField = afonsinaConfig.metricField.toLowerCase();
+      const afonsinaField = afonsinaConfig.fieldName.toLowerCase();
       const match = numericFields.find(k => k.toLowerCase() === afonsinaField);
       if (match) {
         console.log(`[resolveMetricField] Afonsina match: ${title} → ${match}`);
@@ -587,10 +587,9 @@ const WidgetRenderer = ({
         return tl === ml || tl.includes(ml) || ml.includes(tl);
       });
       if (refMapping) {
-        // Procurar os fieldNames do reference mapping nos dados disponíveis
-        for (const view of refMapping.views) {
-          const fieldLower = view.fieldName.toLowerCase();
-          const match = numericFields.find(k => k.toLowerCase() === fieldLower);
+        // Procurar campos que batem com os fieldPatterns do reference mapping
+        for (const view of refMapping.viewPatterns) {
+          const match = numericFields.find(k => view.fieldPattern.test(k));
           if (match) {
             console.log(`[resolveMetricField] Reference mapping: ${cfg.targetMetric} → ${match}`);
             return match;

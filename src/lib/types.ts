@@ -359,6 +359,7 @@ export const targetMetricLabels: Record<TargetMetric, { label: string; descripti
   lead_source: { label: 'Origem do Lead', description: 'Canal de aquisição', icon: 'globe' },
   created_date: { label: 'Data de Criação', description: 'Data do registro', icon: 'calendar' },
   custom: { label: 'Métrica Customizada', description: 'Defina sua própria métrica', icon: 'settings' },
+};
 
 // ============= Data Profiler Types (v2) =============
 // Exportados aqui para evitar importação circular com data-profiler.ts
