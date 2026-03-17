@@ -132,6 +132,23 @@ const resolveGroupByField = (
 };
 
 /**
+ * Ordem canônica das séries para fontes conhecidas.
+ * Garante que as cores sejam sempre consistentes independente da ordem
+ * em que os campos chegam nos dados.
+ */
+const CANONICAL_SERIES_ORDER: Record<string, string[]> = {
+  kommo_leads: [
+    'encaminhado',
+    'atendimento_feito',
+    'reuniao_confirmada',
+    'reuniao_realizada',
+    'venda',
+    'desqualificado',
+    'hermes_entrada',
+  ],
+};
+
+/**
  * Processa dados multi-série para gráficos de evolução temporal.
  * Retorna dados no formato Recharts: [{ day: "15 Jan", new_leads: 12, msg_in: 45, ... }, ...]
  */
@@ -175,10 +192,23 @@ const processMultiSeriesData = (
 
   console.log('[processMultiSeriesData] groupBy resolvido:', configGroupBy, '→', groupBy);
 
-  const explicitKeys = config.dataKeys || [];
-  
-  // Se temos dataKeys explícitos, verificar se existem nos dados
+  // Resolver dataKeys: explícito no config > ordem canônica por fonte > auto-detect
   const availableColumns = Object.keys(rawData[0]);
+  const dataSource = (config.dataSource || config.sourceTable || '').toLowerCase();
+  const canonicalOrder = Object.entries(CANONICAL_SERIES_ORDER).find(([src]) =>
+    dataSource.includes(src)
+  )?.[1];
+
+  let explicitKeys: string[] = config.dataKeys || [];
+
+  // Se não há dataKeys explícitos mas existe ordem canônica para a fonte,
+  // usar os campos canônicos que realmente existem nos dados
+  if (explicitKeys.length === 0 && canonicalOrder) {
+    explicitKeys = canonicalOrder.filter(k => availableColumns.includes(k));
+    console.log('[processMultiSeriesData] Usando ordem canônica para', dataSource, '→', explicitKeys);
+  }
+
+  // Se temos dataKeys explícitos, verificar se existem nos dados
   const validExplicitKeys = explicitKeys.filter(k => availableColumns.includes(k));
   
   if (validExplicitKeys.length > 0) {

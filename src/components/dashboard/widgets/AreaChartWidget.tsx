@@ -23,6 +23,7 @@ interface AreaChartWidgetProps {
   isLoading?: boolean;
 }
 
+// Paleta base (fallback para séries genéricas)
 const CHART_COLORS = [
   'hsl(var(--chart-1))',
   'hsl(var(--chart-2))',
@@ -31,30 +32,39 @@ const CHART_COLORS = [
   'hsl(var(--chart-5))',
 ];
 
-// Cores fixas para séries conhecidas (evita repetição quando há >5 séries)
+/**
+ * Cores fixas por nome de série — valores hex absolutos para garantir
+ * consistência entre tema claro e escuro (sem depender de CSS vars de tema).
+ *
+ * Mapeamento baseado no print escuro (referência visual correta):
+ *   encaminhado       → roxo/lilás   (igual ao print escuro)
+ *   atendimento_feito → verde claro
+ *   reuniao_confirmada→ laranja/amber
+ *   reuniao_realizada → azul
+ *   venda             → laranja vivo
+ *   desqualificado    → vermelho
+ *   hermes_entrada    → verde esmeralda
+ */
 const SERIES_COLOR_MAP: Record<string, string> = {
-  // BF / Kommo (pipeline)
-  encaminhado: 'hsl(var(--chart-5))', // roxo
-  atendimento_feito: 'hsl(var(--success))', // verde
-  reuniao_confirmada: 'hsl(var(--chart-2))', // amarelo/amber
-  reuniao_realizada: 'hsl(var(--info))', // azul
-  venda: 'hsl(var(--chart-1))', // laranja
-  desqualificado: 'hsl(var(--destructive))', // vermelho
-  hermes_entrada: 'hsl(var(--chart-3))', // verde alternativo
+  encaminhado:        '#8B5CF6', // roxo/violeta
+  atendimento_feito:  '#22C55E', // verde
+  reuniao_confirmada: '#F59E0B', // âmbar/laranja
+  reuniao_realizada:  '#3B82F6', // azul
+  venda:              '#FF6900', // laranja Pinn
+  desqualificado:     '#EF4444', // vermelho
+  hermes_entrada:     '#10B981', // esmeralda
+  // aliases
+  hermes_encaminhado: '#8B5CF6',
 };
 
+// Paleta estendida para séries não mapeadas (garante distinção mesmo com muitas séries)
 const EXTENDED_COLORS = [
-  ...CHART_COLORS,
-  'hsl(var(--primary))',
-  'hsl(var(--accent))',
-  'hsl(var(--success))',
-  'hsl(var(--info))',
-  'hsl(var(--warning))',
-  'hsl(var(--destructive))',
+  '#FF6900', '#F59E0B', '#22C55E', '#3B82F6', '#8B5CF6',
+  '#EC4899', '#10B981', '#EF4444', '#06B6D4', '#F97316',
 ];
 
 const getSeriesColor = (key: string, index: number) =>
-  SERIES_COLOR_MAP[key] || EXTENDED_COLORS[index % EXTENDED_COLORS.length];
+  SERIES_COLOR_MAP[key] ?? EXTENDED_COLORS[index % EXTENDED_COLORS.length];
 
 const DEFAULT_LABEL_MAP: Record<string, string> = {
   value: 'Valor',
@@ -175,8 +185,8 @@ const AreaChartWidget = ({
                 <defs>
                   {dataKeys.map((key, index) => (
                     <linearGradient key={key} id={`area-grad-${key}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={getSeriesColor(key, index)} stopOpacity={0.35} />
-                      <stop offset="95%" stopColor={getSeriesColor(key, index)} stopOpacity={0} />
+                      <stop offset="0%" stopColor={getSeriesColor(key, index)} stopOpacity={0.25} />
+                      <stop offset="90%" stopColor={getSeriesColor(key, index)} stopOpacity={0} />
                     </linearGradient>
                   ))}
                 </defs>
