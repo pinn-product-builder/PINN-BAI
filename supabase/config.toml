@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.create-org-admin]
 verify_jwt = false
+
+[functions.calculate-rfm]
+verify_jwt = false
+
+[functions.predict-churn]
+verify_jwt = false

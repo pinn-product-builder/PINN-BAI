@@ -58,6 +58,121 @@ export type Database = {
           },
         ]
       }
+      customer_churn_scores: {
+        Row: {
+          calculated_at: string
+          churn_probability: number
+          churn_reasons: Json
+          churn_risk_band: string
+          created_at: string
+          customer_key: string
+          id: string
+          org_id: string
+          source_table: string | null
+          updated_at: string
+        }
+        Insert: {
+          calculated_at?: string
+          churn_probability?: number
+          churn_reasons?: Json
+          churn_risk_band?: string
+          created_at?: string
+          customer_key: string
+          id?: string
+          org_id: string
+          source_table?: string | null
+          updated_at?: string
+        }
+        Update: {
+          calculated_at?: string
+          churn_probability?: number
+          churn_reasons?: Json
+          churn_risk_band?: string
+          created_at?: string
+          customer_key?: string
+          id?: string
+          org_id?: string
+          source_table?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_churn_scores_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_rfm_scores: {
+        Row: {
+          calculated_at: string
+          created_at: string
+          customer_email: string | null
+          customer_key: string
+          customer_name: string | null
+          f_score: number
+          frequency: number
+          id: string
+          m_score: number
+          monetary: number
+          org_id: string
+          r_score: number
+          recency_days: number
+          rfm_score: string
+          rfm_segment: string
+          source_table: string | null
+          updated_at: string
+        }
+        Insert: {
+          calculated_at?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_key: string
+          customer_name?: string | null
+          f_score: number
+          frequency?: number
+          id?: string
+          m_score: number
+          monetary?: number
+          org_id: string
+          r_score: number
+          recency_days?: number
+          rfm_score: string
+          rfm_segment: string
+          source_table?: string | null
+          updated_at?: string
+        }
+        Update: {
+          calculated_at?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_key?: string
+          customer_name?: string | null
+          f_score?: number
+          frequency?: number
+          id?: string
+          m_score?: number
+          monetary?: number
+          org_id?: string
+          r_score?: number
+          recency_days?: number
+          rfm_score?: string
+          rfm_segment?: string
+          source_table?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_rfm_scores_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboard_templates: {
         Row: {
           category: string | null

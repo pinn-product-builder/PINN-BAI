@@ -145,19 +145,30 @@ serve(async (req) => {
     }
 
     let sourceTable = tableName || "";
+
+    // 1) Try selected_tables (primary first)
     if (!sourceTable) {
-      const { data: primaryTable } = await internalSupabase
+      const { data: selectedTables } = await internalSupabase
         .from("selected_tables")
         .select("table_name, is_primary")
         .eq("integration_id", integration.id)
         .order("is_primary", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      sourceTable = primaryTable?.table_name || "";
+        .limit(1);
+      sourceTable = selectedTables?.[0]?.table_name || "";
+    }
+
+    // 2) Fallback: check data_mappings for a source_table
+    if (!sourceTable) {
+      const { data: mappingRows } = await internalSupabase
+        .from("data_mappings")
+        .select("source_table")
+        .eq("org_id", orgId)
+        .limit(1);
+      sourceTable = mappingRows?.[0]?.source_table || "";
     }
 
     if (!sourceTable) {
-      return new Response(JSON.stringify({ error: "No source table found for integration" }), {
+      return new Response(JSON.stringify({ error: "No source table found for integration", debug: { integrationId: integration.id } }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
