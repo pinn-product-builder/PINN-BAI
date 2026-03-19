@@ -269,6 +269,39 @@ serve(async (req) => {
       });
     }
 
+    // Try to load a contacts/enrichment table (e.g. kommo_contacts) for name/email
+    const contactsLookup = new Map<string, { name: string | null; email: string | null; phone: string | null }>();
+    if (!nameField && !emailField) {
+      const contactTableCandidates = ["kommo_contacts", "contacts", "contatos", "customers", "clientes"];
+      for (const ct of contactTableCandidates) {
+        const { data: ctRows, error: ctErr } = await externalSupabase
+          .from(ct)
+          .select("*")
+          .limit(10000);
+        if (!ctErr && ctRows && ctRows.length > 0) {
+          const ctCols = Object.keys(ctRows[0]);
+          const ctIdField = resolveField(ctCols, ["lead_id"], ["lead_id", "customer_id", "id", "contact_id"]);
+          const ctNameField = resolveField(ctCols, [], ["name", "nome", "full_name", "customer_name", "contact_name"]);
+          const ctEmailField = resolveField(ctCols, [], ["email", "mail", "e_mail"]);
+          const ctPhoneField = resolveField(ctCols, [], ["phone", "telefone", "whatsapp", "cel"]);
+          if (ctIdField) {
+            for (const ctRow of ctRows) {
+              const ctKey = String(ctRow[ctIdField] ?? "").trim().toLowerCase();
+              if (ctKey) {
+                contactsLookup.set(ctKey, {
+                  name: ctNameField ? String(ctRow[ctNameField] ?? "").trim() || null : null,
+                  email: ctEmailField ? String(ctRow[ctEmailField] ?? "").trim() || null : null,
+                  phone: ctPhoneField ? String(ctRow[ctPhoneField] ?? "").trim() || null : null,
+                });
+              }
+            }
+            console.log(`Enrichment: loaded ${contactsLookup.size} contacts from "${ct}"`);
+            break;
+          }
+        }
+      }
+    }
+
     const grouped = new Map<string, RowData[]>();
     for (const row of (rawRows || []) as RowData[]) {
       const rawCustomer = row[customerField];
@@ -299,18 +332,28 @@ serve(async (req) => {
           }, 0)
         : 0;
 
-      // Build a meaningful display name even when there's no name column
+      // Enrich with contacts lookup
+      const contact = contactsLookup.get(customerKey);
+
       let displayName: string | null = null;
       if (nameField) {
         displayName = String(latest[nameField] ?? "").trim() || null;
       }
+      if (!displayName && contact?.name) {
+        displayName = contact.name;
+      }
       if (!displayName) {
-        // Use the customer identifier (e.g. lead_id) as a readable label
         const rawId = String(latest[customerField] ?? customerKey);
         displayName = `Lead #${rawId}`;
       }
 
-      const displayEmail = emailField ? String(latest[emailField] ?? "").trim() || null : null;
+      let displayEmail: string | null = null;
+      if (emailField) {
+        displayEmail = String(latest[emailField] ?? "").trim() || null;
+      }
+      if (!displayEmail && contact?.email) {
+        displayEmail = contact.email;
+      }
 
       return {
         customerKey,
