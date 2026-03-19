@@ -299,10 +299,23 @@ serve(async (req) => {
           }, 0)
         : 0;
 
+      // Build a meaningful display name even when there's no name column
+      let displayName: string | null = null;
+      if (nameField) {
+        displayName = String(latest[nameField] ?? "").trim() || null;
+      }
+      if (!displayName) {
+        // Use the customer identifier (e.g. lead_id) as a readable label
+        const rawId = String(latest[customerField] ?? customerKey);
+        displayName = `Lead #${rawId}`;
+      }
+
+      const displayEmail = emailField ? String(latest[emailField] ?? "").trim() || null : null;
+
       return {
         customerKey,
-        customerName: nameField ? String(latest[nameField] ?? "") || null : null,
-        customerEmail: emailField ? String(latest[emailField] ?? "") || null : null,
+        customerName: displayName,
+        customerEmail: displayEmail,
         recencyDays,
         frequency: Math.max(1, Math.round(frequency)),
         monetary: Math.max(0, monetary),
