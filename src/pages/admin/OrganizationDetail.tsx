@@ -103,6 +103,14 @@ const OrganizationDetail = () => {
                         <ExternalLink className="w-4 h-4 mr-2" />
                         Visualizar como Cliente
                     </Button>
+                    <Button
+                        variant="outline"
+                        className="h-12 border-white/10"
+                        onClick={() => navigate('/admin/rfm-churn')}
+                    >
+                        <LayoutDashboard className="w-4 h-4 mr-2" />
+                        RFM + Churn
+                    </Button>
                     <Button className="h-12 bg-accent hover:bg-accent/90 text-accent-foreground font-bold group">
                         <Settings className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
                         Configurar Org

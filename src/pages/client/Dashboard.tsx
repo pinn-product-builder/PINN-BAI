@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -37,6 +37,7 @@ const DASH_ICONS: Record<string, React.ReactNode> = {
 
 const Dashboard = () => {
   const { orgId } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -131,6 +132,14 @@ const Dashboard = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/client/${orgId}/rfm-churn`)}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border border-border/50 bg-card/60 text-muted-foreground hover:text-foreground hover:border-border/80 transition-all"
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            RFM + Churn
+          </button>
           <button
             onClick={handleExportPDF}
             disabled={isExporting}

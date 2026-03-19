@@ -2,20 +2,29 @@ import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
-  Building2, LayoutTemplate, Users, Settings,
-  LogOut, Activity, LayoutDashboard, Gauge, ChevronRight,
+  Building2,
+  LayoutTemplate,
+  Users,
+  Settings,
+  LogOut,
+  Activity,
+  LayoutDashboard,
+  Gauge,
+  ChevronRight,
+  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ThemeToggle from '@/components/ThemeToggle';
 
 const navItems = [
-  { path: '/admin/hq',             label: 'Command',       icon: LayoutDashboard },
-  { path: '/admin/organizations',  label: 'Organizações',  icon: Building2 },
-  { path: '/admin/templates',      label: 'Templates',     icon: LayoutTemplate },
-  { path: '/admin/custom-metrics', label: 'Métricas',      icon: Gauge },
-  { path: '/admin/users',          label: 'Usuários',      icon: Users },
-  { path: '/admin/activity',       label: 'Atividade',     icon: Activity },
-  { path: '/admin/settings',       label: 'Config',        icon: Settings },
+  { path: '/admin/hq', label: 'Command', icon: LayoutDashboard },
+  { path: '/admin/organizations', label: 'Organizações', icon: Building2 },
+  { path: '/admin/templates', label: 'Templates', icon: LayoutTemplate },
+  { path: '/admin/custom-metrics', label: 'Métricas', icon: Gauge },
+  { path: '/admin/rfm-churn', label: 'RFM + Churn', icon: Target },
+  { path: '/admin/users', label: 'Usuários', icon: Users },
+  { path: '/admin/activity', label: 'Atividade', icon: Activity },
+  { path: '/admin/settings', label: 'Config', icon: Settings },
 ];
 
 const AdminLayout = () => {

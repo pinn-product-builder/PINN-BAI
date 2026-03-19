@@ -1,6 +1,6 @@
 import { Link, useParams, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Upload, Settings, LogOut, Lightbulb, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Upload, Settings, LogOut, Lightbulb, Sparkles, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,10 +9,11 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { useState } from 'react';
 
 const navItems = [
-  { path: 'dashboard', label: 'Dashboard',       icon: LayoutDashboard },
-  { path: 'import',    label: 'Dados',           icon: Upload },
-  { path: 'insights',  label: 'Inteligência IA', icon: Lightbulb },
-  { path: 'settings',  label: 'White Label',     icon: Settings },
+  { path: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: 'import', label: 'Dados', icon: Upload },
+  { path: 'insights', label: 'Inteligência IA', icon: Lightbulb },
+  { path: 'rfm-churn', label: 'RFM + Churn', icon: Target },
+  { path: 'settings', label: 'White Label', icon: Settings },
 ];
 
 const ClientLayout = () => {

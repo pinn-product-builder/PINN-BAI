@@ -73,6 +73,14 @@ const GlobalHQ = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <Button
+                            variant="outline"
+                            className="h-12 border-white/10"
+                            onClick={() => navigate('/admin/rfm-churn')}
+                        >
+                            <LayoutDashboard className="w-4 h-4 mr-2" />
+                            Módulo RFM + Churn
+                        </Button>
+                        <Button
                         className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold px-6 h-12 rounded-xl shadow-xl shadow-accent/20"
                         onClick={() => navigate('/admin/organizations/new')}
                     >
