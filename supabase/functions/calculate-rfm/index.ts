@@ -167,8 +167,24 @@ serve(async (req) => {
       sourceTable = mappingRows?.[0]?.source_table || "";
     }
 
+    // 3) Fallback: auto-discover tables from the external Supabase
     if (!sourceTable) {
-      return new Response(JSON.stringify({ error: "No source table found for integration", debug: { integrationId: integration.id } }), {
+      const externalDiscovery = createClient(config.projectUrl, config.anonKey);
+      const commonTables = ["leads", "customers", "contacts", "orders", "sales", "clientes", "vendas", "pedidos", "transactions"];
+      for (const candidate of commonTables) {
+        const { data: probe, error: probeError } = await externalDiscovery
+          .from(candidate)
+          .select("*")
+          .limit(1);
+        if (!probeError && probe && probe.length > 0) {
+          sourceTable = candidate;
+          break;
+        }
+      }
+    }
+
+    if (!sourceTable) {
+      return new Response(JSON.stringify({ error: "No source table found. Configure selected_tables or data_mappings, or ensure your external DB has a known table (leads, customers, contacts, orders, sales).", debug: { integrationId: integration.id } }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
