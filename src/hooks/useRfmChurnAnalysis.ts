@@ -109,16 +109,17 @@ export const useRfmChurnAnalysis = (orgId?: string) => {
       }
 
       // 3) Busca os scores persistidos para renderização
-      const [{ data: rfmData, error: rfmDataError }, { data: churnData, error: churnDataError }] = await Promise.all([
-        supabase
-          .from('customer_rfm_scores')
-          .select('*')
-          .eq('org_id', orgId),
-        supabase
-          .from('customer_churn_scores')
-          .select('*')
-          .eq('org_id', orgId),
-      ]);
+      const rfmResult = await supabase
+        .from('customer_rfm_scores')
+        .select('*')
+        .eq('org_id', orgId);
+      const churnResult = await supabase
+        .from('customer_churn_scores')
+        .select('*')
+        .eq('org_id', orgId);
+
+      const { data: rfmData, error: rfmDataError } = rfmResult;
+      const { data: churnData, error: churnDataError } = churnResult;
 
       if (rfmDataError) throw new Error(`Falha ao buscar scores RFM: ${rfmDataError.message}`);
       if (churnDataError) throw new Error(`Falha ao buscar scores de churn: ${churnDataError.message}`);
