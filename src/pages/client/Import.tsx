@@ -187,7 +187,7 @@ const ClientImport = () => {
 
       const { error: widgetError } = await supabase
         .from('dashboard_widgets')
-        .insert(widgetsToInsert);
+        .insert(widgetsToInsert as any);
 
       if (widgetError) throw widgetError;
 

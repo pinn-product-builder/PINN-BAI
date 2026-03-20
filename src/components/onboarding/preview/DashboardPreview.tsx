@@ -112,7 +112,7 @@ const DashboardPreview = ({ widgets }: DashboardPreviewProps) => {
             </Card>
           </WidgetWrapper>
         );
-      case 'churn_prediction':
+      case 'churn_prediction' as any:
         return (
           <WidgetWrapper>
             <Card className="p-4 h-full min-h-[220px]">
