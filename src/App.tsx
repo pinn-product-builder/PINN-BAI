@@ -37,8 +37,18 @@ import Insights from "./pages/client/Insights";
 import ClientUsers from "./pages/client/Users";
 import ClientSettings from "./pages/client/Settings";
 import ClientRfmChurn from "./pages/client/RfmChurn";
+import { isRfmChurnEnabledForAdmin, isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
+import { useParams } from "react-router-dom";
 
 const queryClient = new QueryClient();
+
+const ClientRfmChurnGate = () => {
+  const { orgId } = useParams();
+  if (!isRfmChurnEnabledForOrg(orgId)) {
+    return <Navigate to={`/client/${orgId}/dashboard`} replace />;
+  }
+  return <ClientRfmChurn />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -70,7 +80,9 @@ const App = () => (
                 <Route path="organizations/onboarding" element={<OnboardingWizard />} />
                 <Route path="templates" element={<Templates />} />
                 <Route path="custom-metrics" element={<CustomMetrics />} />
-                <Route path="rfm-churn" element={<AdminRfmChurn />} />
+                {isRfmChurnEnabledForAdmin() && (
+                  <Route path="rfm-churn" element={<AdminRfmChurn />} />
+                )}
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="activity" element={<Activity />} />
                 <Route path="settings" element={<AdminSettings />} />
@@ -91,7 +103,7 @@ const App = () => (
                 <Route path="import" element={<Import />} />
                 <Route path="datasets" element={<Datasets />} />
                 <Route path="insights" element={<Insights />} />
-                <Route path="rfm-churn" element={<ClientRfmChurn />} />
+                <Route path="rfm-churn" element={<ClientRfmChurnGate />} />
                 <Route path="users" element={<ClientUsers />} />
                 <Route path="settings" element={<ClientSettings />} />
               </Route>

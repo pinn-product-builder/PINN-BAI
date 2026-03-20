@@ -15,8 +15,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ThemeToggle from '@/components/ThemeToggle';
+import { isRfmChurnEnabledForAdmin } from '@/lib/featureFlags';
 
-const navItems = [
+const baseNavItems = [
   { path: '/admin/hq', label: 'Command', icon: LayoutDashboard },
   { path: '/admin/organizations', label: 'Organizações', icon: Building2 },
   { path: '/admin/templates', label: 'Templates', icon: LayoutTemplate },
@@ -31,6 +32,7 @@ const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const navItems = baseNavItems.filter(item => item.path !== '/admin/rfm-churn' || isRfmChurnEnabledForAdmin());
 
   return (
     <div className="min-h-screen bg-background flex" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>

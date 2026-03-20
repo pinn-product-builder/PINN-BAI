@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import DashboardEngine from '@/components/dashboard/DashboardEngine';
 import { ReportGenerator } from '@/lib/report-generator';
 import { useDashboardNarrative } from '@/hooks/useDashboardNarrative';
+import { isRfmChurnEnabledForOrg } from '@/lib/featureFlags';
 
 const DASH_ICONS: Record<string, React.ReactNode> = {
   'Executivo': <LayoutDashboard className="w-4 h-4" />,
@@ -42,6 +43,7 @@ const Dashboard = () => {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDashId, setSelectedDashId] = useState<string | null>(null);
+  const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
 
   // Fetch ALL dashboards for this org
   const { data: dashboards, isLoading: isLoadingDashes } = useQuery({
@@ -132,14 +134,16 @@ const Dashboard = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(`/client/${orgId}/rfm-churn`)}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border border-border/50 bg-card/60 text-muted-foreground hover:text-foreground hover:border-border/80 transition-all"
-          >
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            RFM + Churn
-          </button>
+          {showRfmChurn && (
+            <button
+              type="button"
+              onClick={() => navigate(`/client/${orgId}/rfm-churn`)}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border border-border/50 bg-card/60 text-muted-foreground hover:text-foreground hover:border-border/80 transition-all"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              RFM + Churn
+            </button>
+          )}
           <button
             onClick={handleExportPDF}
             disabled={isExporting}

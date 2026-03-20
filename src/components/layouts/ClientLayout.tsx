@@ -7,8 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import AIChat from '@/components/ai/AIChat';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useState } from 'react';
+import { isRfmChurnEnabledForOrg } from '@/lib/featureFlags';
 
-const navItems = [
+const baseNavItems = [
   { path: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: 'import', label: 'Dados', icon: Upload },
   { path: 'insights', label: 'Inteligência IA', icon: Lightbulb },
@@ -22,6 +23,8 @@ const ClientLayout = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { organization, isLoading } = useTheme();
   const { profile, signOut } = useAuth();
+  const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
+  const navItems = baseNavItems.filter(item => item.path !== 'rfm-churn' || showRfmChurn);
 
   const currentPath = location.pathname.split('/').pop();
 
