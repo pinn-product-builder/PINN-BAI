@@ -130,7 +130,7 @@ export const useCreateDashboardWidgets = () => {
         .insert(
           widgets.map((widget, index) => ({
             dashboard_id: dashboardId,
-            type: widget.type,
+            type: widget.type as any,
             title: widget.title,
             description: widget.description,
             config: widget.config,
