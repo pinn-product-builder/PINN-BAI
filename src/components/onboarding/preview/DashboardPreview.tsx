@@ -100,7 +100,7 @@ const DashboardPreview = ({ widgets }: DashboardPreviewProps) => {
             <InsightCard {...commonProps} />
           </WidgetWrapper>
         );
-      case 'rfm_matrix':
+      case 'rfm_matrix' as any:
         return (
           <WidgetWrapper>
             <Card className="p-4 h-full min-h-[220px]">
@@ -112,7 +112,7 @@ const DashboardPreview = ({ widgets }: DashboardPreviewProps) => {
             </Card>
           </WidgetWrapper>
         );
-      case 'churn_prediction':
+      case 'churn_prediction' as any:
         return (
           <WidgetWrapper>
             <Card className="p-4 h-full min-h-[220px]">

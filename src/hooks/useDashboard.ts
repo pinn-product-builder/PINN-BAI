@@ -130,7 +130,7 @@ export const useCreateDashboardWidgets = () => {
         .insert(
           widgets.map((widget, index) => ({
             dashboard_id: dashboardId,
-            type: widget.type,
+            type: widget.type as any,
             title: widget.title,
             description: widget.description,
             config: widget.config,
@@ -159,9 +159,11 @@ export const useUpdateDashboardWidget = () => {
       id,
       ...updates
     }: Partial<DashboardWidget> & { id: string }): Promise<DashboardWidget> => {
+      const { type, ...safeUpdates } = updates;
+      const updatePayload = type ? { ...safeUpdates, type: type as any } : safeUpdates;
       const { data, error } = await supabase
         .from('dashboard_widgets')
-        .update(updates)
+        .update(updatePayload)
         .eq('id', id)
         .select()
         .single();
