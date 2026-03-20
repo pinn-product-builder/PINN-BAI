@@ -92,20 +92,16 @@ export const useRfmChurnAnalysis = (orgId?: string) => {
     queryFn: async () => {
       if (!orgId) return [];
 
-      // 1) Recalcula RFM com leitura das tabelas de integração do cliente
-      const { error: rfmInvokeError } = await supabase.functions.invoke('calculate-rfm', {
-        body: { orgId },
-      });
+      // 1) Tenta recalcular RFM. Se falhar (ex.: integração incompleta), segue com dados persistidos.
+      const { error: rfmInvokeError } = await supabase.functions.invoke('calculate-rfm', { body: { orgId } });
       if (rfmInvokeError) {
-        throw new Error(`Falha ao calcular RFM: ${rfmInvokeError.message}`);
+        console.warn('[useRfmChurnAnalysis] calculate-rfm falhou, usando cache persistido:', rfmInvokeError.message);
       }
 
-      // 2) Recalcula churn usando os scores RFM persistidos
-      const { error: churnInvokeError } = await supabase.functions.invoke('predict-churn', {
-        body: { orgId },
-      });
+      // 2) Tenta recalcular churn, sem bloquear a tela em caso de falha.
+      const { error: churnInvokeError } = await supabase.functions.invoke('predict-churn', { body: { orgId } });
       if (churnInvokeError) {
-        throw new Error(`Falha ao calcular churn: ${churnInvokeError.message}`);
+        console.warn('[useRfmChurnAnalysis] predict-churn falhou, usando cache persistido:', churnInvokeError.message);
       }
 
       // 3) Busca os scores persistidos para renderização
@@ -124,11 +120,32 @@ export const useRfmChurnAnalysis = (orgId?: string) => {
       if (rfmDataError) throw new Error(`Falha ao buscar scores RFM: ${rfmDataError.message}`);
       if (churnDataError) throw new Error(`Falha ao buscar scores de churn: ${churnDataError.message}`);
 
-      const churnByCustomer = new Map(
-        (churnData || []).map((row: any) => [row.customer_key, row]),
-      );
+      // 4) Fallback de integração:
+      // se não há scores persistidos, tenta usar a tabela interna de leads da org
+      // para manter a tela funcional enquanto o pipeline externo é configurado.
+      if (!rfmData || rfmData.length === 0) {
+        const { data: leadRows, error: leadsError } = await supabase
+          .from('leads')
+          .select('id, name, email, status, value, created_at, updated_at, converted_at')
+          .eq('org_id', orgId)
+          .order('updated_at', { ascending: false })
+          .limit(10000);
 
-      return (rfmData || []).map((row: any) => {
+        if (leadsError) {
+          console.warn('[useRfmChurnAnalysis] fallback via leads falhou:', leadsError.message);
+          return [];
+        }
+
+        if (!leadRows || leadRows.length === 0) {
+          return [];
+        }
+
+        return leadRows as unknown as LeadRow[];
+      }
+
+      const churnByCustomer = new Map((churnData || []).map((row: Record<string, unknown>) => [row.customer_key, row]));
+
+      return (rfmData || []).map((row: Record<string, unknown>) => {
         const churn = churnByCustomer.get(row.customer_key);
         return {
           id: row.customer_key,
@@ -141,10 +158,13 @@ export const useRfmChurnAnalysis = (orgId?: string) => {
           converted_at: null,
           _rfm: row,
           _churn: churn || null,
-        };
+        } as unknown as LeadRow;
       }) as unknown as LeadRow[];
     },
     enabled: !!orgId,
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
   });
 
   const analysis = useMemo<RfmAnalysisResult>(() => {
@@ -165,10 +185,10 @@ export const useRfmChurnAnalysis = (orgId?: string) => {
       };
     }
 
-    const hasPersistedScores = (leads[0] as any)?._rfm;
+    const hasPersistedScores = (leads[0] as { _rfm?: unknown })?._rfm;
     if (hasPersistedScores) {
-      const rows = (leads as any[]).map((leadLike: any) => {
-        const rfm = leadLike._rfm;
+      const rows = (leads as Array<LeadRow & { _rfm?: Record<string, unknown>; _churn?: Record<string, unknown> | null }>).map((leadLike) => {
+        const rfm = leadLike._rfm || {};
         const churn = leadLike._churn;
         const churnProbability = Number(churn?.churn_probability || 0);
         const churnRiskBand: RiskBand =

@@ -300,5 +300,35 @@ export function generateLocalRecommendations(
     basedOn: 'Funcionalidade IA disponível para todos os planos',
   });
 
+  if (
+    metricTypes.has('churn_rate') ||
+    metricTypes.has('churn_probability') ||
+    metricTypes.has('recency') ||
+    metricTypes.has('frequency') ||
+    metricTypes.has('monetary')
+  ) {
+    recommendations.push({
+      type: 'rfm_matrix',
+      title: 'Matriz RFM',
+      description: 'Segmentação de clientes por recência, frequência e valor.',
+      score: 91,
+      config: {
+        targetMetric: 'recency',
+      },
+      basedOn: 'Métricas de relacionamento detectadas (RFM)',
+    });
+
+    recommendations.push({
+      type: 'churn_prediction',
+      title: 'Predição de Churn',
+      description: 'Clientes com maior risco de evasão e priorização de retenção.',
+      score: 90,
+      config: {
+        targetMetric: 'churn_probability',
+      },
+      basedOn: 'Sinal de churn detectado nos mapeamentos',
+    });
+  }
+
   return recommendations.sort((a, b) => b.score - a.score);
 }

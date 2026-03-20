@@ -27,6 +27,8 @@ import PieChartWidget from '@/components/dashboard/widgets/PieChartWidget';
 import FunnelWidget from '@/components/dashboard/widgets/FunnelWidget';
 import TableWidget from '@/components/dashboard/widgets/TableWidget';
 import InsightCard from '@/components/dashboard/widgets/InsightCard';
+import RFMMatrixWidget from '@/components/dashboard/widgets/RFMMatrixWidget';
+import ChurnPredictionWidget from '@/components/dashboard/widgets/ChurnPredictionWidget';
 
 interface WidgetConfig {
   dataSource?: string;
@@ -998,6 +1000,28 @@ const WidgetRenderer = ({
           />
         </WidgetWrapper>
       );
+
+    case 'rfm_matrix':
+      return (
+        <WidgetWrapper {...wrapperProps}>
+          <RFMMatrixWidget
+            orgId={orgId}
+            title={widget.title}
+            description={widget.description || 'Distribuição de segmentos da matriz RFM.'}
+          />
+        </WidgetWrapper>
+      );
+
+    case 'churn_prediction':
+      return (
+        <WidgetWrapper {...wrapperProps}>
+          <ChurnPredictionWidget
+            orgId={orgId}
+            title={widget.title}
+            description={widget.description || 'Clientes com maior risco de churn e nível de risco.'}
+          />
+        </WidgetWrapper>
+      );
       
     default:
       return null;
@@ -1136,6 +1160,7 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   const pieCharts = sortedWidgets.filter(w => w.type === 'pie_chart');
   const tableWidgets = sortedWidgets.filter(w => w.type === 'table');
   const insightWidgets = sortedWidgets.filter(w => w.type === 'insight_card');
+  const rfmChurnWidgets = sortedWidgets.filter(w => ['rfm_matrix', 'churn_prediction'].includes(w.type));
 
   // Combine tables + bar charts sorted by position for side-by-side pairing
   const tablesAndBars = [...tableWidgets, ...barCharts].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
@@ -1234,6 +1259,20 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[...tablesAndBars, ...insightWidgets].map(widget => (
               <div key={widget.id} className="min-h-[340px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* RFM e Churn */}
+      {rfmChurnWidgets.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-foreground mb-3">Retenção e Relacionamento</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {rfmChurnWidgets.map(widget => (
+              <div key={widget.id} className="min-h-[320px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
             ))}

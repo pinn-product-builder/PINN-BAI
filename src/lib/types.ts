@@ -10,7 +10,17 @@ export type IntegrationType = 'supabase' | 'google_sheets' | 'csv' | 'api';
 export type IntegrationStatus = 'pending' | 'connected' | 'error' | 'syncing';
 export type LeadSource = 'google_ads' | 'linkedin' | 'referral' | 'organic' | 'email' | 'other';
 export type LeadStatus = 'new' | 'qualified' | 'in_analysis' | 'proposal' | 'converted' | 'lost';
-export type WidgetType = 'metric_card' | 'area_chart' | 'bar_chart' | 'line_chart' | 'pie_chart' | 'funnel' | 'table' | 'insight_card';
+export type WidgetType =
+  | 'metric_card'
+  | 'area_chart'
+  | 'bar_chart'
+  | 'line_chart'
+  | 'pie_chart'
+  | 'funnel'
+  | 'table'
+  | 'insight_card'
+  | 'rfm_matrix'
+  | 'churn_prediction';
 
 // ============= Organization =============
 // Aligned with Supabase schema (organizations table)
@@ -340,6 +350,10 @@ export type TargetMetric =
   | 'funnel_stage'
   | 'lead_source'
   | 'created_date'
+  | 'recency'
+  | 'frequency'
+  | 'monetary'
+  | 'churn_probability'
   | 'custom';
 
 export const targetMetricLabels: Record<TargetMetric, { label: string; description: string; icon: string }> = {
@@ -358,6 +372,10 @@ export const targetMetricLabels: Record<TargetMetric, { label: string; descripti
   funnel_stage: { label: 'Estágio do Funil', description: 'Posição no funil de vendas', icon: 'filter' },
   lead_source: { label: 'Origem do Lead', description: 'Canal de aquisição', icon: 'globe' },
   created_date: { label: 'Data de Criação', description: 'Data do registro', icon: 'calendar' },
+  recency: { label: 'Recência', description: 'Dias desde a última atividade do cliente', icon: 'clock' },
+  frequency: { label: 'Frequência', description: 'Quantidade de interações ou compras no período', icon: 'repeat' },
+  monetary: { label: 'Monetário', description: 'Valor total movimentado por cliente', icon: 'wallet' },
+  churn_probability: { label: 'Probabilidade de Churn', description: 'Risco estimado de evasão por cliente', icon: 'alert-triangle' },
   custom: { label: 'Métrica Customizada', description: 'Defina sua própria métrica', icon: 'settings' },
 };
 

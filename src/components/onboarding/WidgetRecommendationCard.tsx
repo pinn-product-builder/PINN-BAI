@@ -10,7 +10,9 @@ import {
   Activity,
   Sparkles,
   Filter,
-  AreaChart
+  AreaChart,
+  Users,
+  AlertTriangle
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +41,8 @@ const WIDGET_ICONS: Record<WidgetType, React.ComponentType<{ className?: string 
   funnel: Filter,
   table: Table2,
   insight_card: Sparkles,
+  rfm_matrix: Users,
+  churn_prediction: AlertTriangle,
 };
 
 const getScoreColor = (score: number): string => {

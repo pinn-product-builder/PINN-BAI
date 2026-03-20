@@ -11,6 +11,7 @@ import LineChartWidget from '@/components/dashboard/widgets/LineChartWidget';
 import PieChartWidget from '@/components/dashboard/widgets/PieChartWidget';
 import FunnelWidget from '@/components/dashboard/widgets/FunnelWidget';
 import InsightCard from '@/components/dashboard/widgets/InsightCard';
+import { AlertTriangle, Users } from 'lucide-react';
 
 interface DashboardPreviewProps {
   widgets: DashboardWidgetConfig[];
@@ -97,6 +98,30 @@ const DashboardPreview = ({ widgets }: DashboardPreviewProps) => {
         return (
           <WidgetWrapper>
             <InsightCard {...commonProps} />
+          </WidgetWrapper>
+        );
+      case 'rfm_matrix':
+        return (
+          <WidgetWrapper>
+            <Card className="p-4 h-full min-h-[220px]">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-4 h-4 text-primary" />
+                <p className="text-sm font-semibold">{widget.title}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">{widget.description}</p>
+            </Card>
+          </WidgetWrapper>
+        );
+      case 'churn_prediction':
+        return (
+          <WidgetWrapper>
+            <Card className="p-4 h-full min-h-[220px]">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-red-500" />
+                <p className="text-sm font-semibold">{widget.title}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">{widget.description}</p>
+            </Card>
           </WidgetWrapper>
         );
       default:
