@@ -22,15 +22,19 @@ const ApiIntegration = ({ onConnect, isConnecting }: ApiIntegrationProps) => {
     baseUrl: string;
     authType: 'bearer' | 'api_key' | 'basic' | 'none';
     authValue: string;
+    apiKeyHeader: string;
     endpoint: string;
     method: 'GET' | 'POST';
+    detectActions: boolean;
     refreshInterval: number;
   }>({
-    baseUrl: '',
-    authType: 'bearer',
+    baseUrl: 'https://xhneumybgskvgoljeqim.supabase.co/functions/v1/api-external',
+    authType: 'api_key',
     authValue: '',
-    endpoint: '/api/data',
+    apiKeyHeader: 'X-API-Key',
+    endpoint: '',
     method: 'GET' as const,
+    detectActions: true,
     refreshInterval: 60,
   });
   const [headers, setHeaders] = useState<{ key: string; value: string }[]>([]);
@@ -58,7 +62,7 @@ const ApiIntegration = ({ onConnect, isConnecting }: ApiIntegrationProps) => {
     });
   };
 
-  const isValid = config.baseUrl.startsWith('http') && config.endpoint;
+  const isValid = config.baseUrl.startsWith('http') && (config.detectActions || !!config.endpoint);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -79,21 +83,27 @@ const ApiIntegration = ({ onConnect, isConnecting }: ApiIntegrationProps) => {
           <Label htmlFor="base-url">URL Base *</Label>
           <Input
             id="base-url"
-            placeholder="https://api.exemplo.com"
+            placeholder="https://api.exemplo.com/functions/v1/api-external"
             value={config.baseUrl}
             onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
           />
+          <p className="text-xs text-muted-foreground">
+            Para API do Cold Mail Hackers, mantenha a URL padrão e informe apenas a API Key.
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="endpoint">Endpoint *</Label>
+            <Label htmlFor="endpoint">Endpoint</Label>
             <Input
               id="endpoint"
-              placeholder="/api/data"
+              placeholder="?action=stats (opcional)"
               value={config.endpoint}
               onChange={(e) => setConfig({ ...config, endpoint: e.target.value })}
             />
+            <p className="text-xs text-muted-foreground">
+              Deixe em branco para detectar automaticamente as ações da API.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="method">Método</Label>
@@ -110,6 +120,30 @@ const ApiIntegration = ({ onConnect, isConnecting }: ApiIntegrationProps) => {
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        {config.authType === 'api_key' && (
+          <div className="space-y-2">
+            <Label htmlFor="api-key-header">Header da API Key</Label>
+            <Input
+              id="api-key-header"
+              placeholder="X-API-Key"
+              value={config.apiKeyHeader}
+              onChange={(e) => setConfig({ ...config, apiKeyHeader: e.target.value || 'X-API-Key' })}
+            />
+          </div>
+        )}
+
+        <div className="p-3 rounded-md border border-border/60 bg-muted/20">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.detectActions}
+              onChange={(e) => setConfig({ ...config, detectActions: e.target.checked })}
+              className="rounded border-border"
+            />
+            Detectar ações automaticamente (stats, campaigns, pipeline, timeline...)
+          </label>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

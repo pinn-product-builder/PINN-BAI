@@ -11,8 +11,17 @@ interface RequestBody {
   method: 'GET' | 'POST';
   authType: 'none' | 'bearer' | 'api_key' | 'basic';
   authValue?: string;
+  apiKeyHeader?: string;
   headers?: Record<string, string>;
+  detectActions?: boolean;
   body?: unknown;
+}
+
+interface AnalyzedData {
+  columns: { name: string; type: string; nullable: boolean; sampleValues: unknown[] }[];
+  rowCount: number;
+  sampleData: Record<string, unknown>[];
+  data: Record<string, unknown>[];
 }
 
 serve(async (req) => {
@@ -22,7 +31,17 @@ serve(async (req) => {
   }
 
   try {
-    const { baseUrl, endpoint, method, authType, authValue, headers: customHeaders, body }: RequestBody = await req.json();
+    const {
+      baseUrl,
+      endpoint,
+      method,
+      authType,
+      authValue,
+      apiKeyHeader = 'X-API-Key',
+      headers: customHeaders,
+      detectActions = false,
+      body,
+    }: RequestBody = await req.json();
 
     if (!baseUrl) {
       return new Response(
@@ -30,9 +49,6 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Build full URL
-    const url = endpoint ? `${baseUrl.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}` : baseUrl;
 
     // Build headers
     const fetchHeaders: Record<string, string> = {
@@ -46,104 +62,117 @@ serve(async (req) => {
         if (authValue) fetchHeaders['Authorization'] = `Bearer ${authValue}`;
         break;
       case 'api_key':
-        if (authValue) fetchHeaders['X-API-Key'] = authValue;
+        if (authValue) fetchHeaders[apiKeyHeader] = authValue;
         break;
       case 'basic':
         if (authValue) fetchHeaders['Authorization'] = `Basic ${btoa(authValue)}`;
         break;
     }
 
-    // Make request
-    const response = await fetch(url, {
-      method,
-      headers: fetchHeaders,
-      body: method === 'POST' && body ? JSON.stringify(body) : undefined,
-    });
-
-    const contentType = response.headers.get('content-type');
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `API retornou erro ${response.status}: ${errorText.substring(0, 200)}`,
-        }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    let data: unknown;
-    if (contentType?.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = await response.text();
-    }
-
-    // Analyze data structure
-    let columns: { name: string; type: string }[] = [];
-    let rowCount = 0;
-    let sampleData: Record<string, unknown>[] = [];
-
-    if (Array.isArray(data)) {
-      rowCount = data.length;
-      sampleData = data.slice(0, 10) as Record<string, unknown>[];
-
-      if (data.length > 0 && typeof data[0] === 'object') {
-        columns = Object.entries(data[0] as Record<string, unknown>).map(([key, value]) => ({
-          name: key,
-          type: detectType(value),
-        }));
+    const base = baseUrl.replace(/\/$/, '');
+    const buildUrl = (actionOrEndpoint: string, query: Record<string, string> = {}) => {
+      if (actionOrEndpoint.startsWith('?') || actionOrEndpoint.includes('?')) {
+        return `${base}${actionOrEndpoint.startsWith('?') ? '' : '/'}${actionOrEndpoint}`;
       }
-    } else if (typeof data === 'object' && data !== null) {
-      // Check if there's a data property that's an array
-      const dataObj = data as Record<string, unknown>;
-      const arrayProp = Object.entries(dataObj).find(([, value]) => Array.isArray(value));
+      if (actionOrEndpoint.startsWith('/')) {
+        return `${base}${actionOrEndpoint}`;
+      }
+      const search = new URLSearchParams(query).toString();
+      return `${base}?${search || actionOrEndpoint}`;
+    };
 
-      if (arrayProp) {
-        const [propName, arrayData] = arrayProp;
-        rowCount = (arrayData as unknown[]).length;
-        sampleData = (arrayData as Record<string, unknown>[]).slice(0, 10);
+    const requestJson = async (url: string) => {
+      const response = await fetch(url, {
+        method,
+        headers: fetchHeaders,
+        body: method === 'POST' && body ? JSON.stringify(body) : undefined,
+      });
 
-        if ((arrayData as unknown[]).length > 0) {
-          const firstItem = (arrayData as unknown[])[0];
-          if (typeof firstItem === 'object' && firstItem !== null) {
-            columns = Object.entries(firstItem as Record<string, unknown>).map(([key, value]) => ({
-              name: key,
-              type: detectType(value),
-            }));
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API retornou erro ${response.status}: ${errorText.substring(0, 200)}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Resposta não-JSON recebida: ${text.substring(0, 200)}`);
+      }
+
+      return response.json();
+    };
+
+    if (detectActions) {
+      const actionRequests: Array<{ action: string; query?: Record<string, string> }> = [
+        { action: 'stats' },
+        { action: 'campaigns' },
+        { action: 'leads', query: { limit: '100', offset: '0' } },
+        { action: 'pipeline' },
+        { action: 'linkedin-metrics' },
+        { action: 'timeline', query: { days: '30' } },
+        { action: 'lead-lists' },
+      ];
+
+      const tables: Array<{
+        name: string;
+        columns: { name: string; type: string; nullable: boolean; sampleValues: unknown[] }[];
+        rowCount: number;
+        sampleData: Record<string, unknown>[];
+      }> = [];
+
+      for (const reqConfig of actionRequests) {
+        try {
+          const query = { action: reqConfig.action, ...(reqConfig.query || {}) };
+          const url = buildUrl('', query);
+          const payload = await requestJson(url);
+          const analyzed = analyzeApiData(payload, reqConfig.action);
+          if (analyzed.rowCount > 0) {
+            tables.push({
+              name: reqConfig.action,
+              columns: analyzed.columns,
+              rowCount: analyzed.rowCount,
+              sampleData: analyzed.sampleData,
+            });
           }
+        } catch (actionError) {
+          console.warn(`Falha ao detectar ação '${reqConfig.action}'`, actionError);
         }
+      }
 
+      if (tables.length === 0) {
         return new Response(
           JSON.stringify({
-            success: true,
-            columns,
-            rowCount,
-            sampleData,
-            dataPath: propName,
-            message: `Encontrados ${rowCount} registro(s) em '${propName}'`,
+            success: false,
+            error: 'Não foi possível detectar ações válidas com a configuração informada.',
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Single object response
-      columns = Object.entries(dataObj).map(([key, value]) => ({
-        name: key,
-        type: detectType(value),
-      }));
-      rowCount = 1;
-      sampleData = [dataObj];
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tables,
+          message: `${tables.length} ação(ões) detectada(s) com sucesso`,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    const url = endpoint
+      ? buildUrl(endpoint)
+      : buildUrl('', { action: 'stats' });
+    const payload = await requestJson(url);
+    const analyzed = analyzeApiData(payload);
 
     return new Response(
       JSON.stringify({
         success: true,
-        columns,
-        rowCount,
-        sampleData,
-        message: `Encontrados ${rowCount} registro(s)`,
+        data: analyzed.data,
+        sampleData: analyzed.sampleData,
+        columns: analyzed.columns,
+        rowCount: analyzed.rowCount,
+        message: `Encontrados ${analyzed.rowCount} registro(s)`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -170,4 +199,76 @@ function detectType(value: unknown): string {
   if (Array.isArray(value)) return 'array';
   if (typeof value === 'object') return 'object';
   return 'unknown';
+}
+
+function detectArrayLikeProperty(
+  dataObj: Record<string, unknown>,
+  preferredKey?: string
+): { key: string; value: unknown[] } | null {
+  if (preferredKey && Array.isArray(dataObj[preferredKey])) {
+    return { key: preferredKey, value: dataObj[preferredKey] as unknown[] };
+  }
+
+  const arrayProp = Object.entries(dataObj).find(([, value]) => Array.isArray(value));
+  return arrayProp ? { key: arrayProp[0], value: arrayProp[1] as unknown[] } : null;
+}
+
+function analyzeApiData(payload: unknown, actionName?: string): AnalyzedData {
+  const preferredArrays: Record<string, string> = {
+    campaigns: 'campaigns',
+    leads: 'leads',
+    timeline: 'timeline',
+    'lead-lists': 'lead_lists',
+    'lead-list-items': 'items',
+  };
+
+  const preferredObjects: Record<string, string> = {
+    stats: 'stats',
+    pipeline: 'pipeline',
+    'linkedin-metrics': 'linkedin_metrics',
+    campaign: 'campaign',
+    lead: 'lead',
+  };
+
+  let dataRows: Record<string, unknown>[] = [];
+
+  if (Array.isArray(payload)) {
+    dataRows = payload.filter((item) => typeof item === 'object' && item !== null) as Record<string, unknown>[];
+  } else if (typeof payload === 'object' && payload !== null) {
+    const obj = payload as Record<string, unknown>;
+    const preferredArrayKey = actionName ? preferredArrays[actionName] : undefined;
+    const preferredObjectKey = actionName ? preferredObjects[actionName] : undefined;
+    const arrayProp = detectArrayLikeProperty(obj, preferredArrayKey);
+
+    if (arrayProp) {
+      dataRows = (arrayProp.value || []).filter((item) => typeof item === 'object' && item !== null) as Record<string, unknown>[];
+    } else if (preferredObjectKey && typeof obj[preferredObjectKey] === 'object' && obj[preferredObjectKey] !== null) {
+      dataRows = [obj[preferredObjectKey] as Record<string, unknown>];
+    } else if (typeof obj.stats === 'object' && obj.stats !== null) {
+      dataRows = [obj.stats as Record<string, unknown>];
+    } else if (typeof obj.pipeline === 'object' && obj.pipeline !== null) {
+      dataRows = [obj.pipeline as Record<string, unknown>];
+    } else if (typeof obj.linkedin_metrics === 'object' && obj.linkedin_metrics !== null) {
+      dataRows = [obj.linkedin_metrics as Record<string, unknown>];
+    } else {
+      dataRows = [obj];
+    }
+  }
+
+  const rowCount = dataRows.length;
+  const sampleData = dataRows.slice(0, 10);
+  const firstItem = sampleData[0] || {};
+  const columns = Object.entries(firstItem).map(([key, value]) => ({
+    name: key,
+    type: detectType(value),
+    nullable: value === null || value === undefined,
+    sampleValues: sampleData.slice(0, 3).map((row) => row[key]),
+  }));
+
+  return {
+    data: dataRows,
+    columns,
+    rowCount,
+    sampleData,
+  };
 }

@@ -177,7 +177,9 @@ const IntegrationStep = ({ integration, onUpdate }: IntegrationStepProps) => {
             method: apiConfig.method || 'GET',
             authType: apiConfig.authType,
             authValue: apiConfig.authValue,
+            apiKeyHeader: apiConfig.apiKeyHeader,
             headers: apiConfig.headers,
+            detectActions: apiConfig.detectActions ?? true,
           },
         });
 
@@ -185,9 +187,16 @@ const IntegrationStep = ({ integration, onUpdate }: IntegrationStepProps) => {
         
         const apiData = data as { 
           success: boolean; 
-          data: Record<string, unknown>[];
+          data?: Record<string, unknown>[];
+          sampleData?: Record<string, unknown>[];
           columns: { name: string; type: string; nullable: boolean; sampleValues: unknown[] }[];
           rowCount: number;
+          tables?: Array<{
+            name: string;
+            columns: { name: string; type: string; nullable: boolean; sampleValues: unknown[] }[];
+            rowCount: number;
+            sampleData: Record<string, unknown>[];
+          }>;
           error?: string;
         };
         
@@ -195,20 +204,38 @@ const IntegrationStep = ({ integration, onUpdate }: IntegrationStepProps) => {
           throw new Error(apiData.error || 'Falha ao conectar à API');
         }
 
-        result = {
-          success: true,
-          tables: [{
-            name: 'api_data',
-            columns: apiData.columns.map(col => ({
-              name: col.name,
-              type: col.type as 'string' | 'number' | 'date' | 'boolean' | 'unknown',
-              nullable: col.nullable,
-              sampleValues: col.sampleValues,
+        if (apiData.tables && apiData.tables.length > 0) {
+          result = {
+            success: true,
+            tables: apiData.tables.map((table) => ({
+              name: table.name,
+              columns: table.columns.map((col) => ({
+                name: col.name,
+                type: col.type as 'string' | 'number' | 'date' | 'boolean' | 'unknown',
+                nullable: col.nullable,
+                sampleValues: col.sampleValues,
+              })),
+              rowCount: table.rowCount,
+              sampleData: (table.sampleData || []).slice(0, 3),
             })),
-            rowCount: apiData.rowCount,
-            sampleData: apiData.data.slice(0, 3),
-          }],
-        };
+          };
+        } else {
+          const rows = apiData.data || apiData.sampleData || [];
+          result = {
+            success: true,
+            tables: [{
+              name: 'api_data',
+              columns: (apiData.columns || []).map(col => ({
+                name: col.name,
+                type: col.type as 'string' | 'number' | 'date' | 'boolean' | 'unknown',
+                nullable: col.nullable,
+                sampleValues: col.sampleValues,
+              })),
+              rowCount: apiData.rowCount || rows.length,
+              sampleData: rows.slice(0, 3),
+            }],
+          };
+        }
       } else if (selectedType === 'csv') {
         const csvConfig = config as CsvConfig;
         // For CSV, we simulate the detection based on the uploaded file

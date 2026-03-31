@@ -104,7 +104,9 @@ export interface ApiConfig {
   method: 'GET' | 'POST';
   authType: 'none' | 'bearer' | 'api_key' | 'basic';
   authValue?: string;
+  apiKeyHeader?: string;
   headers?: Record<string, string>;
+  detectActions?: boolean;
   refreshInterval?: number;
 }
 
