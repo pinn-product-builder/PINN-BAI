@@ -335,11 +335,11 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
     );
   }
 
-  // Pipeline value
+  // Pipeline value — Ploomes uses StatusId: 1=Open, 2=Won, 3=Lost
   const totalPipelineValue = deals.reduce((acc: number, d: any) => acc + (d.Amount || 0), 0);
-  const wonDeals = deals.filter((d: any) => d.Won === true);
-  const lostDeals = deals.filter((d: any) => d.Lost === true);
-  const openDeals = deals.filter((d: any) => !d.Won && !d.Lost);
+  const wonDeals = deals.filter((d: any) => d.StatusId === 2);
+  const lostDeals = deals.filter((d: any) => d.StatusId === 3);
+  const openDeals = deals.filter((d: any) => d.StatusId === 1);
   const wonValue = wonDeals.reduce((acc: number, d: any) => acc + (d.Amount || 0), 0);
 
   // Deals by stage
