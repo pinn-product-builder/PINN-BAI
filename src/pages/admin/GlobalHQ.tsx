@@ -241,7 +241,7 @@ const GlobalHQ = () => {
 
                 {/* AI & System Activity */}
                 <div className="space-y-6">
-                    <Card className="border border-border bg-card shadow-2xl overflow-hidden">
+                    <Card className="border border-border bg-card shadow-2xl overflow-hidden rounded-2xl">
                         <CardHeader className="pb-2">
                             <div className="flex items-center gap-2 text-accent">
                                 <Zap className="w-4 h-4 fill-current" />
