@@ -74,24 +74,26 @@ Outras tecnologias de dados, infraestrutura e orquestração (por exemplo, pipel
 
 ## Estrutura do repositório
 
-Visão geral das principais pastas e arquivos deste projeto:
+```
+PINN-BAI/
+├── src/              # Aplicação React (UI, hooks, integrações)
+├── public/           # Assets estáticos
+├── scripts/          # Scripts auxiliares (automação, checks)
+├── supabase/         # Migrations, Edge Functions, config
+├── docs/             # Documentação interna (ver docs/README.md)
+├── index.html
+├── vite.config.ts
+├── tailwind.config.ts
+└── package.json
+```
 
-- `src/` – Código-fonte principal da aplicação React (páginas, contextos, hooks, componentes de UI, integrações com APIs/Supabase, regras de apresentação e orquestração de telas).
-- `public/` – Assets estáticos servidos pela aplicação (ícones, manifestos, imagens, etc.).
-- `scripts/` – Scripts auxiliares relacionados à automação do projeto (por exemplo, migração/teste de templates).
-- `supabase/` – Artefatos de infraestrutura e configuração relacionados ao Supabase (schemas, políticas, funções, etc.).
-- `index.html` – HTML base utilizado pelo Vite.
-- `vite.config.ts` / `vitest.config.ts` – Configurações de build, dev server e testes.
-- `tailwind.config.ts` / `postcss.config.js` – Configurações de estilo, design system e processamento de CSS.
-- `eslint.config.js` – Regras de linting utilizadas no projeto.
-- Arquivos auxiliares de documentação, como:
-  - `ANALISE_PROJETO.md`
-  - `DIAGNOSTICO_DASHBOARD.md`
-  - `COMO_VER_LOGS.md`
-  - `APLICAR_MIGRACAO_TEMPLATES.md`
-  - `TESTE_TEMPLATES.md`
+- **`src/`** – Páginas, contextos, hooks, componentes, integrações com APIs/Supabase.
+- **`public/`** – Ícones, manifestos, imagens.
+- **`scripts/`** – Automação do projeto (ex.: templates).
+- **`supabase/`** – Schemas, políticas RLS, funções serverless.
+- **`docs/`** – Análises, diagnósticos, guias de migração e SQL auxiliar ([índice](docs/README.md)).
 
-Consulte esses documentos para detalhes específicos sobre diagnósticos, logs, templates e fluxos internos do produto.
+Configuração de build e qualidade: `vite.config.ts`, `vitest.config.ts`, `tsconfig*.json`, `eslint.config.js`, `postcss.config.js`, `tailwind.config.ts`.
 
 ---
 
@@ -102,7 +104,7 @@ Consulte esses documentos para detalhes específicos sobre diagnósticos, logs, 
 - **Git** instalado.
 - **Node.js** (versão compatível com Vite 5 e React 18).  
 - Gerenciador de pacotes (**npm** ou **bun** – existe `bun.lock` neste repositório, caso o time utilize Bun em ambientes específicos).
-- Acesso às variáveis de ambiente necessárias (arquivo `.env`).
+- Variáveis de ambiente locais (ficheiro `.env`, não versionado).
 
 ### Passos básicos
 
@@ -115,10 +117,11 @@ cd PINN-BAI
 
 2. **Configurar variáveis de ambiente**
 
-- Utilize o arquivo `.env` como referência.  
-- Ajuste chaves e endpoints de acordo com o ambiente (desenvolvimento, homologação, produção), incluindo:
-  - URL e chave anônima do Supabase.
-  - Configurações de autenticação e serviços externos, quando aplicável.
+```bash
+cp .env.example .env
+```
+
+Edite `.env` com a URL do projeto Supabase, a chave **anon** (publishable) e o ID do projeto. Não commite `.env`; use apenas `.env.example` como modelo.
 
 3. **Instalar dependências**
 
