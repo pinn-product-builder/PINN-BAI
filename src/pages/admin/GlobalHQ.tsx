@@ -105,7 +105,7 @@ const GlobalHQ = () => {
                         <p className="text-primary-foreground/70 text-sm font-bold uppercase tracking-wider mb-2">MRR Consolidado</p>
                         <div className="flex items-baseline gap-2">
                             <h2 className="text-4xl font-extrabold">R$ {(totalRevenue / 1000).toFixed(1)}k</h2>
-                            <span className="flex items-center text-xs font-bold bg-black/10 px-2 py-0.5 rounded-full">
+                            <span className="flex items-center text-xs font-bold bg-primary-foreground/15 px-2 py-0.5 rounded-full">
                                 <ArrowUpRight className="w-3 h-3 mr-1" />
                                 +12%
                             </span>
