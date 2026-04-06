@@ -146,6 +146,14 @@
     font-family: 'Poppins', system-ui, sans-serif;
     @apply font-semibold tracking-tight;
   }
+
+  /* Light-mode card shadow refinement */
+  :root .shadow-2xl {
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .dark .shadow-2xl {
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.5);
+  }
 }
 
 /* ── Utilitários ── */
