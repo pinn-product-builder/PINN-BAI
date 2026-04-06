@@ -255,7 +255,7 @@ const GlobalHQ = () => {
                                     : "Analisando seu portfólio... Detectei uma oportunidade de expansão no plano da última empresa cadastrada baseado no volume de leads."
                                 }
                             </p>
-                            <Button size="sm" className="mt-4 bg-accent text-accent-foreground font-bold rounded-lg h-9 w-full">Sincronizar Brain</Button>
+                            <Button size="sm" className="mt-4 bg-accent text-accent-foreground font-bold rounded-lg h-9 w-full">Sincronizar Análise</Button>
                         </CardContent>
                     </Card>
 
