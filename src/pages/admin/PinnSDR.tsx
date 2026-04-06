@@ -348,7 +348,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
 
   const dealsByStage: Record<string, number> = {};
   openDeals.forEach((d: any) => {
-    const stageName = stageMap[d.StageId] || `Stage ${d.StageId}`;
+    const stageName = stageMap[d.StageId] || `Estágio ${d.StageId}`;
     dealsByStage[stageName] = (dealsByStage[stageName] || 0) + 1;
   });
   const stageChartData = Object.entries(dealsByStage).map(([name, value]) => ({ name, value }));
@@ -359,7 +359,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
 
   const dealsByPipeline: Record<string, { count: number; value: number }> = {};
   deals.forEach((d: any) => {
-    const pName = pipelineMap[d.PipelineId] || `Pipeline ${d.PipelineId}`;
+    const pName = pipelineMap[d.PipelineId] || `Funil ${d.PipelineId}`;
     if (!dealsByPipeline[pName]) dealsByPipeline[pName] = { count: 0, value: 0 };
     dealsByPipeline[pName].count += 1;
     dealsByPipeline[pName].value += d.Amount || 0;
@@ -372,7 +372,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
 
   // Deals by user (SDR performance)
   const userMap: Record<number, string> = {};
-  users.forEach((u: any) => { userMap[u.Id] = u.Name || u.Email || `User ${u.Id}`; });
+  users.forEach((u: any) => { userMap[u.Id] = u.Name || u.Email || `Usuário ${u.Id}`; });
 
   const dealsByUser: Record<string, { total: number; won: number; value: number }> = {};
   deals.forEach((d: any) => {
@@ -463,7 +463,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                   <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                   <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
-                  <Bar dataKey="deals" name="Deals" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="deals" name="Negócios" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -483,7 +483,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">SDR</th>
-                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Total Deals</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Total Negócios</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Ganhos</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Taxa Conversão</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Valor Total</th>
@@ -585,12 +585,12 @@ const PinnSDRDashboard = () => {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Cold Mail sync: ${data.synced?.length || 0} ações`);
+      toast.success(`Sincronização Cold Mail: ${data.synced?.length || 0} ações`);
       queryClient.invalidateQueries({ queryKey: ['cmh_sync_snapshots'] });
       setSyncingCmh(false);
     },
     onError: (err: Error) => {
-      toast.error(`Erro CMH: ${err.message}`);
+      toast.error(`Erro Cold Mail: ${err.message}`);
       setSyncingCmh(false);
     },
   });
@@ -605,7 +605,7 @@ const PinnSDRDashboard = () => {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Ploomes sync: ${data.synced?.length || 0} endpoints`);
+      toast.success(`Sincronização Ploomes: ${data.synced?.length || 0} endpoints`);
       queryClient.invalidateQueries({ queryKey: ['ploomes_sync_snapshots'] });
       setSyncingPloomes(false);
     },
@@ -634,17 +634,17 @@ const PinnSDRDashboard = () => {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Pinn SDR Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground">Pinn SDR Painel</h1>
           <p className="text-sm text-muted-foreground mt-1">Cold Mail + Ploomes CRM · Visão unificada</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => syncCmh.mutate()} disabled={syncing} className="gap-2" size="sm">
             {syncingCmh ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Sync Cold Mail
+            Sincronizar Cold Mail
           </Button>
           <Button onClick={() => syncPloomes.mutate()} disabled={syncing} className="gap-2" size="sm">
             {syncingPloomes ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Sync Ploomes
+            Sincronizar Ploomes
           </Button>
         </div>
       </div>

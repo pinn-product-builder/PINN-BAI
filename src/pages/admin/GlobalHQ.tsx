@@ -110,7 +110,7 @@ const GlobalHQ = () => {
                                 +12%
                             </span>
                         </div>
-                        <p className="mt-6 text-xs text-primary-foreground/60 font-medium">Crescimento escalável Pinn Builder</p>
+                        <p className="mt-6 text-xs text-primary-foreground/60 font-medium">Crescimento escalável Pinn</p>
                     </CardContent>
                 </Card>
 
@@ -160,7 +160,7 @@ const GlobalHQ = () => {
                 {/* White-label Links */}
                 <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group rounded-2xl">
                     <CardContent className="pt-8">
-                        <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">White-label Links</p>
+                        <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">Links White-label</p>
                         <div className="flex items-baseline gap-2">
                             <h2 className="text-4xl font-extrabold text-foreground">{organizations?.filter((o: any) => o.custom_domain).length || 0}</h2>
                             <Globe className="w-5 h-5 text-accent" />
@@ -178,7 +178,7 @@ const GlobalHQ = () => {
                 {/* Top Performing Companies */}
                 <Card className="lg:col-span-2 border border-border bg-card shadow-2xl rounded-2xl">
                     <CardHeader>
-                        <CardTitle className="text-xl text-foreground">Health Score por Cliente</CardTitle>
+                        <CardTitle className="text-xl text-foreground">Saúde por Cliente</CardTitle>
                         <CardDescription>Principais métricas de performance das orgs sob gestão</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -245,7 +245,7 @@ const GlobalHQ = () => {
                         <CardHeader className="pb-2">
                             <div className="flex items-center gap-2 text-accent">
                                 <Zap className="w-4 h-4 fill-current" />
-                                <CardTitle className="text-sm uppercase tracking-widest font-black">AI Executive Briefing</CardTitle>
+                                <CardTitle className="text-sm uppercase tracking-widest font-black">Resumo Executivo IA</CardTitle>
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -255,7 +255,7 @@ const GlobalHQ = () => {
                                     : "Analisando seu portfólio... Detectei uma oportunidade de expansão no plano da última empresa cadastrada baseado no volume de leads."
                                 }
                             </p>
-                            <Button size="sm" className="mt-4 bg-accent text-accent-foreground font-bold rounded-lg h-9 w-full">Sincronizar Brain</Button>
+                            <Button size="sm" className="mt-4 bg-accent text-accent-foreground font-bold rounded-lg h-9 w-full">Sincronizar Análise</Button>
                         </CardContent>
                     </Card>
 
