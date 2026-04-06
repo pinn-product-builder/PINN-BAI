@@ -23,6 +23,7 @@ const baseNavItems = [
   { path: '/admin/organizations', label: 'Organizações', icon: Building2 },
   { path: '/admin/templates', label: 'Templates', icon: LayoutTemplate },
   { path: '/admin/custom-metrics', label: 'Métricas', icon: Gauge },
+  { path: '/admin/pinn-sdr', label: 'Pinn SDR', icon: Zap },
   { path: '/admin/rfm-churn', label: 'RFM + Churn', icon: Target },
   { path: '/admin/users', label: 'Usuários', icon: Users },
   { path: '/admin/activity', label: 'Atividade', icon: Activity },

@@ -83,6 +83,7 @@ const App = () => (
                 {isRfmChurnEnabledForAdmin() && (
                   <Route path="rfm-churn" element={<AdminRfmChurn />} />
                 )}
+                <Route path="pinn-sdr" element={<PinnSDR />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="activity" element={<Activity />} />
                 <Route path="settings" element={<AdminSettings />} />
