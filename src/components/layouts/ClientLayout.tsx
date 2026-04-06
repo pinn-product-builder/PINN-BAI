@@ -51,7 +51,7 @@ const ClientLayout = () => {
         <div className="px-5 pt-6 pb-4 border-b border-sidebar-border">
           {organization?.logo_url
             ? <img src={organization.logo_url} alt={organization.name} className="h-8 max-w-[140px] object-contain" />
-            : <img src="/pinn-logo.svg" alt="Pinn" className="h-8 w-auto" />
+            : <img src="/pinn-logo.svg" alt="Pinn" className="h-8 w-auto dark:brightness-100 brightness-0" />
           }
 
           {/* Org pill */}

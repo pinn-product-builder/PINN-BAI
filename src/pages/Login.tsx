@@ -105,7 +105,7 @@ const Login = () => {
         <div className="relative z-10 w-full max-w-sm space-y-8">
           {/* Mobile logo */}
           <div className="lg:hidden flex justify-center">
-            <img src="/pinn-logo.svg" alt="Pinn" className="h-8 w-auto" />
+            <img src="/pinn-logo.svg" alt="Pinn" className="h-8 w-auto dark:brightness-100 brightness-0" />
           </div>
 
           <div className="space-y-1.5">
