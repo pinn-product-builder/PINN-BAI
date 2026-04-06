@@ -605,7 +605,7 @@ const PinnSDRDashboard = () => {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Ploomes sync: ${data.synced?.length || 0} endpoints`);
+      toast.success(`Sincronização Ploomes: ${data.synced?.length || 0} endpoints`);
       queryClient.invalidateQueries({ queryKey: ['ploomes_sync_snapshots'] });
       setSyncingPloomes(false);
     },
