@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.predict-churn]
 verify_jwt = false
+
+[functions.sync-coldmail]
+verify_jwt = false
