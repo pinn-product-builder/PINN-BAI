@@ -329,11 +329,20 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
     return (
       <Card className="border-dashed">
         <CardContent className="py-12 text-center">
-          <Briefcase className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
-          <p className="text-muted-foreground">Nenhum dado do Ploomes sincronizado.</p>
-          <Button className="mt-4" onClick={onSync} disabled={syncing}>
-            {syncing ? 'Sincronizando...' : 'Fazer primeiro sync'}
-          </Button>
+          {syncing ? (
+            <>
+              <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin mb-3" />
+              <p className="text-muted-foreground">Carregando dados do Ploomes...</p>
+            </>
+          ) : (
+            <>
+              <Briefcase className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-muted-foreground">Nenhum dado do Ploomes sincronizado.</p>
+              <Button className="mt-4" onClick={onSync}>
+                Sincronizar agora
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     );
