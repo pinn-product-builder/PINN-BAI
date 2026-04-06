@@ -54,26 +54,21 @@ const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | '
         return snapshots;
       }
 
-      // ploomes - use raw fetch since types aren't generated yet
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/ploomes_sync_snapshots?org_id=eq.${orgId}&order=synced_at.desc`,
-        {
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-        }
-      );
-      if (!res.ok) throw new Error('Failed to fetch ploomes snapshots');
-      const rows: any[] = await res.json();
+      // ploomes - use supabase client directly
+      const { data, error } = await supabase
+        .from('ploomes_sync_snapshots')
+        .select('*')
+        .eq('org_id', orgId)
+        .order('synced_at', { ascending: false });
+      if (error) throw error;
       const snapshots: Record<string, any> = {};
-      for (const row of rows) {
+      for (const row of (data as any[]) || []) {
         if (!snapshots[row.snapshot_type]) snapshots[row.snapshot_type] = row;
       }
       return snapshots;
     },
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
   });
 };
