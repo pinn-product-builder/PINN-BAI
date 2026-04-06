@@ -483,7 +483,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">SDR</th>
-                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Total Deals</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Total Negócios</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Ganhos</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Taxa Conversão</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Valor Total</th>
