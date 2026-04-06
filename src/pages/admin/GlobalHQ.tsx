@@ -77,7 +77,7 @@ const GlobalHQ = () => {
                     {showRfmChurn && (
                         <Button
                                 variant="outline"
-                                className="h-12 border-white/10"
+                                className="h-12 border-border"
                                 onClick={() => navigate('/admin/rfm-churn')}
                             >
                                 <LayoutDashboard className="w-4 h-4 mr-2" />
@@ -97,7 +97,7 @@ const GlobalHQ = () => {
             {/* Hero Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* MRR — card gradiente laranja */}
-                <Card className="border-none shadow-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground overflow-hidden relative group">
+                <Card className="border-none shadow-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground overflow-hidden relative group rounded-2xl">
                     <div className="absolute right-[-10%] top-[-10%] opacity-10 group-hover:scale-110 transition-transform duration-500">
                         <DollarSign size={160} />
                     </div>
@@ -105,7 +105,7 @@ const GlobalHQ = () => {
                         <p className="text-primary-foreground/70 text-sm font-bold uppercase tracking-wider mb-2">MRR Consolidado</p>
                         <div className="flex items-baseline gap-2">
                             <h2 className="text-4xl font-extrabold">R$ {(totalRevenue / 1000).toFixed(1)}k</h2>
-                            <span className="flex items-center text-xs font-bold bg-black/10 px-2 py-0.5 rounded-full">
+                            <span className="flex items-center text-xs font-bold bg-primary-foreground/15 px-2 py-0.5 rounded-full">
                                 <ArrowUpRight className="w-3 h-3 mr-1" />
                                 +12%
                             </span>
@@ -115,7 +115,7 @@ const GlobalHQ = () => {
                 </Card>
 
                 {/* Empresas Ativas */}
-                <Card className="border border-border bg-card shadow-2xl overflow-hidden group">
+                <Card className="border border-border bg-card shadow-2xl overflow-hidden group rounded-2xl">
                     <CardContent className="pt-8 flex flex-col justify-between h-full">
                         <div>
                             <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">Empresas Ativas</p>
@@ -140,7 +140,7 @@ const GlobalHQ = () => {
                 </Card>
 
                 {/* Total de Leads */}
-                <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group">
+                <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group rounded-2xl">
                     <CardContent className="pt-8">
                         <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">Total de Leads</p>
                         <div className="flex items-baseline gap-2">
@@ -158,7 +158,7 @@ const GlobalHQ = () => {
                 </Card>
 
                 {/* White-label Links */}
-                <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group">
+                <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group rounded-2xl">
                     <CardContent className="pt-8">
                         <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">White-label Links</p>
                         <div className="flex items-baseline gap-2">
@@ -176,7 +176,7 @@ const GlobalHQ = () => {
             {/* Main Content Area */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Top Performing Companies */}
-                <Card className="lg:col-span-2 border border-border bg-card shadow-2xl">
+                <Card className="lg:col-span-2 border border-border bg-card shadow-2xl rounded-2xl">
                     <CardHeader>
                         <CardTitle className="text-xl text-foreground">Health Score por Cliente</CardTitle>
                         <CardDescription>Principais métricas de performance das orgs sob gestão</CardDescription>
@@ -241,7 +241,7 @@ const GlobalHQ = () => {
 
                 {/* AI & System Activity */}
                 <div className="space-y-6">
-                    <Card className="border border-border bg-card shadow-2xl overflow-hidden">
+                    <Card className="border border-border bg-card shadow-2xl overflow-hidden rounded-2xl">
                         <CardHeader className="pb-2">
                             <div className="flex items-center gap-2 text-accent">
                                 <Zap className="w-4 h-4 fill-current" />
@@ -259,7 +259,7 @@ const GlobalHQ = () => {
                         </CardContent>
                     </Card>
 
-                    <Card className="border border-border bg-card shadow-2xl">
+                    <Card className="border border-border bg-card shadow-2xl rounded-2xl">
                         <CardHeader>
                             <CardTitle className="text-lg text-foreground font-bold">Atividade Recente</CardTitle>
                         </CardHeader>
