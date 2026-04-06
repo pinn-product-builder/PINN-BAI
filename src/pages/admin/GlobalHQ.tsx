@@ -160,7 +160,7 @@ const GlobalHQ = () => {
                 {/* White-label Links */}
                 <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group rounded-2xl">
                     <CardContent className="pt-8">
-                        <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">White-label Links</p>
+                        <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">Links White-label</p>
                         <div className="flex items-baseline gap-2">
                             <h2 className="text-4xl font-extrabold text-foreground">{organizations?.filter((o: any) => o.custom_domain).length || 0}</h2>
                             <Globe className="w-5 h-5 text-accent" />
