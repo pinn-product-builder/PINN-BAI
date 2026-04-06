@@ -91,17 +91,17 @@ const MetricCard = ({
 }: {
   title: string; value: string | number; icon: any; color: string; small?: boolean; subtitle?: string;
 }) => (
-  <Card>
+  <Card className="shadow-sm hover:shadow-md transition-shadow">
     <CardContent className={small ? 'p-4' : 'p-5'}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-muted-foreground font-medium">{title}</p>
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{title}</p>
           <p className={`font-bold text-foreground ${small ? 'text-lg mt-1' : 'text-2xl mt-1.5'}`}>
             {value ?? '—'}
           </p>
           {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
-        <div className={`${small ? 'w-8 h-8' : 'w-10 h-10'} rounded-lg bg-muted/50 flex items-center justify-center`}>
+        <div className={`${small ? 'w-8 h-8' : 'w-10 h-10'} rounded-lg bg-primary/10 dark:bg-muted/50 flex items-center justify-center`}>
           <Icon className={`${small ? 'w-4 h-4' : 'w-5 h-5'} ${color}`} />
         </div>
       </div>
@@ -547,8 +547,8 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
                         {d.Amount ? `R$ ${d.Amount.toLocaleString('pt-BR')}` : '—'}
                       </td>
                       <td className="py-2.5 px-3">
-                        {d.StatusId === 2 ? <Badge className="text-xs bg-chart-2/20 text-chart-2">Ganho</Badge> :
-                         d.StatusId === 3 ? <Badge className="text-xs bg-destructive/20 text-destructive">Perdido</Badge> :
+                        {d.StatusId === 2 ? <Badge className="text-xs bg-emerald-100 text-emerald-700 dark:bg-chart-2/20 dark:text-chart-2">Ganho</Badge> :
+                         d.StatusId === 3 ? <Badge className="text-xs bg-red-100 text-red-700 dark:bg-destructive/20 dark:text-destructive">Perdido</Badge> :
                          <Badge variant="secondary" className="text-xs">Aberto</Badge>}
                       </td>
                       <td className="py-2.5 px-3 text-muted-foreground text-xs">
