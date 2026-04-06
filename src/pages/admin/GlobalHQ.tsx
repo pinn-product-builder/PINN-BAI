@@ -259,7 +259,7 @@ const GlobalHQ = () => {
                         </CardContent>
                     </Card>
 
-                    <Card className="border border-border bg-card shadow-2xl">
+                    <Card className="border border-border bg-card shadow-2xl rounded-2xl">
                         <CardHeader>
                             <CardTitle className="text-lg text-foreground font-bold">Atividade Recente</CardTitle>
                         </CardHeader>
