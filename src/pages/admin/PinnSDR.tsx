@@ -396,10 +396,20 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
   const pendingTasks = tasks.filter((t: any) => !t.Finished);
   const completedTasks = tasks.filter((t: any) => t.Finished);
 
-  // Recent deals timeline
-  const recentDeals = [...deals]
-    .sort((a: any, b: any) => new Date(b.CreateDate).getTime() - new Date(a.CreateDate).getTime())
-    .slice(0, 10);
+  // Recent deals — deduplicate by contact+pipeline, keep the most recent per unique combo
+  const deduped = (() => {
+    const seen = new Set<string>();
+    const sorted = [...deals].sort((a: any, b: any) => new Date(b.CreateDate).getTime() - new Date(a.CreateDate).getTime());
+    const result: any[] = [];
+    for (const d of sorted) {
+      const key = `${d.ContactId || d.Title}-${d.PipelineId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(d);
+      if (result.length >= 15) break;
+    }
+    return result;
+  })();
 
   return (
     <div className="space-y-6">
@@ -502,8 +512,8 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
         </Card>
       )}
 
-      {/* Recent Deals */}
-      {recentDeals.length > 0 && (
+      {/* Recent Deals — deduplicated */}
+      {deduped.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Negócios Recentes</CardTitle>
@@ -513,8 +523,8 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Título</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Contato</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Pipeline</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Estágio</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Valor</th>
                     <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
@@ -522,10 +532,14 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
                   </tr>
                 </thead>
                 <tbody>
-                  {recentDeals.map((d: any) => (
+                  {deduped.map((d: any) => (
                     <tr key={d.Id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                      <td className="py-2.5 px-3 font-medium text-foreground max-w-[200px] truncate">{d.Title || '—'}</td>
-                      <td className="py-2.5 px-3 text-muted-foreground">{d.Contact?.Name || '—'}</td>
+                      <td className="py-2.5 px-3 font-medium text-foreground max-w-[200px] truncate">
+                        {d.ContactName || d.Title || '—'}
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground text-xs">
+                        {pipelineMap[d.PipelineId] || '—'}
+                      </td>
                       <td className="py-2.5 px-3">
                         <Badge variant="outline" className="text-xs">{stageMap[d.StageId] || '—'}</Badge>
                       </td>
