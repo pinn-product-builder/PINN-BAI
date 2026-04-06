@@ -372,7 +372,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
 
   // Deals by user (SDR performance)
   const userMap: Record<number, string> = {};
-  users.forEach((u: any) => { userMap[u.Id] = u.Name || u.Email || `User ${u.Id}`; });
+  users.forEach((u: any) => { userMap[u.Id] = u.Name || u.Email || `Usuário ${u.Id}`; });
 
   const dealsByUser: Record<string, { total: number; won: number; value: number }> = {};
   deals.forEach((d: any) => {
