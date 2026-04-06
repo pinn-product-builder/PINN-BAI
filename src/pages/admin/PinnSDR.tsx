@@ -585,7 +585,7 @@ const PinnSDRDashboard = () => {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Cold Mail sync: ${data.synced?.length || 0} ações`);
+      toast.success(`Sincronização Cold Mail: ${data.synced?.length || 0} ações`);
       queryClient.invalidateQueries({ queryKey: ['cmh_sync_snapshots'] });
       setSyncingCmh(false);
     },
