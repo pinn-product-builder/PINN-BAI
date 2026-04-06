@@ -12,6 +12,7 @@ import {
   Gauge,
   ChevronRight,
   Target,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ThemeToggle from '@/components/ThemeToggle';
