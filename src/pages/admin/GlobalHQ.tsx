@@ -77,7 +77,7 @@ const GlobalHQ = () => {
                     {showRfmChurn && (
                         <Button
                                 variant="outline"
-                                className="h-12 border-white/10"
+                                className="h-12 border-border"
                                 onClick={() => navigate('/admin/rfm-churn')}
                             >
                                 <LayoutDashboard className="w-4 h-4 mr-2" />
