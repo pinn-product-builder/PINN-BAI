@@ -44,7 +44,7 @@ const AdminLayout = () => {
 
         {/* Logo */}
         <div className="px-5 pt-6 pb-5 border-b border-sidebar-border">
-          <img src="/pinn-logo.svg" alt="Pinn" className="h-8 w-auto" />
+          <img src="/pinn-logo.svg" alt="Pinn" className="h-8 w-auto dark:brightness-100 brightness-0" />
           <div className="mt-3 flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-primary" />
             <span className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/40 font-semibold">
