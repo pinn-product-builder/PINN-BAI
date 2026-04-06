@@ -23,6 +23,7 @@ import GlobalHQ from "./pages/admin/GlobalHQ";
 import OrganizationDetail from "./pages/admin/OrganizationDetail";
 import CustomMetrics from "./pages/admin/CustomMetrics";
 import AdminRfmChurn from "./pages/admin/RfmChurn";
+import PinnSDR from "./pages/admin/PinnSDR";
 
 // Onboarding Wizard
 import OnboardingWizard from "./components/onboarding/OnboardingWizard";
