@@ -54,26 +54,21 @@ const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | '
         return snapshots;
       }
 
-      // ploomes - use raw fetch since types aren't generated yet
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/ploomes_sync_snapshots?org_id=eq.${orgId}&order=synced_at.desc`,
-        {
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-        }
-      );
-      if (!res.ok) throw new Error('Failed to fetch ploomes snapshots');
-      const rows: any[] = await res.json();
+      // ploomes - use supabase client directly
+      const { data, error } = await supabase
+        .from('ploomes_sync_snapshots')
+        .select('*')
+        .eq('org_id', orgId)
+        .order('synced_at', { ascending: false });
+      if (error) throw error;
       const snapshots: Record<string, any> = {};
-      for (const row of rows) {
+      for (const row of (data as any[]) || []) {
         if (!snapshots[row.snapshot_type]) snapshots[row.snapshot_type] = row;
       }
       return snapshots;
     },
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
   });
 };
@@ -147,11 +142,20 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
     return (
       <Card className="border-dashed">
         <CardContent className="py-12 text-center">
-          <Zap className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
-          <p className="text-muted-foreground">Nenhum dado do Cold Mail sincronizado.</p>
-          <Button className="mt-4" onClick={onSync} disabled={syncing}>
-            {syncing ? 'Sincronizando...' : 'Fazer primeiro sync'}
-          </Button>
+          {syncing ? (
+            <>
+              <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin mb-3" />
+              <p className="text-muted-foreground">Carregando dados do Cold Mail...</p>
+            </>
+          ) : (
+            <>
+              <Zap className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-muted-foreground">Nenhum dado do Cold Mail sincronizado.</p>
+              <Button className="mt-4" onClick={onSync}>
+                Sincronizar agora
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     );
@@ -325,11 +329,20 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
     return (
       <Card className="border-dashed">
         <CardContent className="py-12 text-center">
-          <Briefcase className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
-          <p className="text-muted-foreground">Nenhum dado do Ploomes sincronizado.</p>
-          <Button className="mt-4" onClick={onSync} disabled={syncing}>
-            {syncing ? 'Sincronizando...' : 'Fazer primeiro sync'}
-          </Button>
+          {syncing ? (
+            <>
+              <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin mb-3" />
+              <p className="text-muted-foreground">Carregando dados do Ploomes...</p>
+            </>
+          ) : (
+            <>
+              <Briefcase className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-muted-foreground">Nenhum dado do Ploomes sincronizado.</p>
+              <Button className="mt-4" onClick={onSync}>
+                Sincronizar agora
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     );
