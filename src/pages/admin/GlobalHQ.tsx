@@ -245,7 +245,7 @@ const GlobalHQ = () => {
                         <CardHeader className="pb-2">
                             <div className="flex items-center gap-2 text-accent">
                                 <Zap className="w-4 h-4 fill-current" />
-                                <CardTitle className="text-sm uppercase tracking-widest font-black">AI Executive Briefing</CardTitle>
+                                <CardTitle className="text-sm uppercase tracking-widest font-black">Resumo Executivo IA</CardTitle>
                             </div>
                         </CardHeader>
                         <CardContent>
