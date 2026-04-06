@@ -115,7 +115,7 @@ const GlobalHQ = () => {
                 </Card>
 
                 {/* Empresas Ativas */}
-                <Card className="border border-border bg-card shadow-2xl overflow-hidden group">
+                <Card className="border border-border bg-card shadow-2xl overflow-hidden group rounded-2xl">
                     <CardContent className="pt-8 flex flex-col justify-between h-full">
                         <div>
                             <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">Empresas Ativas</p>
