@@ -359,7 +359,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
 
   const dealsByPipeline: Record<string, { count: number; value: number }> = {};
   deals.forEach((d: any) => {
-    const pName = pipelineMap[d.PipelineId] || `Pipeline ${d.PipelineId}`;
+    const pName = pipelineMap[d.PipelineId] || `Funil ${d.PipelineId}`;
     if (!dealsByPipeline[pName]) dealsByPipeline[pName] = { count: 0, value: 0 };
     dealsByPipeline[pName].count += 1;
     dealsByPipeline[pName].value += d.Amount || 0;
