@@ -142,11 +142,20 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
     return (
       <Card className="border-dashed">
         <CardContent className="py-12 text-center">
-          <Zap className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
-          <p className="text-muted-foreground">Nenhum dado do Cold Mail sincronizado.</p>
-          <Button className="mt-4" onClick={onSync} disabled={syncing}>
-            {syncing ? 'Sincronizando...' : 'Fazer primeiro sync'}
-          </Button>
+          {syncing ? (
+            <>
+              <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin mb-3" />
+              <p className="text-muted-foreground">Carregando dados do Cold Mail...</p>
+            </>
+          ) : (
+            <>
+              <Zap className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-muted-foreground">Nenhum dado do Cold Mail sincronizado.</p>
+              <Button className="mt-4" onClick={onSync}>
+                Sincronizar agora
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     );
