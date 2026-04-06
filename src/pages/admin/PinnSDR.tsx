@@ -533,8 +533,8 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
                         {d.Amount ? `R$ ${d.Amount.toLocaleString('pt-BR')}` : '—'}
                       </td>
                       <td className="py-2.5 px-3">
-                        {d.Won ? <Badge className="text-xs bg-chart-2/20 text-chart-2">Ganho</Badge> :
-                         d.Lost ? <Badge className="text-xs bg-destructive/20 text-destructive">Perdido</Badge> :
+                        {d.StatusId === 2 ? <Badge className="text-xs bg-chart-2/20 text-chart-2">Ganho</Badge> :
+                         d.StatusId === 3 ? <Badge className="text-xs bg-destructive/20 text-destructive">Perdido</Badge> :
                          <Badge variant="secondary" className="text-xs">Aberto</Badge>}
                       </td>
                       <td className="py-2.5 px-3 text-muted-foreground text-xs">
