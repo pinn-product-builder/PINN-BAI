@@ -641,8 +641,9 @@ const PinnSDRDashboard = () => {
 
   const isLoading = orgLoading || cmhLoading || ploomesLoading;
   const syncing = syncingCmh || syncingPloomes;
+  const isAutoSyncing = syncing && !isLoading;
 
-  if (isLoading) {
+  if (isLoading || (isAutoSyncing && !cmhSnapshots && !ploomesSnapshots)) {
     return (
       <div className="p-8 space-y-6">
         <Skeleton className="h-10 w-64" />
