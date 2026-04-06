@@ -178,7 +178,7 @@ const GlobalHQ = () => {
                 {/* Top Performing Companies */}
                 <Card className="lg:col-span-2 border border-border bg-card shadow-2xl rounded-2xl">
                     <CardHeader>
-                        <CardTitle className="text-xl text-foreground">Health Score por Cliente</CardTitle>
+                        <CardTitle className="text-xl text-foreground">Saúde por Cliente</CardTitle>
                         <CardDescription>Principais métricas de performance das orgs sob gestão</CardDescription>
                     </CardHeader>
                     <CardContent>
