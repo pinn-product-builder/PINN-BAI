@@ -574,6 +574,7 @@ const PinnSDRDashboard = () => {
   const { data: ploomesSnapshots, isLoading: ploomesLoading } = useSnapshots(orgId, 'ploomes_sync_snapshots');
   const [syncingCmh, setSyncingCmh] = useState(false);
   const [syncingPloomes, setSyncingPloomes] = useState(false);
+  const [autoSyncDone, setAutoSyncDone] = useState(false);
 
   const syncCmh = useMutation({
     mutationFn: async () => {
