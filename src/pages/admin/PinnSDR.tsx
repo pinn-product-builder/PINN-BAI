@@ -616,6 +616,29 @@ const PinnSDRDashboard = () => {
     },
   });
 
+  // Auto-sync: sincroniza automaticamente se não há dados ou se último sync > 30min
+  useEffect(() => {
+    if (autoSyncDone || !orgId || cmhLoading || ploomesLoading) return;
+
+    const THIRTY_MIN = 30 * 60 * 1000;
+    const now = Date.now();
+
+    const needsCmhSync = !cmhSnapshots || Object.keys(cmhSnapshots).length === 0 ||
+      (cmhSnapshots?.stats?.synced_at && (now - new Date(cmhSnapshots.stats.synced_at).getTime()) > THIRTY_MIN);
+
+    const needsPloomesSync = !ploomesSnapshots || Object.keys(ploomesSnapshots).length === 0 ||
+      (ploomesSnapshots?.deals?.synced_at && (now - new Date(ploomesSnapshots.deals.synced_at).getTime()) > THIRTY_MIN);
+
+    setAutoSyncDone(true);
+
+    if (needsCmhSync) {
+      syncCmh.mutate();
+    }
+    if (needsPloomesSync) {
+      syncPloomes.mutate();
+    }
+  }, [orgId, cmhLoading, ploomesLoading, cmhSnapshots, ploomesSnapshots, autoSyncDone]);
+
   const isLoading = orgLoading || cmhLoading || ploomesLoading;
   const syncing = syncingCmh || syncingPloomes;
 
