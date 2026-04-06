@@ -644,7 +644,7 @@ const PinnSDRDashboard = () => {
           </Button>
           <Button onClick={() => syncPloomes.mutate()} disabled={syncing} className="gap-2" size="sm">
             {syncingPloomes ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Sync Ploomes
+            Sincronizar Ploomes
           </Button>
         </div>
       </div>
