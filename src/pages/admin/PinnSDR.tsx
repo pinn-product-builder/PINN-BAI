@@ -348,7 +348,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
 
   const dealsByStage: Record<string, number> = {};
   openDeals.forEach((d: any) => {
-    const stageName = stageMap[d.StageId] || `Stage ${d.StageId}`;
+    const stageName = stageMap[d.StageId] || `Estágio ${d.StageId}`;
     dealsByStage[stageName] = (dealsByStage[stageName] || 0) + 1;
   });
   const stageChartData = Object.entries(dealsByStage).map(([name, value]) => ({ name, value }));
