@@ -110,7 +110,7 @@ const GlobalHQ = () => {
                                 +12%
                             </span>
                         </div>
-                        <p className="mt-6 text-xs text-primary-foreground/60 font-medium">Crescimento escalável Pinn Builder</p>
+                        <p className="mt-6 text-xs text-primary-foreground/60 font-medium">Crescimento escalável Pinn</p>
                     </CardContent>
                 </Card>
 
