@@ -25,7 +25,8 @@ const usePinnOrgId = () => {
       const { data, error } = await supabase
         .from('organizations')
         .select('id')
-        .eq('slug', 'pinn')
+        .ilike('name', '%pinn%')
+        .limit(1)
         .single();
       if (error) throw error;
       return data.id;
