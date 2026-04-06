@@ -58,6 +58,41 @@ export type Database = {
           },
         ]
       }
+      cmh_sync_snapshots: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          org_id: string
+          snapshot_type: string
+          synced_at: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          org_id: string
+          snapshot_type: string
+          synced_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          org_id?: string
+          snapshot_type?: string
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cmh_sync_snapshots_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_churn_scores: {
         Row: {
           calculated_at: string
