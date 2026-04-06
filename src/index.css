@@ -69,12 +69,12 @@
     --sidebar-border:             220 10% 88%;
     --sidebar-ring:               24 100% 50%;
 
-    /* ── Charts — orange/amber em 1º/2º ── */
+    /* ── Charts — orange/amber em 1º/2º (light-safe) ── */
     --chart-1:  24 100% 50%;   /* #FF6900 */
-    --chart-2:  43 100% 49%;   /* #FCB900 */
-    --chart-3:  142 60% 38%;   /* verde */
-    --chart-4:  210 75% 50%;   /* azul */
-    --chart-5:  270 65% 58%;   /* roxo */
+    --chart-2:  142 60% 38%;   /* verde — melhor contraste que amber em light */
+    --chart-3:  210 75% 50%;   /* azul */
+    --chart-4:  270 65% 50%;   /* roxo */
+    --chart-5:  43 90% 42%;    /* amber escurecido para light */
   }
 
   /* ─────────────────────────────────────────────
