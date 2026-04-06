@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -574,6 +574,7 @@ const PinnSDRDashboard = () => {
   const { data: ploomesSnapshots, isLoading: ploomesLoading } = useSnapshots(orgId, 'ploomes_sync_snapshots');
   const [syncingCmh, setSyncingCmh] = useState(false);
   const [syncingPloomes, setSyncingPloomes] = useState(false);
+  const [autoSyncDone, setAutoSyncDone] = useState(false);
 
   const syncCmh = useMutation({
     mutationFn: async () => {
@@ -614,6 +615,29 @@ const PinnSDRDashboard = () => {
       setSyncingPloomes(false);
     },
   });
+
+  // Auto-sync: sincroniza automaticamente se não há dados ou se último sync > 30min
+  useEffect(() => {
+    if (autoSyncDone || !orgId || cmhLoading || ploomesLoading) return;
+
+    const THIRTY_MIN = 30 * 60 * 1000;
+    const now = Date.now();
+
+    const needsCmhSync = !cmhSnapshots || Object.keys(cmhSnapshots).length === 0 ||
+      (cmhSnapshots?.stats?.synced_at && (now - new Date(cmhSnapshots.stats.synced_at).getTime()) > THIRTY_MIN);
+
+    const needsPloomesSync = !ploomesSnapshots || Object.keys(ploomesSnapshots).length === 0 ||
+      (ploomesSnapshots?.deals?.synced_at && (now - new Date(ploomesSnapshots.deals.synced_at).getTime()) > THIRTY_MIN);
+
+    setAutoSyncDone(true);
+
+    if (needsCmhSync) {
+      syncCmh.mutate();
+    }
+    if (needsPloomesSync) {
+      syncPloomes.mutate();
+    }
+  }, [orgId, cmhLoading, ploomesLoading, cmhSnapshots, ploomesSnapshots, autoSyncDone]);
 
   const isLoading = orgLoading || cmhLoading || ploomesLoading;
   const syncing = syncingCmh || syncingPloomes;
