@@ -53,7 +53,7 @@ serve(async (req) => {
 
     const endpointMap: Record<string, { url: string; snapshotType: string }> = {
       deals: {
-        url: '/Deals?$top=200&$orderby=CreateDate desc&$expand=Contact,Pipeline,Stage',
+        url: '/Deals?$top=500&$orderby=CreateDate desc&$expand=Contact,Pipeline,Stage',
         snapshotType: 'deals',
       },
       deals_stages: {

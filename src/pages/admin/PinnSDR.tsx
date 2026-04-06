@@ -379,7 +379,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
     const uName = userMap[d.OwnerId] || `SDR ${d.OwnerId}`;
     if (!dealsByUser[uName]) dealsByUser[uName] = { total: 0, won: 0, value: 0 };
     dealsByUser[uName].total += 1;
-    if (d.Won) dealsByUser[uName].won += 1;
+    if (d.StatusId === 2) dealsByUser[uName].won += 1;
     dealsByUser[uName].value += d.Amount || 0;
   });
   const sdrPerformance = Object.entries(dealsByUser)
