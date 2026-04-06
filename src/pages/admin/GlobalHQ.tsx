@@ -140,7 +140,7 @@ const GlobalHQ = () => {
                 </Card>
 
                 {/* Total de Leads */}
-                <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group">
+                <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group rounded-2xl">
                     <CardContent className="pt-8">
                         <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">Total de Leads</p>
                         <div className="flex items-baseline gap-2">
