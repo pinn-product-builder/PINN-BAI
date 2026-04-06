@@ -181,6 +181,14 @@
   .glass-card {
     @apply bg-card/80 border border-border backdrop-blur-xl shadow-sm;
   }
+
+  /* Light mode table enhancements */
+  :root table thead tr {
+    background-color: hsl(var(--muted) / 0.5);
+  }
+  .dark table thead tr {
+    background-color: transparent;
+  }
 }
 
 /* ── Recharts overrides ── */
