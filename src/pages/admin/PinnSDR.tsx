@@ -590,7 +590,7 @@ const PinnSDRDashboard = () => {
       setSyncingCmh(false);
     },
     onError: (err: Error) => {
-      toast.error(`Erro CMH: ${err.message}`);
+      toast.error(`Erro Cold Mail: ${err.message}`);
       setSyncingCmh(false);
     },
   });
