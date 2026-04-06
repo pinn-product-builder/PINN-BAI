@@ -34,23 +34,42 @@ const usePinnOrgId = () => {
   });
 };
 
-const useSnapshots = (orgId: string | undefined, table: string) => {
+const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | 'ploomes_sync_snapshots') => {
   return useQuery({
     queryKey: [table, orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const { data, error } = await supabase
-        .from(table as any)
-        .select('*')
-        .eq('org_id', orgId)
-        .order('synced_at', { ascending: false });
-      if (error) throw error;
 
-      const snapshots: Record<string, any> = {};
-      for (const row of data || []) {
-        if (!snapshots[row.snapshot_type]) {
-          snapshots[row.snapshot_type] = row;
+      if (table === 'cmh_sync_snapshots') {
+        const { data, error } = await supabase
+          .from('cmh_sync_snapshots')
+          .select('*')
+          .eq('org_id', orgId)
+          .order('synced_at', { ascending: false });
+        if (error) throw error;
+        const snapshots: Record<string, any> = {};
+        for (const row of data || []) {
+          if (!snapshots[row.snapshot_type]) snapshots[row.snapshot_type] = row;
         }
+        return snapshots;
+      }
+
+      // ploomes - use raw fetch since types aren't generated yet
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/ploomes_sync_snapshots?org_id=eq.${orgId}&order=synced_at.desc`,
+        {
+          headers: {
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+        }
+      );
+      if (!res.ok) throw new Error('Failed to fetch ploomes snapshots');
+      const rows: any[] = await res.json();
+      const snapshots: Record<string, any> = {};
+      for (const row of rows) {
+        if (!snapshots[row.snapshot_type]) snapshots[row.snapshot_type] = row;
       }
       return snapshots;
     },
