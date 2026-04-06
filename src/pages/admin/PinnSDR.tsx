@@ -641,8 +641,9 @@ const PinnSDRDashboard = () => {
 
   const isLoading = orgLoading || cmhLoading || ploomesLoading;
   const syncing = syncingCmh || syncingPloomes;
+  const isAutoSyncing = syncing && !isLoading;
 
-  if (isLoading) {
+  if (isLoading || (isAutoSyncing && !cmhSnapshots && !ploomesSnapshots)) {
     return (
       <div className="p-8 space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -659,7 +660,10 @@ const PinnSDRDashboard = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pinn SDR Painel</h1>
-          <p className="text-sm text-muted-foreground mt-1">Cold Mail + Ploomes CRM · Visão unificada</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Cold Mail + Ploomes CRM · Visão unificada
+            {syncing && <span className="ml-2 inline-flex items-center gap-1 text-primary"><Loader2 className="w-3 h-3 animate-spin" /> Sincronizando...</span>}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => syncCmh.mutate()} disabled={syncing} className="gap-2" size="sm">
