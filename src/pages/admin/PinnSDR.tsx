@@ -206,26 +206,7 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
           </Card>
         )}
 
-        {temperatureData.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Distribuição de Temperatura</CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie data={temperatureData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
-                    {temperatureData.map((_: any, idx: number) => (
-                      <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
+        {/* Distribuição de Temperatura oculto */}
       </div>
 
       {timelineFiltered.length > 0 && (
@@ -240,8 +221,7 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => new Date(v).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} />
                 <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} labelFormatter={(v) => new Date(v).toLocaleDateString('pt-BR')} />
-                <Area type="monotone" dataKey="leads" name="Leads" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.15)" strokeWidth={2} />
-                <Area type="monotone" dataKey="emails" name="Emails" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2)/0.1)" strokeWidth={2} />
+                <Area type="monotone" dataKey="linkedin_messages" name="LinkedIn" stroke="hsl(var(--chart-3))" fill="hsl(var(--chart-3)/0.1)" strokeWidth={2} />
                 <Area type="monotone" dataKey="linkedin_messages" name="LinkedIn" stroke="hsl(var(--chart-3))" fill="hsl(var(--chart-3)/0.1)" strokeWidth={2} />
                 <Legend />
               </AreaChart>
