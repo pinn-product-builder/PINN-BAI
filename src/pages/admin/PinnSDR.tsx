@@ -221,8 +221,7 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => new Date(v).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} />
                 <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} labelFormatter={(v) => new Date(v).toLocaleDateString('pt-BR')} />
-                <Area type="monotone" dataKey="leads" name="Leads" stroke="hsl(var(--primary))" fill="hsl(var(--primary)/0.15)" strokeWidth={2} />
-                <Area type="monotone" dataKey="emails" name="Emails" stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2)/0.1)" strokeWidth={2} />
+                <Area type="monotone" dataKey="linkedin_messages" name="LinkedIn" stroke="hsl(var(--chart-3))" fill="hsl(var(--chart-3)/0.1)" strokeWidth={2} />
                 <Area type="monotone" dataKey="linkedin_messages" name="LinkedIn" stroke="hsl(var(--chart-3))" fill="hsl(var(--chart-3)/0.1)" strokeWidth={2} />
                 <Legend />
               </AreaChart>
