@@ -206,29 +206,26 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
           </Card>
         )}
 
-        {/* Distribuição de Temperatura oculto */}
+        {timelineFiltered.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Atividade LinkedIn (30 dias)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={timelineFiltered}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => new Date(v).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} labelFormatter={(v) => new Date(v).toLocaleDateString('pt-BR')} />
+                  <Area type="monotone" dataKey="linkedin_messages" name="LinkedIn" stroke="hsl(var(--chart-3))" fill="hsl(var(--chart-3)/0.1)" strokeWidth={2} />
+                  <Legend />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
       </div>
-
-      {timelineFiltered.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Timeline de Atividade (30 dias)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={timelineFiltered}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => new Date(v).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} />
-                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} labelFormatter={(v) => new Date(v).toLocaleDateString('pt-BR')} />
-                <Area type="monotone" dataKey="linkedin_messages" name="LinkedIn" stroke="hsl(var(--chart-3))" fill="hsl(var(--chart-3)/0.1)" strokeWidth={2} />
-                <Area type="monotone" dataKey="linkedin_messages" name="LinkedIn" stroke="hsl(var(--chart-3))" fill="hsl(var(--chart-3)/0.1)" strokeWidth={2} />
-                <Legend />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
 
       {campaigns.length > 0 && (
         <Card>
