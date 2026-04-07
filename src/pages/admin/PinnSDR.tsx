@@ -104,7 +104,7 @@ const MetricCard = ({
   </Card>
 );
 
-// ==================== Cold Mail Tab ====================
+// ==================== LinkedIn Tab ====================
 const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
   const stats = snapshots?.stats?.data?.stats;
   const campaigns = snapshots?.campaigns?.data?.campaigns || [];
@@ -145,12 +145,12 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
           {syncing ? (
             <>
               <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin mb-3" />
-              <p className="text-muted-foreground">Carregando dados do Cold Mail...</p>
+              <p className="text-muted-foreground">Carregando dados do LinkedIn...</p>
             </>
           ) : (
             <>
               <Zap className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground">Nenhum dado do Cold Mail sincronizado.</p>
+              <p className="text-muted-foreground">Nenhum dado do LinkedIn sincronizado.</p>
               <Button className="mt-4" onClick={onSync}>
                 Sincronizar agora
               </Button>
@@ -292,24 +292,7 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
         </Card>
       )}
 
-      {pipelineFunnelData.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Funil de Vendas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={pipelineFunnelData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
-                <Bar dataKey="value" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+      {/* Funil de Vendas oculto */}
     </div>
   );
 };
@@ -599,12 +582,12 @@ const PinnSDRDashboard = () => {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Sincronização Cold Mail: ${data.synced?.length || 0} ações`);
+      toast.success(`Sincronização LinkedIn: ${data.synced?.length || 0} ações`);
       queryClient.invalidateQueries({ queryKey: ['cmh_sync_snapshots'] });
       setSyncingCmh(false);
     },
     onError: (err: Error) => {
-      toast.error(`Erro Cold Mail: ${err.message}`);
+      toast.error(`Erro LinkedIn: ${err.message}`);
       setSyncingCmh(false);
     },
   });
@@ -674,14 +657,14 @@ const PinnSDRDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pinn SDR Painel</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Cold Mail + Ploomes CRM · Visão unificada
+            LinkedIn + Ploomes CRM · Visão unificada
             {syncing && <span className="ml-2 inline-flex items-center gap-1 text-primary"><Loader2 className="w-3 h-3 animate-spin" /> Sincronizando...</span>}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => syncCmh.mutate()} disabled={syncing} className="gap-2" size="sm">
             {syncingCmh ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Sincronizar Cold Mail
+            Sincronizar LinkedIn
           </Button>
           <Button onClick={() => syncPloomes.mutate()} disabled={syncing} className="gap-2" size="sm">
             {syncingPloomes ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
@@ -696,7 +679,7 @@ const PinnSDRDashboard = () => {
             <Briefcase className="w-4 h-4" /> SDR / Ploomes
           </TabsTrigger>
           <TabsTrigger value="coldmail" className="gap-2">
-            <Mail className="w-4 h-4" /> Cold Mail
+            <Linkedin className="w-4 h-4" /> LinkedIn
           </TabsTrigger>
         </TabsList>
 
