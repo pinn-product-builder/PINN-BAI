@@ -36,7 +36,7 @@ const baseNavItems = [
   { path: "/admin/pinn-sdr", label: "Pinn SDR", icon: BoltIcon },
   { path: "/admin/rfm-churn", label: "RFM + Churn", icon: TargetIcon },
   { path: "/admin/users", label: "Usuários", icon: PeopleIcon },
-  { path: "/admin/activity", label: "Atividade", icon: ActivityIcon },
+  
   { path: "/admin/settings", label: "Config", icon: SettingsIcon },
 ];
 
