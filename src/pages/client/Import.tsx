@@ -327,9 +327,11 @@ const ClientImport = () => {
                       className="hidden"
                       id="file-upload"
                     />
-                    <Button variant="outline" component="label" htmlFor="file-upload" sx={{ cursor: "pointer" }}>
-                      Selecionar arquivo
-                    </Button>
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <Button variant="outline" asChild>
+                        <span>Selecionar arquivo</span>
+                      </Button>
+                    </label>
                   </div>
                 )}
               </div>
