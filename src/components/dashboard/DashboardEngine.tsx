@@ -1215,13 +1215,11 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
       {/* Evolução Diária (area/line) + first funnel — side by side */}
       {(timeSeriesCharts.length > 0 || funnelWidgets.length > 0) && (
         <section>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {timeSeriesCharts.map(widget => (
               <div 
                 key={widget.id} 
-                className={`min-h-[380px] ${
-                  funnelWidgets.length > 0 ? 'lg:col-span-7' : 'lg:col-span-12'
-                }`}
+                className="min-h-[380px]"
               >
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
@@ -1229,9 +1227,7 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
             {funnelWidgets.length > 0 && (
               <div 
                 key={funnelWidgets[0].id} 
-                className={`min-h-[380px] ${
-                  timeSeriesCharts.length > 0 ? 'lg:col-span-5' : 'lg:col-span-12'
-                }`}
+                className="min-h-[380px]"
               >
                 <WidgetRenderer widget={funnelWidgets[0]} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
