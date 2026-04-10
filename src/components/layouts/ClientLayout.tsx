@@ -1,151 +1,215 @@
-import { Link, useParams, useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Upload, Settings, LogOut, Lightbulb, Sparkles, Target } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
-import AIChat from '@/components/ai/AIChat';
-import ThemeToggle from '@/components/ThemeToggle';
-import { useState } from 'react';
-import { isRfmChurnEnabledForOrg } from '@/lib/featureFlags';
+import { Link as RouterLink, useParams, useLocation, Outlet } from "react-router-dom";
+import {
+  Box,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  IconButton,
+  Stack,
+  CircularProgress,
+  Fab,
+} from "@mui/material";
+import {
+  Dashboard as DashboardIcon,
+  Upload as UploadIcon,
+  Lightbulb as LightbulbIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon,
+  TrackChanges as TargetIcon,
+  AutoAwesome as SparklesIcon,
+} from "@mui/icons-material";
+import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
+import { useAuth } from "@/contexts/AuthContext";
+import AIChat from "@/components/ai/AIChat";
+import { useState } from "react";
+import { isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
+
+const DRAWER_WIDTH = 220;
 
 const baseNavItems = [
-  { path: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: 'import', label: 'Dados', icon: Upload },
-  { path: 'insights', label: 'Inteligência IA', icon: Lightbulb },
-  { path: 'rfm-churn', label: 'RFM + Churn', icon: Target },
-  { path: 'settings', label: 'White Label', icon: Settings },
+  { path: "dashboard", label: "Dashboard", icon: DashboardIcon },
+  { path: "import", label: "Dados", icon: UploadIcon },
+  { path: "insights", label: "Inteligência IA", icon: LightbulbIcon },
+  { path: "rfm-churn", label: "RFM + Churn", icon: TargetIcon },
+  { path: "settings", label: "White Label", icon: SettingsIcon },
 ];
 
 const ClientLayout = () => {
   const { orgId } = useParams();
   const location = useLocation();
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const { organization, isLoading } = useTheme();
+  const { organization, isLoading } = useOrganizationBranding();
   const { profile, signOut } = useAuth();
   const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
-  const navItems = baseNavItems.filter(item => item.path !== 'rfm-churn' || showRfmChurn);
-
-  const currentPath = location.pathname.split('/').pop();
+  const navItems = baseNavItems.filter((item) => item.path !== "rfm-churn" || showRfmChurn);
+  const currentPath = location.pathname.split("/").pop();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-[11px] text-muted-foreground tracking-widest uppercase">Carregando...</p>
-        </div>
-      </div>
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "background.default" }}>
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress size={36} color="primary" />
+          <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.2em", textTransform: "uppercase" }}>
+            Carregando...
+          </Typography>
+        </Stack>
+      </Box>
     );
   }
 
-  const orgInitial = organization?.name?.charAt(0)?.toUpperCase() || 'O';
+  const orgInitial = organization?.name?.charAt(0)?.toUpperCase() || "O";
 
   return (
-    <div className="min-h-screen bg-background flex" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
-
-      {/* ── Sidebar ── */}
-      <aside className="fixed left-0 top-0 z-40 h-screen w-[220px] flex flex-col bg-sidebar-background border-r border-sidebar-border">
-
-        {/* Logo + Org */}
-        <div className="px-5 pt-6 pb-4 border-b border-sidebar-border">
-          {organization?.logo_url
-            ? <img src={organization.logo_url} alt={organization.name} className="h-8 max-w-[140px] object-contain" />
-            : <img src="/pinn-logo.svg" alt="Pinn" className="h-8 w-auto dark:brightness-100 brightness-0" />
-          }
-
-          {/* Org pill */}
-          <div className="mt-4 flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg bg-primary/8 border border-primary/15">
-            <div className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 bg-primary text-white">
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: DRAWER_WIDTH,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: DRAWER_WIDTH,
+            boxSizing: "border-box",
+            bgcolor: "grey.50",
+            borderRight: "1px solid",
+            borderColor: "divider",
+          },
+        }}
+      >
+        <Box sx={{ px: 2.5, pt: 3, pb: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+          {organization?.logo_url ? (
+            <Box component="img" src={organization.logo_url} alt={organization.name} sx={{ height: 32, maxWidth: 140, objectFit: "contain" }} />
+          ) : (
+            <Box component="img" src="/pinn-logo.svg" alt="Pinn" sx={{ height: 32, width: "auto" }} />
+          )}
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.25}
+            sx={{
+              mt: 2,
+              px: 1.25,
+              py: 1,
+              borderRadius: 1,
+              border: "1px solid",
+              borderColor: (t) => `${t.palette.primary.main}26`,
+              bgcolor: (t) => `${t.palette.primary.main}12`,
+            }}
+          >
+            <Box
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: 0.75,
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 10,
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
               {orgInitial}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-sidebar-foreground truncate leading-tight">
-                {organization?.name || 'Organização'}
-              </p>
-              <p className="text-[9px] text-sidebar-foreground/40 uppercase tracking-wider">Enterprise</p>
-            </div>
-          </div>
-        </div>
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="caption" fontWeight={600} noWrap display="block" lineHeight={1.2}>
+                {organization?.name || "Organização"}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Enterprise
+              </Typography>
+            </Box>
+          </Stack>
+        </Box>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <List sx={{ flex: 1, px: 1.5, py: 2, overflow: "auto" }}>
           {navItems.map(({ path, label, icon: Icon }) => {
             const active = currentPath === path;
             return (
-              <Link
+              <ListItemButton
                 key={path}
+                component={RouterLink}
                 to={`/client/${orgId}/${path}`}
-                className={cn(
-                  'group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                  active
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent'
-                )}
+                selected={active}
+                sx={{
+                  borderRadius: 1,
+                  mb: 0.25,
+                  py: 1.25,
+                  "&.Mui-selected": {
+                    bgcolor: (t) => `${t.palette.primary.main}14`,
+                    color: "primary.main",
+                  },
+                }}
               >
-                <Icon className={cn(
-                  'w-4 h-4 shrink-0',
-                  active ? 'text-primary' : 'text-sidebar-foreground/35 group-hover:text-sidebar-foreground/65'
-                )} />
-                <span>{label}</span>
-              </Link>
+                <ListItemIcon sx={{ minWidth: 36, color: active ? "primary.main" : "action.active" }}>
+                  <Icon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary={label} primaryTypographyProps={{ fontSize: "0.875rem", fontWeight: active ? 600 : 500 }} />
+              </ListItemButton>
             );
           })}
-        </nav>
+        </List>
 
-        {/* Footer */}
-        <div className="px-3 pb-5 pt-4 space-y-2 border-t border-sidebar-border">
-          <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-sidebar-accent">
-            <div className="w-7 h-7 rounded-lg bg-sidebar-border flex items-center justify-center shrink-0">
-              <span className="text-[11px] font-bold text-sidebar-foreground">
-                {profile?.full_name?.charAt(0) || 'U'}
-              </span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-sidebar-foreground truncate">
-                {profile?.full_name || 'Usuário'}
-              </p>
-              <p className="text-[9px] text-sidebar-foreground/40 uppercase tracking-wider">Dashboard</p>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <ThemeToggle />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-7 h-7 rounded-lg text-sidebar-foreground/30 hover:text-destructive hover:bg-destructive/8"
-                onClick={() => signOut()}
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </aside>
+        <Box sx={{ px: 1.5, pb: 2.5, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+          <Stack direction="row" alignItems="center" spacing={1.25} sx={{ px: 1.25, py: 1.5, borderRadius: 1, bgcolor: "action.hover" }}>
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: 1,
+                bgcolor: "divider",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Typography variant="caption" fontWeight={700}>
+                {profile?.full_name?.charAt(0) || "U"}
+              </Typography>
+            </Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="caption" fontWeight={600} noWrap display="block">
+                {profile?.full_name || "Usuário"}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Dashboard
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={() => signOut()} sx={{ color: "text.secondary" }} aria-label="Sair">
+              <LogoutIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        </Box>
+      </Drawer>
 
-      {/* ── Main ── */}
-      <main className="ml-[220px] flex-1 min-h-screen">
+      <Box component="main" sx={{ flex: 1, minHeight: "100vh", minWidth: 0 }}>
         <Outlet />
-      </main>
+      </Box>
 
-      {/* ── AI Chat FAB ── */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <Box sx={{ position: "fixed", bottom: 24, right: 24, zIndex: (t) => t.zIndex.drawer + 2 }}>
         {!isChatOpen && (
-          <button
-            onClick={() => setIsChatOpen(true)}
-            className="w-11 h-11 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-110 active:scale-95"
-            style={{
-              background: 'linear-gradient(135deg, #FF6900, #FCB900)',
-              boxShadow: '0 4px 16px rgba(255,105,0,0.30)',
-            }}
+          <Fab
+            color="primary"
             aria-label="Abrir IA"
+            onClick={() => setIsChatOpen(true)}
+            sx={{
+              background: "linear-gradient(135deg, #F97316, #EA580C)",
+              boxShadow: "0 4px 16px rgba(249,115,22,0.35)",
+              "&:hover": { background: "linear-gradient(135deg, #FB923C, #F97316)" },
+            }}
           >
-            <Sparkles className="w-4.5 h-4.5 text-white" />
-          </button>
+            <SparklesIcon />
+          </Fab>
         )}
-      </div>
+      </Box>
 
       {isChatOpen && <AIChat onClose={() => setIsChatOpen(false)} />}
-    </div>
+    </Box>
   );
 };
 

@@ -246,10 +246,16 @@ const OrganizationsSettingsCard = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" asChild>
-                    <a href={`/client/${org.id}/dashboard`} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    component="a"
+                    href={`/client/${org.id}/dashboard`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Abrir dashboard da organização"
+                  >
+                    <ExternalLink className="w-4 h-4" />
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>

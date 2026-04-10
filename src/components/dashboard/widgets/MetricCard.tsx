@@ -3,6 +3,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { TrendingUp, TrendingDown, Minus, Info, Loader2, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
+import { useTheme } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 
 interface MetricCardProps {
   title: string;
@@ -57,17 +59,6 @@ const prettifyTitle = (raw: string): string => {
   return raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\s+/g, ' ').trim();
 };
 
-/* Acento visual por tipo — contraste bom em light E dark:
-   currency  → orange #FF6900 (primary Pinn)
-   percentage → verde #16a34a (bom contraste nos dois modos)
-   number     → amber #d97706 (mais escuro que FCB900 — legível no branco)
-*/
-const ACCENT: Record<string, { line: string; stop: string }> = {
-  currency:   { line: '#FF6900', stop: 'rgba(255,105,0,0.12)' },
-  percentage: { line: '#16a34a', stop: 'rgba(22,163,74,0.10)' },
-  number:     { line: '#d97706', stop: 'rgba(217,119,6,0.10)' },
-};
-
 const MetricCard = ({
   title,
   description,
@@ -78,8 +69,14 @@ const MetricCard = ({
   isLoading = false,
   metricLabel,
 }: MetricCardProps) => {
+  const theme = useTheme();
+  const accents: Record<string, { line: string; stop: string }> = {
+    currency: { line: theme.palette.primary.main, stop: alpha(theme.palette.primary.main, 0.12) },
+    percentage: { line: theme.palette.success.main, stop: alpha(theme.palette.success.main, 0.1) },
+    number: { line: theme.palette.warning.main, stop: alpha(theme.palette.warning.main, 0.1) },
+  };
+  const accent = accents[format] ?? accents.number;
   const displayTitle = prettifyTitle(title);
-  const accent = ACCENT[format] ?? ACCENT.number;
 
   if (isLoading) {
     return (
@@ -161,14 +158,14 @@ const MetricCard = ({
             <span
               className={cn(
                 'inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0',
-                isPositive && 'text-emerald-400',
-                isNegative && 'text-red-400',
+                isPositive && 'text-emerald-600',
+                isNegative && 'text-red-600',
                 !isPositive && !isNegative && 'text-muted-foreground'
               )}
               style={{
                 background: isPositive ? 'rgba(34,197,94,0.10)'
                   : isNegative ? 'rgba(239,68,68,0.10)'
-                  : 'rgba(255,255,255,0.05)',
+                  : alpha(theme.palette.common.black, 0.05),
               }}
             >
               {isPositive ? <TrendingUp className="w-3 h-3" />

@@ -1,114 +1,155 @@
-import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
+import { Link as RouterLink, useLocation, useNavigate, Outlet } from "react-router-dom";
 import {
-  Building2,
-  LayoutTemplate,
-  Users,
-  Settings,
-  LogOut,
-  Activity,
-  LayoutDashboard,
-  Gauge,
-  ChevronRight,
-  Target,
-  Zap,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import ThemeToggle from '@/components/ThemeToggle';
-import { isRfmChurnEnabledForAdmin } from '@/lib/featureFlags';
+  Box,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Stack,
+  Button,
+} from "@mui/material";
+import {
+  Dashboard as DashboardIcon,
+  Business as BusinessIcon,
+  Description as TemplateIcon,
+  Speed as GaugeIcon,
+  Bolt as BoltIcon,
+  TrackChanges as TargetIcon,
+  People as PeopleIcon,
+  ShowChart as ActivityIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon,
+  ChevronRight as ChevronRightIcon,
+} from "@mui/icons-material";
+import { useAuth } from "@/contexts/AuthContext";
+import { isRfmChurnEnabledForAdmin } from "@/lib/featureFlags";
+
+const DRAWER_WIDTH = 220;
 
 const baseNavItems = [
-  { path: '/admin/hq', label: 'Command', icon: LayoutDashboard },
-  { path: '/admin/organizations', label: 'Organizações', icon: Building2 },
-  { path: '/admin/templates', label: 'Templates', icon: LayoutTemplate },
-  { path: '/admin/custom-metrics', label: 'Métricas', icon: Gauge },
-  { path: '/admin/pinn-sdr', label: 'Pinn SDR', icon: Zap },
-  { path: '/admin/rfm-churn', label: 'RFM + Churn', icon: Target },
-  { path: '/admin/users', label: 'Usuários', icon: Users },
-  { path: '/admin/activity', label: 'Atividade', icon: Activity },
-  { path: '/admin/settings', label: 'Config', icon: Settings },
+  { path: "/admin/hq", label: "Command", icon: DashboardIcon },
+  { path: "/admin/organizations", label: "Organizações", icon: BusinessIcon },
+  { path: "/admin/templates", label: "Templates", icon: TemplateIcon },
+  { path: "/admin/custom-metrics", label: "Métricas", icon: GaugeIcon },
+  { path: "/admin/pinn-sdr", label: "Pinn SDR", icon: BoltIcon },
+  { path: "/admin/rfm-churn", label: "RFM + Churn", icon: TargetIcon },
+  { path: "/admin/users", label: "Usuários", icon: PeopleIcon },
+  { path: "/admin/activity", label: "Atividade", icon: ActivityIcon },
+  { path: "/admin/settings", label: "Config", icon: SettingsIcon },
 ];
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
-  const navItems = baseNavItems.filter(item => item.path !== '/admin/rfm-churn' || isRfmChurnEnabledForAdmin());
+  const navItems = baseNavItems.filter((item) => item.path !== "/admin/rfm-churn" || isRfmChurnEnabledForAdmin());
 
   return (
-    <div className="min-h-screen bg-background flex" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
-
-      {/* ── Sidebar ── */}
-      <aside className="fixed left-0 top-0 z-40 h-screen w-[220px] flex flex-col bg-sidebar-background border-r border-sidebar-border">
-
-        {/* Logo */}
-        <div className="px-5 pt-6 pb-5 border-b border-sidebar-border">
-          <img src="/pinn-icon.svg" alt="Pinn" className="h-8 w-auto" />
-          <div className="mt-3 flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-            <span className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/40 font-semibold">
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: DRAWER_WIDTH,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: DRAWER_WIDTH,
+            boxSizing: "border-box",
+            bgcolor: "grey.50",
+            borderRight: "1px solid",
+            borderColor: "divider",
+          },
+        }}
+      >
+        <Box sx={{ px: 2.5, pt: 3, pb: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Box component="img" src="/pinn-logo.svg" alt="Pinn" sx={{ height: 32, width: "auto" }} />
+          <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mt: 1.5 }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "primary.main" }} />
+            <Typography variant="caption" sx={{ fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "text.secondary", fontWeight: 600 }}>
               Admin Panel
-            </span>
-          </div>
-        </div>
+            </Typography>
+          </Stack>
+        </Box>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <List sx={{ flex: 1, px: 1.5, py: 2, overflow: "auto" }}>
           {navItems.map(({ path, label, icon: Icon }) => {
             const active = location.pathname.startsWith(path);
             return (
-              <Link
+              <ListItemButton
                 key={path}
+                component={RouterLink}
                 to={path}
-                className={cn(
-                  'group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                  active
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent'
-                )}
+                selected={active}
+                sx={{
+                  borderRadius: 1,
+                  mb: 0.25,
+                  py: 1.25,
+                  "&.Mui-selected": {
+                    bgcolor: (t) => `${t.palette.primary.main}14`,
+                    color: "primary.main",
+                    "&:hover": { bgcolor: (t) => `${t.palette.primary.main}1f` },
+                  },
+                }}
               >
-                <Icon className={cn(
-                  'w-4 h-4 shrink-0',
-                  active ? 'text-primary' : 'text-sidebar-foreground/35 group-hover:text-sidebar-foreground/65'
-                )} />
-                <span>{label}</span>
-                {active && <ChevronRight className="w-3 h-3 ml-auto text-primary/50" />}
-              </Link>
+                <ListItemIcon sx={{ minWidth: 36, color: active ? "primary.main" : "action.active" }}>
+                  <Icon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary={label} primaryTypographyProps={{ fontSize: "0.875rem", fontWeight: active ? 600 : 500 }} />
+                {active && <ChevronRightIcon sx={{ fontSize: 14, color: "primary.main", opacity: 0.5 }} />}
+              </ListItemButton>
             );
           })}
-        </nav>
+        </List>
 
-        {/* Footer */}
-        <div className="px-3 pb-5 pt-4 space-y-2 border-t border-sidebar-border">
-          <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-sidebar-accent">
-            <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
-              <span className="text-[11px] font-bold text-primary">A</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-sidebar-foreground truncate">Admin</p>
-              <p className="text-[10px] text-sidebar-foreground/40 truncate">Plataforma</p>
-            </div>
-            <ThemeToggle />
-          </div>
-
+        <Box sx={{ px: 1.5, pb: 2.5, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+          <Stack direction="row" alignItems="center" spacing={1.25} sx={{ px: 1.5, py: 1.5, borderRadius: 1, bgcolor: "action.hover" }}>
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "primary.main",
+                bgcolor: (t) => `${t.palette.primary.main}18`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Typography variant="caption" fontWeight={700} color="primary">
+                A
+              </Typography>
+            </Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="caption" fontWeight={600} noWrap>
+                Admin
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: 10 }}>
+                Plataforma
+              </Typography>
+            </Box>
+          </Stack>
           <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start gap-2 text-sidebar-foreground/40 hover:text-destructive hover:bg-destructive/8 rounded-lg h-8 text-xs font-medium"
-            onClick={async () => { await signOut(); navigate('/login'); }}
+            fullWidth
+            size="small"
+            startIcon={<LogoutIcon sx={{ fontSize: 16 }} />}
+            onClick={async () => {
+              await signOut();
+              navigate("/login");
+            }}
+            sx={{ mt: 1, justifyContent: "flex-start", color: "text.secondary", fontSize: "0.75rem" }}
           >
-            <LogOut className="w-3.5 h-3.5" />
             Sair
           </Button>
-        </div>
-      </aside>
+        </Box>
+      </Drawer>
 
-      {/* ── Main ── */}
-      <main className="ml-[220px] flex-1 min-h-screen">
+      <Box component="main" sx={{ flex: 1, minHeight: "100vh", minWidth: 0 }}>
         <Outlet />
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

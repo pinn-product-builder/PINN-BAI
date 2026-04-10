@@ -12,6 +12,8 @@ import {
   Legend,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@mui/material/styles';
+import { getChartSeriesColors, chartGridColor } from '@/theme/chartColors';
 
 interface AreaChartWidgetProps {
   title: string;
@@ -22,15 +24,6 @@ interface AreaChartWidgetProps {
   seriesLabels?: Record<string, string>;
   isLoading?: boolean;
 }
-
-// Paleta base (fallback para séries genéricas)
-const CHART_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-];
 
 /**
  * Cores fixas por nome de série — valores hex absolutos para garantir
@@ -50,7 +43,7 @@ const SERIES_COLOR_MAP: Record<string, string> = {
   atendimento_feito:  '#22C55E', // verde
   reuniao_confirmada: '#F59E0B', // âmbar/laranja
   reuniao_realizada:  '#3B82F6', // azul
-  venda:              '#FF6900', // laranja Pinn
+  venda:              '#F97316', // primary PINN Growth (Hermes)
   desqualificado:     '#EF4444', // vermelho
   hermes_entrada:     '#10B981', // esmeralda
   // aliases
@@ -63,8 +56,12 @@ const EXTENDED_COLORS = [
   '#EC4899', '#10B981', '#EF4444', '#06B6D4', '#F97316',
 ];
 
-const getSeriesColor = (key: string, index: number) =>
-  SERIES_COLOR_MAP[key] ?? EXTENDED_COLORS[index % EXTENDED_COLORS.length];
+const getSeriesColorFn =
+  (paletteFallback: string[], primaryMain: string) => (key: string, index: number) => {
+    if (key === "venda") return primaryMain;
+    if (SERIES_COLOR_MAP[key]) return SERIES_COLOR_MAP[key];
+    return paletteFallback[index % paletteFallback.length] ?? EXTENDED_COLORS[index % EXTENDED_COLORS.length];
+  };
 
 const DEFAULT_LABEL_MAP: Record<string, string> = {
   value: 'Valor',
@@ -129,9 +126,15 @@ const AreaChartWidget = ({
   seriesLabels,
   isLoading = false,
 }: AreaChartWidgetProps) => {
+  const theme = useTheme();
+  const paletteSeries = getChartSeriesColors(theme);
+  const getSeriesColor = getSeriesColorFn(paletteSeries, theme.palette.primary.main);
   const hasRealData = data.length > 0;
   const LABEL_MAP = { ...DEFAULT_LABEL_MAP, ...(seriesLabels || {}) };
   const CustomTooltip = createCustomTooltip(LABEL_MAP);
+  const gridStroke = chartGridColor(theme);
+  const tickColor = theme.palette.text.secondary;
+  const bgPaper = theme.palette.background.paper;
 
   if (isLoading) {
     return (
@@ -190,22 +193,22 @@ const AreaChartWidget = ({
                     </linearGradient>
                   ))}
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} strokeOpacity={0.9} vertical={false} />
                 <XAxis
                   dataKey={xAxisKey}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: tickColor }}
                   dy={8}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: tickColor }}
                   width={45}
                   tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v)}
                 />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }} />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: gridStroke, strokeWidth: 1 }} />
                 {dataKeys.length > 1 && (
                   <Legend
                     verticalAlign="bottom"
@@ -227,7 +230,7 @@ const AreaChartWidget = ({
                     strokeWidth={2}
                     fill={`url(#area-grad-${key})`}
                     dot={false}
-                    activeDot={{ r: 4, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+                    activeDot={{ r: 4, strokeWidth: 2, stroke: bgPaper }}
                     animationDuration={1000}
                     animationEasing="ease-out"
                     animationBegin={index * 150}

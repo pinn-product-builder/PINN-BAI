@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info, Loader2, Database } from 'lucide-react';
+import { useTheme } from '@mui/material/styles';
 import {
   Pie,
   PieChart,
@@ -8,6 +9,7 @@ import {
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
 } from 'recharts';
+import { getChartSeriesColors } from '@/theme/chartColors';
 import { cn } from '@/lib/utils';
 
 interface PieChartWidgetProps {
@@ -17,14 +19,6 @@ interface PieChartWidgetProps {
   isDonut?: boolean;
   isLoading?: boolean;
 }
-
-const CHART_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-];
 
 // Prettify label names
 const prettifyLabel = (raw: string): string => {
@@ -41,6 +35,8 @@ const PieChartWidget = ({
   isDonut = true,
   isLoading = false,
 }: PieChartWidgetProps) => {
+  const theme = useTheme();
+  const chartColors = getChartSeriesColors(theme);
   // Prettify all labels
   const cleanData = data.map(d => ({ ...d, name: prettifyLabel(d.name) }));
   // Filter out zero values and merge tiny slices
@@ -56,7 +52,7 @@ const PieChartWidget = ({
       return (
         <div className="bg-popover/95 backdrop-blur-md border border-border/60 rounded-lg shadow-xl p-3 min-w-[120px]">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color || CHART_COLORS[0] }} />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color || chartColors[0] }} />
             <span className="text-xs font-semibold text-foreground">{item.name}</span>
           </div>
           <div className="text-xs text-muted-foreground">
@@ -120,7 +116,7 @@ const PieChartWidget = ({
             <div className="w-full h-3 rounded-full bg-muted/40 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-1000"
-                style={{ width: '100%', backgroundColor: CHART_COLORS[0] }}
+                style={{ width: '100%', backgroundColor: chartColors[0] }}
               />
             </div>
             <p className="text-[11px] text-muted-foreground text-center">
@@ -146,7 +142,7 @@ const PieChartWidget = ({
                     animationEasing="ease-out"
                   >
                     {filteredData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={entry.color || chartColors[index % chartColors.length]} />
                     ))}
                   </Pie>
                   <RechartsTooltip content={<CustomTooltip />} />
@@ -170,7 +166,7 @@ const PieChartWidget = ({
                   <div key={item.name} className="flex items-center gap-2">
                     <div
                       className="w-2.5 h-2.5 rounded-sm shrink-0"
-                      style={{ backgroundColor: item.color || CHART_COLORS[index % CHART_COLORS.length] }}
+                      style={{ backgroundColor: item.color || chartColors[index % chartColors.length] }}
                     />
                     <div className="flex-1 min-w-0">
                       <span className="text-[11px] text-muted-foreground truncate block">{item.name}</span>

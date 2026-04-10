@@ -34,7 +34,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useOrganizationBranding } from '@/contexts/OrganizationBrandingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { DataProfiler } from '@/lib/data-profiler';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,7 +66,7 @@ const ClientImport = () => {
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { organization } = useTheme();
+  const { organization } = useOrganizationBranding();
   const { profile, signOut } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload');
@@ -327,10 +327,8 @@ const ClientImport = () => {
                       className="hidden"
                       id="file-upload"
                     />
-                    <Button variant="outline" asChild>
-                      <label htmlFor="file-upload" className="cursor-pointer">
-                        Selecionar arquivo
-                      </label>
+                    <Button variant="outline" component="label" htmlFor="file-upload" sx={{ cursor: "pointer" }}>
+                      Selecionar arquivo
                     </Button>
                   </div>
                 )}

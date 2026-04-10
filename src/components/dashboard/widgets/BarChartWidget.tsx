@@ -12,6 +12,8 @@ import {
   Cell,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@mui/material/styles';
+import { getChartSeriesColors, chartGridColor } from '@/theme/chartColors';
 
 interface BarChartWidgetProps {
   title: string;
@@ -19,31 +21,6 @@ interface BarChartWidgetProps {
   data?: Array<{ label: string; value: number; color?: string }>;
   isLoading?: boolean;
 }
-
-const CHART_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-];
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-popover/95 backdrop-blur-md border border-border/60 rounded-lg shadow-xl p-3 min-w-[120px]">
-        <p className="text-xs font-semibold text-foreground mb-1.5">{label}</p>
-        <div className="flex items-center gap-2 text-xs">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].color || CHART_COLORS[0] }} />
-          <span className="font-semibold text-foreground tabular-nums">
-            {typeof payload[0].value === 'number' ? payload[0].value.toLocaleString('pt-BR') : payload[0].value}
-          </span>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
 
 // Prettify bar labels
 const prettifyLabel = (raw: string): string => {
@@ -58,6 +35,29 @@ const BarChartWidget = ({
   data = [],
   isLoading = false,
 }: BarChartWidgetProps) => {
+  const theme = useTheme();
+  const chartColors = getChartSeriesColors(theme);
+  const gridStroke = chartGridColor(theme);
+  const tickColor = theme.palette.text.secondary;
+  const mutedBg = theme.palette.action.hover;
+
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; color?: string }>; label?: string }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-popover/95 backdrop-blur-md border border-border/60 rounded-lg shadow-xl p-3 min-w-[120px]">
+          <p className="text-xs font-semibold text-foreground mb-1.5">{label}</p>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].color || chartColors[0] }} />
+            <span className="font-semibold text-foreground tabular-nums">
+              {typeof payload[0].value === "number" ? payload[0].value.toLocaleString("pt-BR") : payload[0].value}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   // Clean data: prettify labels, filter zero
   const cleanData = data.filter(d => d.value > 0).map(d => ({ ...d, label: prettifyLabel(d.label) }));
   const hasRealData = cleanData.length > 0;
@@ -111,12 +111,12 @@ const BarChartWidget = ({
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cleanData} layout="vertical" margin={{ top: 5, right: 15, left: 5, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.3} horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} strokeOpacity={0.6} horizontal={false} />
                 <XAxis
                   type="number"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: tickColor }}
                   tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v))}
                 />
                 <YAxis
@@ -124,13 +124,13 @@ const BarChartWidget = ({
                   dataKey="label"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: tickColor }}
                   width={100}
                 />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }} />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: mutedBg, opacity: 0.35 }} />
                 <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22} animationDuration={800} animationEasing="ease-out">
                   {cleanData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={entry.color || chartColors[index % chartColors.length]} />
                   ))}
                 </Bar>
               </BarChart>

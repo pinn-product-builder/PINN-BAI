@@ -1,15 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   Pinn BAI Design System — v3
-   Default: Light mode limpo (branco/cinza quente)
-   Orange #FF6900 como primary, Amber #FCB900 como accent.
-   Dark mode disponível via classe .dark
+   Pinn BAI Design System — modo claro único (PINN Growth / Hermes)
+   Orange primário; alinhado ao tema MUI `createPinnThemeLight`.
    ============================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
 
 @layer base {
   /* ─────────────────────────────────────────────
@@ -27,8 +25,8 @@
     --popover:           0 0% 100%;
     --popover-foreground: 220 15% 15%;
 
-    /* Primary — Pinn Luminous Orange */
-    --primary:           24 100% 50%;       /* #FF6900 */
+    /* Primary — PINN Growth (alinhado ao MUI Hermes #F97316) */
+    --primary:           25 95% 53%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary — cinza suave */
@@ -69,68 +67,12 @@
     --sidebar-border:             220 10% 88%;
     --sidebar-ring:               24 100% 50%;
 
-    /* ── Charts — orange/amber em 1º/2º (light-safe) ── */
-    --chart-1:  24 100% 50%;   /* #FF6900 */
-    --chart-2:  142 60% 38%;   /* verde — melhor contraste que amber em light */
-    --chart-3:  210 75% 50%;   /* azul */
-    --chart-4:  270 65% 50%;   /* roxo */
-    --chart-5:  43 90% 42%;    /* amber escurecido para light */
-  }
-
-  /* ─────────────────────────────────────────────
-     .dark — tema escuro profissional
-     Fundo slate escuro, sidebar ainda mais escuro,
-     orange mantido como primary.
-  ───────────────────────────────────────────── */
-  .dark {
-    --background:        222 20% 8%;
-    --foreground:        0 0% 93%;
-
-    --card:              222 20% 11%;
-    --card-foreground:   0 0% 93%;
-
-    --popover:           222 22% 13%;
-    --popover-foreground: 0 0% 93%;
-
-    --primary:           24 100% 50%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary:         222 25% 17%;
-    --secondary-foreground: 210 15% 82%;
-
-    --muted:             222 22% 14%;
-    --muted-foreground:  215 12% 52%;
-
-    --accent:            43 100% 49%;
-    --accent-foreground: 222 20% 8%;
-
-    --success:           142 65% 42%;
-    --success-foreground: 0 0% 100%;
-    --warning:           38 92% 50%;
-    --warning-foreground: 222 20% 8%;
-    --destructive:       0 70% 56%;
-    --destructive-foreground: 0 0% 100%;
-    --info:              210 78% 54%;
-    --info-foreground:   0 0% 100%;
-
-    --border:            222 22% 19%;
-    --input:             222 22% 19%;
-    --ring:              24 100% 50%;
-
-    --sidebar-background:         222 24% 7%;
-    --sidebar-foreground:         210 15% 85%;
-    --sidebar-primary:            24 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent:             222 22% 14%;
-    --sidebar-accent-foreground:  210 15% 85%;
-    --sidebar-border:             222 22% 14%;
-    --sidebar-ring:               24 100% 50%;
-
-    --chart-1:  24 100% 50%;
-    --chart-2:  43 100% 49%;   /* amber original OK em dark */
-    --chart-3:  142 65% 42%;
-    --chart-4:  210 78% 54%;
-    --chart-5:  270 65% 60%;
+    /* ── Charts — alinhados ao tema PINN / MUI (modo claro) ── */
+    --chart-1:  25 95% 53%;   /* #F97316 */
+    --chart-2:  43 100% 49%;   /* #FCB900 */
+    --chart-3:  142 60% 38%;   /* verde */
+    --chart-4:  210 75% 50%;   /* azul */
+    --chart-5:  270 65% 58%;   /* roxo */
   }
 }
 
@@ -150,9 +92,6 @@
   /* Light-mode card shadow refinement */
   :root .shadow-2xl {
     box-shadow: 0 4px 24px -4px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
-  }
-  .dark .shadow-2xl {
-    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.5);
   }
 }
 
@@ -185,7 +124,7 @@
     @apply bg-card border border-border rounded-xl shadow-sm;
   }
 
-  /* Glass card — adapta-se a light e dark */
+  /* Glass card — modo claro */
   .glass-card {
     @apply bg-card/80 border border-border backdrop-blur-xl shadow-sm;
   }
@@ -193,9 +132,6 @@
   /* Light mode table enhancements */
   :root table thead tr {
     background-color: hsl(var(--muted) / 0.6);
-  }
-  .dark table thead tr {
-    background-color: hsl(var(--muted) / 0.3);
   }
 
   /* Light mode: softer elevated look for cards */

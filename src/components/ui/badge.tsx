@@ -1,4 +1,5 @@
 import * as React from "react";
+import Chip from "@mui/material/Chip";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
@@ -22,8 +23,33 @@ const badgeVariants = cva(
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+function Badge({ className, variant = "default", children, ...props }: BadgeProps) {
+  const muiColor =
+    variant === "destructive"
+      ? "error"
+      : variant === "secondary"
+        ? "secondary"
+        : variant === "outline"
+          ? "default"
+          : "primary";
+  const muiVariant = variant === "outline" ? "outlined" : "filled";
+
+  return (
+    <Chip
+      component="span"
+      size="small"
+      variant={muiVariant}
+      color={muiColor}
+      label={children}
+      className={cn(badgeVariants({ variant }), className)}
+      sx={{
+        height: "auto",
+        minHeight: 22,
+        "& .MuiChip-label": { px: 0.75, py: 0.125, fontSize: "0.75rem", fontWeight: 600 },
+      }}
+      {...props}
+    />
+  );
 }
 
 export { Badge, badgeVariants };

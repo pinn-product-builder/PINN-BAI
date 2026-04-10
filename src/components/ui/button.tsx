@@ -1,9 +1,10 @@
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
+import { Button as MuiButton, type ButtonProps as MuiButtonProps } from "@mui/material";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
+/** Classes Tailwind mantidas para Calendar, Pagination e AlertDialog que ainda usam `buttonVariants`. */
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
@@ -30,16 +31,59 @@ const buttonVariants = cva(
   },
 );
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+export type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
+export type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
+
+const variantToMui: Record<
+  NonNullable<ButtonVariant>,
+  { variant: MuiButtonProps["variant"]; color: MuiButtonProps["color"] }
+> = {
+  default: { variant: "contained", color: "primary" },
+  destructive: { variant: "contained", color: "error" },
+  outline: { variant: "outlined", color: "primary" },
+  secondary: { variant: "contained", color: "secondary" },
+  ghost: { variant: "text", color: "primary" },
+  link: { variant: "text", color: "primary" },
+};
+
+const sizeToMui: Record<NonNullable<ButtonSize>, MuiButtonProps["size"]> = {
+  default: "medium",
+  sm: "small",
+  lg: "large",
+  icon: "medium",
+};
+
+export interface ButtonProps extends Omit<MuiButtonProps, "variant" | "size" | "color"> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+  ({ className, variant = "default", size = "default", asChild: _asChild, ...props }, ref) => {
+    const m = variantToMui[variant];
+    const iconSx =
+      size === "icon"
+        ? { minWidth: 40, width: 40, height: 40, padding: 0 }
+        : undefined;
+    return (
+      <MuiButton
+        ref={ref}
+        variant={m.variant}
+        color={m.color}
+        size={sizeToMui[size]}
+        className={className}
+        disableElevation
+        sx={{
+          textTransform: "none",
+          fontWeight: 600,
+          borderRadius: 1,
+          ...(variant === "link" ? { textDecoration: "underline", minWidth: "auto" } : {}),
+          ...iconSx,
+        }}
+        {...props}
+      />
+    );
   },
 );
 Button.displayName = "Button";

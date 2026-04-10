@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info, Loader2, Database } from 'lucide-react';
+import { useTheme } from '@mui/material/styles';
+import { getChartSeriesColors } from '@/theme/chartColors';
 import { cn } from '@/lib/utils';
 
 interface FunnelWidgetProps {
@@ -9,14 +11,6 @@ interface FunnelWidgetProps {
   data?: Array<{ stage: string; value: number; color?: string }>;
   isLoading?: boolean;
 }
-
-const FUNNEL_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-];
 
 // Prettify stage names
 const STAGE_MAP: Record<string, string> = {
@@ -42,6 +36,8 @@ const FunnelWidget = ({
   data = [],
   isLoading = false,
 }: FunnelWidgetProps) => {
+  const theme = useTheme();
+  const funnelColors = getChartSeriesColors(theme);
   // Prettify stage names and filter zero values
   const cleanData = data.filter(d => d.value > 0).map(d => ({ ...d, stage: prettifyStage(d.stage) }));
   const hasRealData = cleanData.length > 0;
@@ -106,7 +102,7 @@ const FunnelWidget = ({
                 <p className="text-3xl font-bold text-foreground tabular-nums">{cleanData[0].value.toLocaleString('pt-BR')}</p>
                 <p className="text-xs text-muted-foreground">{cleanData[0].stage}</p>
                 <div className="w-full h-3 rounded-full bg-muted/40 overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: '100%', backgroundColor: FUNNEL_COLORS[0] }} />
+                  <div className="h-full rounded-full" style={{ width: '100%', backgroundColor: funnelColors[0] }} />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
                   Configure uma view de funil com múltiplos estágios para ver a conversão
@@ -118,7 +114,7 @@ const FunnelWidget = ({
               const prevValue = index > 0 ? cleanData[index - 1].value : item.value;
               const conversionRate =
                 prevValue > 0 ? ((item.value / prevValue) * 100).toFixed(0) : '100';
-              const color = item.color || FUNNEL_COLORS[index % FUNNEL_COLORS.length];
+              const color = item.color || funnelColors[index % funnelColors.length];
 
               return (
                 <div

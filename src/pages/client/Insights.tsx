@@ -308,7 +308,7 @@ Use dados reais dos leads, conversões, fontes e tendências. Inclua números e 
                             </Button>
                           </div>
                           <p className="font-semibold text-foreground text-sm mb-1">{insight.title}</p>
-                          <div className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none">
+                          <div className="text-sm text-muted-foreground prose prose-sm max-w-none">
                             <ReactMarkdown>{insight.content}</ReactMarkdown>
                           </div>
                         </div>

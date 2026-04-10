@@ -205,7 +205,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
                       <Bot size={12} /> Pinn AI
                     </div>
                   )}
-                  <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed">
+                  <div className="prose prose-sm max-w-none leading-relaxed">
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
                   </div>
                 </div>

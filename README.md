@@ -57,9 +57,11 @@ Este repositório concentra principalmente o **frontend web** do PINN BAI, const
 - **Framework de UI**: React 18.
 - **Bundler / Dev server**: Vite.
 - **Design system e componentes**:  
-  - Shadcn UI (baseado em Radix UI)  
-  - Tailwind CSS e `tailwindcss-animate`  
-  - Ícones `lucide-react`
+  - **Material UI (MUI) v7** + Emotion — tema **PINN Growth** alinhado ao projeto Hermes (`createPinnThemeLight`), **apenas modo claro** (sem tema escuro).  
+  - **Tailwind CSS** para utilitários e layout onde ainda coexistem com o legado Shadcn; `tailwindcss-animate`.  
+  - Radix UI / padrões Shadcn em componentes ainda não migrados (em transição).  
+  - Ícones: `lucide-react` e `@mui/icons-material` onde aplicável.  
+  - **Branding por organização**: `OrganizationBrandingProvider` ajusta a cor primária (MUI + variáveis CSS para compatibilidade).
 - **Estado remoto e dados**:  
   - `@tanstack/react-query` para data fetching e cache  
   - `@supabase/supabase-js` para integração com backend e persistência (Supabase).

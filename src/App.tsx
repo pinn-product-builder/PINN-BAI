@@ -4,7 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import { OrganizationBrandingProvider } from "@/contexts/OrganizationBrandingContext";
+import { AppMuiProvider } from "@/theme/AppMuiProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 // Pages
@@ -58,7 +59,8 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <ThemeProvider>
+            <OrganizationBrandingProvider>
+              <AppMuiProvider>
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Navigate to="/login" replace />} />
@@ -113,7 +115,8 @@ const App = () => (
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            </ThemeProvider>
+              </AppMuiProvider>
+            </OrganizationBrandingProvider>
           </BrowserRouter>
         </TooltipProvider>
     </AuthProvider>

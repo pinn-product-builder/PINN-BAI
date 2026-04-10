@@ -12,6 +12,8 @@ import {
   Legend,
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@mui/material/styles';
+import { getChartSeriesColors, chartGridColor } from '@/theme/chartColors';
 
 interface LineChartWidgetProps {
   title: string;
@@ -22,14 +24,6 @@ interface LineChartWidgetProps {
   seriesLabels?: Record<string, string>;
   isLoading?: boolean;
 }
-
-const CHART_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-];
 
 const DEFAULT_LABEL_MAP: Record<string, string> = {
   value: 'Valor',
@@ -90,6 +84,11 @@ const LineChartWidget = ({
   seriesLabels,
   isLoading = false,
 }: LineChartWidgetProps) => {
+  const theme = useTheme();
+  const chartColors = getChartSeriesColors(theme);
+  const gridStroke = chartGridColor(theme);
+  const tickColor = theme.palette.text.secondary;
+  const bgPaper = theme.palette.background.paper;
   const hasRealData = data.length > 0;
   const LABEL_MAP = { ...DEFAULT_LABEL_MAP, ...(seriesLabels || {}) };
   const CustomTooltip = createCustomTooltip(LABEL_MAP);
@@ -143,22 +142,22 @@ const LineChartWidget = ({
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} strokeOpacity={0.9} vertical={false} />
                 <XAxis
                   dataKey={xAxisKey}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: tickColor }}
                   dy={8}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: tickColor }}
                   width={45}
                   tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v)}
                 />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }} />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: gridStroke, strokeWidth: 1 }} />
                 {dataKeys.length > 1 && (
                   <Legend
                     verticalAlign="bottom"
@@ -176,10 +175,10 @@ const LineChartWidget = ({
                     type="monotone"
                     dataKey={key}
                     name={key}
-                    stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                    stroke={chartColors[index % chartColors.length]}
                     strokeWidth={2.5}
                     dot={false}
-                    activeDot={{ r: 5, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: bgPaper }}
                     animationDuration={1200}
                     animationEasing="ease-out"
                     animationBegin={index * 200}
