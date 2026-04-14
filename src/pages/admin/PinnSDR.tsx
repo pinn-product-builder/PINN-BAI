@@ -100,7 +100,7 @@ const MetricCard = ({
 );
 
 // ==================== LinkedIn Tab ====================
-const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
+const LinkedInTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
   const stats = snapshots?.stats?.data?.stats;
   const campaigns = snapshots?.campaigns?.data?.campaigns || [];
   const pipeline = snapshots?.pipeline?.data?.pipeline;
