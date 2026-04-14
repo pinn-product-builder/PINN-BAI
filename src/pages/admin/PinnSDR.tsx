@@ -542,6 +542,7 @@ const SmartleadTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing:
   const lastSync = snapshots?.aggregated?.synced_at;
 
   const campaignList = Array.isArray(campaignsRaw) ? campaignsRaw : (campaignsRaw?.data || []);
+  const n = (v: unknown): number => Number(v) || 0;
 
   if (!aggregated) {
     return (
@@ -567,10 +568,34 @@ const SmartleadTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing:
   // Per-campaign chart data
   const campaignChartData = analyticsRaw.slice(0, 10).map((a: any) => ({
     name: (a.campaign_name || `#${a.campaign_id}`).substring(0, 20),
-    enviados: a.sent_count || a.total_emails_sent || 0,
-    abertos: a.open_count || a.unique_opened || 0,
-    respondidos: a.reply_count || a.unique_replied || 0,
+    enviados: n(a.sent_count || a.total_emails_sent),
+    abertos: n(a.open_count || a.unique_opened),
+    respondidos: n(a.reply_count || a.unique_replied),
   }));
+
+  // Lead status from campaign_lead_stats
+  const leadStatusData: { name: string; value: number }[] = [];
+  let totalInProgress = 0, totalCompleted = 0, totalBlocked = 0, totalNotStarted = 0;
+  for (const a of analyticsRaw) {
+    const cls = a.campaign_lead_stats;
+    if (cls) {
+      totalInProgress += n(cls.inprogress);
+      totalCompleted += n(cls.completed);
+      totalBlocked += n(cls.blocked);
+      totalNotStarted += n(cls.notStarted);
+    }
+  }
+  if (totalInProgress) leadStatusData.push({ name: 'Em progresso', value: totalInProgress });
+  if (totalCompleted) leadStatusData.push({ name: 'Completados', value: totalCompleted });
+  if (totalBlocked) leadStatusData.push({ name: 'Bloqueados', value: totalBlocked });
+  if (totalNotStarted) leadStatusData.push({ name: 'Não iniciados', value: totalNotStarted });
+
+  const engagementData = [
+    { name: 'Abertos', value: n(aggregated.total_opened) },
+    { name: 'Clicados', value: n(aggregated.total_clicked) },
+    { name: 'Respondidos', value: n(aggregated.total_replied) },
+    { name: 'Bounced', value: n(aggregated.total_bounced) },
+  ].filter(d => d.value > 0);
 
   return (
     <div className="space-y-6">
@@ -582,17 +607,17 @@ const SmartleadTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing:
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard title="Campanhas" value={aggregated.total_campaigns} icon={Target} color="text-primary" />
-        <MetricCard title="Leads" value={aggregated.total_leads?.toLocaleString('pt-BR')} icon={Users} color="text-chart-2" />
-        <MetricCard title="Emails Enviados" value={aggregated.total_sent?.toLocaleString('pt-BR')} icon={Mail} color="text-chart-3" />
-        <MetricCard title="Respostas" value={aggregated.total_replied?.toLocaleString('pt-BR')} icon={MessageSquare} color="text-chart-4" />
+        <MetricCard title="Campanhas" value={n(aggregated.total_campaigns)} icon={Target} color="text-primary" />
+        <MetricCard title="Leads" value={n(aggregated.total_leads).toLocaleString('pt-BR')} icon={Users} color="text-chart-2" />
+        <MetricCard title="Emails Enviados" value={n(aggregated.total_sent).toLocaleString('pt-BR')} icon={Mail} color="text-chart-3" />
+        <MetricCard title="Respostas" value={n(aggregated.total_replied).toLocaleString('pt-BR')} icon={MessageSquare} color="text-chart-4" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard title="Taxa de Abertura" value={`${aggregated.open_rate}%`} icon={TrendingUp} color="text-primary" small />
-        <MetricCard title="Taxa de Clique" value={`${aggregated.click_rate}%`} icon={Activity} color="text-chart-2" small />
-        <MetricCard title="Taxa de Resposta" value={`${aggregated.reply_rate}%`} icon={MessageSquare} color="text-chart-3" small />
-        <MetricCard title="Taxa de Bounce" value={`${aggregated.bounce_rate}%`} icon={Mail} color="text-destructive" small />
+        <MetricCard title="Taxa de Abertura" value={`${n(aggregated.open_rate)}%`} icon={TrendingUp} color="text-primary" small />
+        <MetricCard title="Taxa de Clique" value={`${n(aggregated.click_rate)}%`} icon={Activity} color="text-chart-2" small />
+        <MetricCard title="Taxa de Resposta" value={`${n(aggregated.reply_rate)}%`} icon={MessageSquare} color="text-chart-3" small />
+        <MetricCard title="Taxa de Bounce" value={`${n(aggregated.bounce_rate)}%`} icon={Mail} color="text-destructive" small />
       </div>
 
       {/* Charts */}
@@ -619,32 +644,45 @@ const SmartleadTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing:
           </Card>
         )}
 
-        {/* Rates Pie Chart */}
+        {engagementData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Distribuição de Engajamento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie data={engagementData} cx="50%" cy="50%" outerRadius={100} dataKey="value" label>
+                    {engagementData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Lead Status */}
+      {leadStatusData.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Distribuição de Engajamento</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Status dos Leads (todas as campanhas)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Abertos', value: aggregated.total_opened || 0 },
-                    { name: 'Clicados', value: aggregated.total_clicked || 0 },
-                    { name: 'Respondidos', value: aggregated.total_replied || 0 },
-                    { name: 'Bounced', value: aggregated.total_bounced || 0 },
-                  ]}
-                  cx="50%" cy="50%" outerRadius={100} dataKey="value" label
-                >
-                  {COLORS.map((c, i) => <Cell key={i} fill={c} />)}
-                </Pie>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={leadStatusData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
-                <Legend />
-              </PieChart>
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       {/* Campaigns Table */}
       {campaignList.length > 0 && (
