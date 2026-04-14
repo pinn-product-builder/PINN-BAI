@@ -34,7 +34,7 @@ const usePinnOrgId = () => {
   });
 };
 
-const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | 'ploomes_sync_snapshots' | 'coldmail_sync_snapshots') => {
+const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | 'ploomes_sync_snapshots' | 'smartlead_sync_snapshots') => {
   return useQuery({
     queryKey: [table, orgId],
     queryFn: async () => {
@@ -51,7 +51,7 @@ const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | '
         data = res.data; error = res.error;
       } else {
         // coldmail - not in generated types yet, use .from() with type assertion
-        const res = await (supabase as any).from('coldmail_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
+        const res = await (supabase as any).from('smartlead_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
         data = res.data; error = res.error;
       }
 
@@ -535,7 +535,7 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
 };
 
 // ==================== Cold Mail Tab ====================
-const Cold MailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
+const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
   const aggregated = snapshots?.aggregated?.data;
   const campaignsRaw = snapshots?.campaigns?.data;
   const analyticsRaw = snapshots?.analytics?.data || [];
@@ -730,16 +730,16 @@ const PinnSDRDashboard = () => {
   const { data: orgId, isLoading: orgLoading } = usePinnOrgId();
   const { data: cmhSnapshots, isLoading: cmhLoading } = useSnapshots(orgId, 'cmh_sync_snapshots');
   const { data: ploomesSnapshots, isLoading: ploomesLoading } = useSnapshots(orgId, 'ploomes_sync_snapshots');
-  const { data: coldmailSnapshots, isLoading: coldmailLoading } = useSnapshots(orgId, 'coldmail_sync_snapshots');
+  const { data: coldmailSnapshots, isLoading: coldmailLoading } = useSnapshots(orgId, 'smartlead_sync_snapshots');
   const [syncingCmh, setSyncingCmh] = useState(false);
   const [syncingPloomes, setSyncingPloomes] = useState(false);
-  const [syncingCold Mail, setSyncingCold Mail] = useState(false);
+  const [syncingColdMail, setSyncingColdMail] = useState(false);
   const [autoSyncDone, setAutoSyncDone] = useState(false);
 
   const syncCmh = useMutation({
     mutationFn: async () => {
       setSyncingCmh(true);
-      const { data, error } = await supabase.functions.invoke('sync-coldmail', {
+      const { data, error } = await supabase.functions.invoke('sync-smartlead', {
         body: { org_id: orgId },
       });
       if (error) throw error;
@@ -776,10 +776,10 @@ const PinnSDRDashboard = () => {
     },
   });
 
-  const syncCold Mail = useMutation({
+  const syncColdMail = useMutation({
     mutationFn: async () => {
-      setSyncingCold Mail(true);
-      const { data, error } = await supabase.functions.invoke('sync-coldmail', {
+      setSyncingColdMail(true);
+      const { data, error } = await supabase.functions.invoke('sync-smartlead', {
         body: { org_id: orgId },
       });
       if (error) throw error;
@@ -787,12 +787,12 @@ const PinnSDRDashboard = () => {
     },
     onSuccess: (data) => {
       toast.success(`Sincronização Cold Mail: ${data.synced?.length || 0} endpoints`);
-      queryClient.invalidateQueries({ queryKey: ['coldmail_sync_snapshots'] });
-      setSyncingCold Mail(false);
+      queryClient.invalidateQueries({ queryKey: ['smartlead_sync_snapshots'] });
+      setSyncingColdMail(false);
     },
     onError: (err: Error) => {
       toast.error(`Erro Cold Mail: ${err.message}`);
-      setSyncingCold Mail(false);
+      setSyncingColdMail(false);
     },
   });
 
@@ -809,18 +809,18 @@ const PinnSDRDashboard = () => {
     const needsPloomesSync = !ploomesSnapshots || Object.keys(ploomesSnapshots).length === 0 ||
       (ploomesSnapshots?.deals?.synced_at && (now - new Date(ploomesSnapshots.deals.synced_at).getTime()) > THIRTY_MIN);
 
-    const needsCold MailSync = !coldmailSnapshots || Object.keys(coldmailSnapshots).length === 0 ||
+    const needsColdMailSync = !coldmailSnapshots || Object.keys(coldmailSnapshots).length === 0 ||
       (coldmailSnapshots?.aggregated?.synced_at && (now - new Date(coldmailSnapshots.aggregated.synced_at).getTime()) > THIRTY_MIN);
 
     setAutoSyncDone(true);
 
     if (needsCmhSync) syncCmh.mutate();
     if (needsPloomesSync) syncPloomes.mutate();
-    if (needsCold MailSync) syncCold Mail.mutate();
+    if (needsColdMailSync) syncColdMail.mutate();
   }, [orgId, cmhLoading, ploomesLoading, coldmailLoading, cmhSnapshots, ploomesSnapshots, coldmailSnapshots, autoSyncDone]);
 
   const isLoading = orgLoading || cmhLoading || ploomesLoading || coldmailLoading;
-  const syncing = syncingCmh || syncingPloomes || syncingCold Mail;
+  const syncing = syncingCmh || syncingPloomes || syncingColdMail;
   const isAutoSyncing = syncing && !isLoading;
 
   if (isLoading || (isAutoSyncing && !cmhSnapshots && !ploomesSnapshots && !coldmailSnapshots)) {
@@ -854,8 +854,8 @@ const PinnSDRDashboard = () => {
             {syncingPloomes ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Ploomes
           </Button>
-          <Button onClick={() => syncCold Mail.mutate()} disabled={syncing} className="gap-2" size="sm">
-            {syncingCold Mail ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          <Button onClick={() => syncColdMail.mutate()} disabled={syncing} className="gap-2" size="sm">
+            {syncingColdMail ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Cold Mail
           </Button>
         </div>
@@ -883,7 +883,7 @@ const PinnSDRDashboard = () => {
         </TabsContent>
 
         <TabsContent value="coldmail" className="mt-4">
-          <Cold MailTab snapshots={coldmailSnapshots} syncing={syncingCold Mail} onSync={() => syncCold Mail.mutate()} />
+          <ColdMailTab snapshots={coldmailSnapshots} syncing={syncingColdMail} onSync={() => syncColdMail.mutate()} />
         </TabsContent>
       </Tabs>
     </div>
