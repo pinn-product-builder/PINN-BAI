@@ -90,12 +90,14 @@ serve(async (req) => {
     const totalCampaigns = campaignList.length;
     let totalSent = 0, totalOpened = 0, totalClicked = 0, totalReplied = 0, totalBounced = 0, totalLeads = 0;
 
+    const num = (v: unknown): number => Number(v) || 0;
+
     for (const a of allAnalytics) {
-      totalSent += a.sent_count || a.total_emails_sent || 0;
-      totalOpened += a.open_count || a.unique_opened || 0;
-      totalClicked += a.click_count || a.unique_clicked || 0;
-      totalReplied += a.reply_count || a.unique_replied || 0;
-      totalBounced += a.bounce_count || a.bounced || 0;
+      totalSent += num(a.sent_count || a.total_emails_sent);
+      totalOpened += num(a.open_count || a.unique_opened);
+      totalClicked += num(a.click_count || a.unique_clicked);
+      totalReplied += num(a.reply_count || a.unique_replied);
+      totalBounced += num(a.bounce_count || a.bounced);
     }
 
     for (const ls of allLeadStats) {
