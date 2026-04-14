@@ -34,35 +34,30 @@ const usePinnOrgId = () => {
   });
 };
 
-const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | 'ploomes_sync_snapshots') => {
+const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | 'ploomes_sync_snapshots' | 'smartlead_sync_snapshots') => {
   return useQuery({
     queryKey: [table, orgId],
     queryFn: async () => {
       if (!orgId) return null;
 
+      let data: any[] | null = null;
+      let error: any = null;
+
       if (table === 'cmh_sync_snapshots') {
-        const { data, error } = await supabase
-          .from('cmh_sync_snapshots')
-          .select('*')
-          .eq('org_id', orgId)
-          .order('synced_at', { ascending: false });
-        if (error) throw error;
-        const snapshots: Record<string, any> = {};
-        for (const row of data || []) {
-          if (!snapshots[row.snapshot_type]) snapshots[row.snapshot_type] = row;
-        }
-        return snapshots;
+        const res = await supabase.from('cmh_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
+        data = res.data; error = res.error;
+      } else if (table === 'ploomes_sync_snapshots') {
+        const res = await supabase.from('ploomes_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
+        data = res.data; error = res.error;
+      } else {
+        // smartlead - not in generated types yet, use .from() with type assertion
+        const res = await (supabase as any).from('smartlead_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
+        data = res.data; error = res.error;
       }
 
-      // ploomes - use supabase client directly
-      const { data, error } = await supabase
-        .from('ploomes_sync_snapshots')
-        .select('*')
-        .eq('org_id', orgId)
-        .order('synced_at', { ascending: false });
       if (error) throw error;
       const snapshots: Record<string, any> = {};
-      for (const row of (data as any[]) || []) {
+      for (const row of data || []) {
         if (!snapshots[row.snapshot_type]) snapshots[row.snapshot_type] = row;
       }
       return snapshots;
