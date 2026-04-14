@@ -866,7 +866,7 @@ const PinnSDRDashboard = () => {
           <TabsTrigger value="ploomes" className="gap-2">
             <Briefcase className="w-4 h-4" /> SDR / Ploomes
           </TabsTrigger>
-          <TabsTrigger value="coldmail" className="gap-2">
+          <TabsTrigger value="linkedin" className="gap-2">
             <Linkedin className="w-4 h-4" /> LinkedIn
           </TabsTrigger>
           <TabsTrigger value="coldmail" className="gap-2">
@@ -878,8 +878,8 @@ const PinnSDRDashboard = () => {
           <PloomesTab snapshots={ploomesSnapshots} syncing={syncingPloomes} onSync={() => syncPloomes.mutate()} />
         </TabsContent>
 
-        <TabsContent value="coldmail" className="mt-4">
-          <ColdMailTab snapshots={cmhSnapshots} syncing={syncingCmh} onSync={() => syncCmh.mutate()} />
+        <TabsContent value="linkedin" className="mt-4">
+          <LinkedInTab snapshots={cmhSnapshots} syncing={syncingCmh} onSync={() => syncCmh.mutate()} />
         </TabsContent>
 
         <TabsContent value="coldmail" className="mt-4">
