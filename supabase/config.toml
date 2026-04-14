@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.sync-ploomes]
 verify_jwt = false
+
+[functions.sync-smartlead]
+verify_jwt = false
