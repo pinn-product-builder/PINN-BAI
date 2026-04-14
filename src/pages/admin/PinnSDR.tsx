@@ -50,7 +50,7 @@ const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | '
         const res = await supabase.from('ploomes_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
         data = res.data; error = res.error;
       } else {
-        // smartlead - not in generated types yet, use .from() with type assertion
+        // coldmail - not in generated types yet, use .from() with type assertion
         const res = await (supabase as any).from('smartlead_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
         data = res.data; error = res.error;
       }
@@ -100,7 +100,7 @@ const MetricCard = ({
 );
 
 // ==================== LinkedIn Tab ====================
-const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
+const LinkedInTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
   const stats = snapshots?.stats?.data?.stats;
   const campaigns = snapshots?.campaigns?.data?.campaigns || [];
   const pipeline = snapshots?.pipeline?.data?.pipeline;
@@ -534,8 +534,8 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
   );
 };
 
-// ==================== Smartlead Tab ====================
-const SmartleadTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
+// ==================== Cold Mail Tab ====================
+const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
   const aggregated = snapshots?.aggregated?.data;
   const campaignsRaw = snapshots?.campaigns?.data;
   const analyticsRaw = snapshots?.analytics?.data || [];
@@ -551,12 +551,12 @@ const SmartleadTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing:
           {syncing ? (
             <>
               <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin mb-3" />
-              <p className="text-muted-foreground">Carregando dados do Smartlead...</p>
+              <p className="text-muted-foreground">Carregando dados do Cold Mail...</p>
             </>
           ) : (
             <>
               <Mail className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground">Nenhum dado do Smartlead sincronizado.</p>
+              <p className="text-muted-foreground">Nenhum dado do Cold Mail sincronizado.</p>
               <Button className="mt-4" onClick={onSync}>Sincronizar agora</Button>
             </>
           )}
@@ -730,16 +730,16 @@ const PinnSDRDashboard = () => {
   const { data: orgId, isLoading: orgLoading } = usePinnOrgId();
   const { data: cmhSnapshots, isLoading: cmhLoading } = useSnapshots(orgId, 'cmh_sync_snapshots');
   const { data: ploomesSnapshots, isLoading: ploomesLoading } = useSnapshots(orgId, 'ploomes_sync_snapshots');
-  const { data: smartleadSnapshots, isLoading: smartleadLoading } = useSnapshots(orgId, 'smartlead_sync_snapshots');
+  const { data: coldmailSnapshots, isLoading: coldmailLoading } = useSnapshots(orgId, 'smartlead_sync_snapshots');
   const [syncingCmh, setSyncingCmh] = useState(false);
   const [syncingPloomes, setSyncingPloomes] = useState(false);
-  const [syncingSmartlead, setSyncingSmartlead] = useState(false);
+  const [syncingColdMail, setSyncingColdMail] = useState(false);
   const [autoSyncDone, setAutoSyncDone] = useState(false);
 
   const syncCmh = useMutation({
     mutationFn: async () => {
       setSyncingCmh(true);
-      const { data, error } = await supabase.functions.invoke('sync-coldmail', {
+      const { data, error } = await supabase.functions.invoke('sync-smartlead', {
         body: { org_id: orgId },
       });
       if (error) throw error;
@@ -776,9 +776,9 @@ const PinnSDRDashboard = () => {
     },
   });
 
-  const syncSmartlead = useMutation({
+  const syncColdMail = useMutation({
     mutationFn: async () => {
-      setSyncingSmartlead(true);
+      setSyncingColdMail(true);
       const { data, error } = await supabase.functions.invoke('sync-smartlead', {
         body: { org_id: orgId },
       });
@@ -786,19 +786,19 @@ const PinnSDRDashboard = () => {
       return data;
     },
     onSuccess: (data) => {
-      toast.success(`Sincronização Smartlead: ${data.synced?.length || 0} endpoints`);
+      toast.success(`Sincronização Cold Mail: ${data.synced?.length || 0} endpoints`);
       queryClient.invalidateQueries({ queryKey: ['smartlead_sync_snapshots'] });
-      setSyncingSmartlead(false);
+      setSyncingColdMail(false);
     },
     onError: (err: Error) => {
-      toast.error(`Erro Smartlead: ${err.message}`);
-      setSyncingSmartlead(false);
+      toast.error(`Erro Cold Mail: ${err.message}`);
+      setSyncingColdMail(false);
     },
   });
 
   // Auto-sync
   useEffect(() => {
-    if (autoSyncDone || !orgId || cmhLoading || ploomesLoading || smartleadLoading) return;
+    if (autoSyncDone || !orgId || cmhLoading || ploomesLoading || coldmailLoading) return;
 
     const THIRTY_MIN = 30 * 60 * 1000;
     const now = Date.now();
@@ -809,21 +809,21 @@ const PinnSDRDashboard = () => {
     const needsPloomesSync = !ploomesSnapshots || Object.keys(ploomesSnapshots).length === 0 ||
       (ploomesSnapshots?.deals?.synced_at && (now - new Date(ploomesSnapshots.deals.synced_at).getTime()) > THIRTY_MIN);
 
-    const needsSmartleadSync = !smartleadSnapshots || Object.keys(smartleadSnapshots).length === 0 ||
-      (smartleadSnapshots?.aggregated?.synced_at && (now - new Date(smartleadSnapshots.aggregated.synced_at).getTime()) > THIRTY_MIN);
+    const needsColdMailSync = !coldmailSnapshots || Object.keys(coldmailSnapshots).length === 0 ||
+      (coldmailSnapshots?.aggregated?.synced_at && (now - new Date(coldmailSnapshots.aggregated.synced_at).getTime()) > THIRTY_MIN);
 
     setAutoSyncDone(true);
 
     if (needsCmhSync) syncCmh.mutate();
     if (needsPloomesSync) syncPloomes.mutate();
-    if (needsSmartleadSync) syncSmartlead.mutate();
-  }, [orgId, cmhLoading, ploomesLoading, smartleadLoading, cmhSnapshots, ploomesSnapshots, smartleadSnapshots, autoSyncDone]);
+    if (needsColdMailSync) syncColdMail.mutate();
+  }, [orgId, cmhLoading, ploomesLoading, coldmailLoading, cmhSnapshots, ploomesSnapshots, coldmailSnapshots, autoSyncDone]);
 
-  const isLoading = orgLoading || cmhLoading || ploomesLoading || smartleadLoading;
-  const syncing = syncingCmh || syncingPloomes || syncingSmartlead;
+  const isLoading = orgLoading || cmhLoading || ploomesLoading || coldmailLoading;
+  const syncing = syncingCmh || syncingPloomes || syncingColdMail;
   const isAutoSyncing = syncing && !isLoading;
 
-  if (isLoading || (isAutoSyncing && !cmhSnapshots && !ploomesSnapshots && !smartleadSnapshots)) {
+  if (isLoading || (isAutoSyncing && !cmhSnapshots && !ploomesSnapshots && !coldmailSnapshots)) {
     return (
       <div className="p-8 space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -841,7 +841,7 @@ const PinnSDRDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pinn SDR Painel</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            LinkedIn + Ploomes + Smartlead · Visão unificada
+            LinkedIn + Ploomes + Cold Mail · Visão unificada
             {syncing && <span className="ml-2 inline-flex items-center gap-1 text-primary"><Loader2 className="w-3 h-3 animate-spin" /> Sincronizando...</span>}
           </p>
         </div>
@@ -854,9 +854,9 @@ const PinnSDRDashboard = () => {
             {syncingPloomes ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Ploomes
           </Button>
-          <Button onClick={() => syncSmartlead.mutate()} disabled={syncing} className="gap-2" size="sm">
-            {syncingSmartlead ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Smartlead
+          <Button onClick={() => syncColdMail.mutate()} disabled={syncing} className="gap-2" size="sm">
+            {syncingColdMail ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Cold Mail
           </Button>
         </div>
       </div>
@@ -866,11 +866,11 @@ const PinnSDRDashboard = () => {
           <TabsTrigger value="ploomes" className="gap-2">
             <Briefcase className="w-4 h-4" /> SDR / Ploomes
           </TabsTrigger>
-          <TabsTrigger value="coldmail" className="gap-2">
+          <TabsTrigger value="linkedin" className="gap-2">
             <Linkedin className="w-4 h-4" /> LinkedIn
           </TabsTrigger>
-          <TabsTrigger value="smartlead" className="gap-2">
-            <Mail className="w-4 h-4" /> Smartlead
+          <TabsTrigger value="coldmail" className="gap-2">
+            <Mail className="w-4 h-4" /> Cold Mail
           </TabsTrigger>
         </TabsList>
 
@@ -878,12 +878,12 @@ const PinnSDRDashboard = () => {
           <PloomesTab snapshots={ploomesSnapshots} syncing={syncingPloomes} onSync={() => syncPloomes.mutate()} />
         </TabsContent>
 
-        <TabsContent value="coldmail" className="mt-4">
-          <ColdMailTab snapshots={cmhSnapshots} syncing={syncingCmh} onSync={() => syncCmh.mutate()} />
+        <TabsContent value="linkedin" className="mt-4">
+          <LinkedInTab snapshots={cmhSnapshots} syncing={syncingCmh} onSync={() => syncCmh.mutate()} />
         </TabsContent>
 
-        <TabsContent value="smartlead" className="mt-4">
-          <SmartleadTab snapshots={smartleadSnapshots} syncing={syncingSmartlead} onSync={() => syncSmartlead.mutate()} />
+        <TabsContent value="coldmail" className="mt-4">
+          <ColdMailTab snapshots={coldmailSnapshots} syncing={syncingColdMail} onSync={() => syncColdMail.mutate()} />
         </TabsContent>
       </Tabs>
     </div>
