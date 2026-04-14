@@ -34,35 +34,30 @@ const usePinnOrgId = () => {
   });
 };
 
-const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | 'ploomes_sync_snapshots') => {
+const useSnapshots = (orgId: string | undefined, table: 'cmh_sync_snapshots' | 'ploomes_sync_snapshots' | 'smartlead_sync_snapshots') => {
   return useQuery({
     queryKey: [table, orgId],
     queryFn: async () => {
       if (!orgId) return null;
 
+      let data: any[] | null = null;
+      let error: any = null;
+
       if (table === 'cmh_sync_snapshots') {
-        const { data, error } = await supabase
-          .from('cmh_sync_snapshots')
-          .select('*')
-          .eq('org_id', orgId)
-          .order('synced_at', { ascending: false });
-        if (error) throw error;
-        const snapshots: Record<string, any> = {};
-        for (const row of data || []) {
-          if (!snapshots[row.snapshot_type]) snapshots[row.snapshot_type] = row;
-        }
-        return snapshots;
+        const res = await supabase.from('cmh_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
+        data = res.data; error = res.error;
+      } else if (table === 'ploomes_sync_snapshots') {
+        const res = await supabase.from('ploomes_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
+        data = res.data; error = res.error;
+      } else {
+        // smartlead - not in generated types yet, use .from() with type assertion
+        const res = await (supabase as any).from('smartlead_sync_snapshots').select('*').eq('org_id', orgId).order('synced_at', { ascending: false });
+        data = res.data; error = res.error;
       }
 
-      // ploomes - use supabase client directly
-      const { data, error } = await supabase
-        .from('ploomes_sync_snapshots')
-        .select('*')
-        .eq('org_id', orgId)
-        .order('synced_at', { ascending: false });
       if (error) throw error;
       const snapshots: Record<string, any> = {};
-      for (const row of (data as any[]) || []) {
+      for (const row of data || []) {
         if (!snapshots[row.snapshot_type]) snapshots[row.snapshot_type] = row;
       }
       return snapshots;
@@ -539,14 +534,168 @@ const PloomesTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: b
   );
 };
 
-// ==================== Main Dashboard ====================
+// ==================== Smartlead Tab ====================
+const SmartleadTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
+  const aggregated = snapshots?.aggregated?.data;
+  const campaignsRaw = snapshots?.campaigns?.data;
+  const analyticsRaw = snapshots?.analytics?.data || [];
+  const lastSync = snapshots?.aggregated?.synced_at;
+
+  const campaignList = Array.isArray(campaignsRaw) ? campaignsRaw : (campaignsRaw?.data || []);
+
+  if (!aggregated) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-12 text-center">
+          {syncing ? (
+            <>
+              <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin mb-3" />
+              <p className="text-muted-foreground">Carregando dados do Smartlead...</p>
+            </>
+          ) : (
+            <>
+              <Mail className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-muted-foreground">Nenhum dado do Smartlead sincronizado.</p>
+              <Button className="mt-4" onClick={onSync}>Sincronizar agora</Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Per-campaign chart data
+  const campaignChartData = analyticsRaw.slice(0, 10).map((a: any) => ({
+    name: (a.campaign_name || `#${a.campaign_id}`).substring(0, 20),
+    enviados: a.sent_count || a.total_emails_sent || 0,
+    abertos: a.open_count || a.unique_opened || 0,
+    respondidos: a.reply_count || a.unique_replied || 0,
+  }));
+
+  return (
+    <div className="space-y-6">
+      {lastSync && (
+        <p className="text-xs text-muted-foreground">
+          Último sync: {new Date(lastSync).toLocaleString('pt-BR')}
+        </p>
+      )}
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard title="Campanhas" value={aggregated.total_campaigns} icon={Target} color="text-primary" />
+        <MetricCard title="Leads" value={aggregated.total_leads?.toLocaleString('pt-BR')} icon={Users} color="text-chart-2" />
+        <MetricCard title="Emails Enviados" value={aggregated.total_sent?.toLocaleString('pt-BR')} icon={Mail} color="text-chart-3" />
+        <MetricCard title="Respostas" value={aggregated.total_replied?.toLocaleString('pt-BR')} icon={MessageSquare} color="text-chart-4" />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard title="Taxa de Abertura" value={`${aggregated.open_rate}%`} icon={TrendingUp} color="text-primary" small />
+        <MetricCard title="Taxa de Clique" value={`${aggregated.click_rate}%`} icon={Activity} color="text-chart-2" small />
+        <MetricCard title="Taxa de Resposta" value={`${aggregated.reply_rate}%`} icon={MessageSquare} color="text-chart-3" small />
+        <MetricCard title="Taxa de Bounce" value={`${aggregated.bounce_rate}%`} icon={Mail} color="text-destructive" small />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {campaignChartData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Performance por Campanha</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={campaignChartData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} width={120} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                  <Legend />
+                  <Bar dataKey="enviados" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="abertos" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="respondidos" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Rates Pie Chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Distribuição de Engajamento</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Abertos', value: aggregated.total_opened || 0 },
+                    { name: 'Clicados', value: aggregated.total_clicked || 0 },
+                    { name: 'Respondidos', value: aggregated.total_replied || 0 },
+                    { name: 'Bounced', value: aggregated.total_bounced || 0 },
+                  ]}
+                  cx="50%" cy="50%" outerRadius={100} dataKey="value" label
+                >
+                  {COLORS.map((c, i) => <Cell key={i} fill={c} />)}
+                </Pie>
+                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Campaigns Table */}
+      {campaignList.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Campanhas ({campaignList.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Nome</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Criada em</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaignList.slice(0, 20).map((c: any) => (
+                    <tr key={c.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <td className="py-2.5 px-3 font-medium text-foreground">{c.name}</td>
+                      <td className="py-2.5 px-3">
+                        <Badge variant={c.status === 'COMPLETED' || c.status === 'completed' ? 'default' : 'secondary'} className="text-xs">
+                          {c.status}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground text-xs">
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+
 const PinnSDRDashboard = () => {
   const queryClient = useQueryClient();
   const { data: orgId, isLoading: orgLoading } = usePinnOrgId();
   const { data: cmhSnapshots, isLoading: cmhLoading } = useSnapshots(orgId, 'cmh_sync_snapshots');
   const { data: ploomesSnapshots, isLoading: ploomesLoading } = useSnapshots(orgId, 'ploomes_sync_snapshots');
+  const { data: smartleadSnapshots, isLoading: smartleadLoading } = useSnapshots(orgId, 'smartlead_sync_snapshots');
   const [syncingCmh, setSyncingCmh] = useState(false);
   const [syncingPloomes, setSyncingPloomes] = useState(false);
+  const [syncingSmartlead, setSyncingSmartlead] = useState(false);
   const [autoSyncDone, setAutoSyncDone] = useState(false);
 
   const syncCmh = useMutation({
@@ -589,9 +738,29 @@ const PinnSDRDashboard = () => {
     },
   });
 
-  // Auto-sync: sincroniza automaticamente se não há dados ou se último sync > 30min
+  const syncSmartlead = useMutation({
+    mutationFn: async () => {
+      setSyncingSmartlead(true);
+      const { data, error } = await supabase.functions.invoke('sync-smartlead', {
+        body: { org_id: orgId },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(`Sincronização Smartlead: ${data.synced?.length || 0} endpoints`);
+      queryClient.invalidateQueries({ queryKey: ['smartlead_sync_snapshots'] });
+      setSyncingSmartlead(false);
+    },
+    onError: (err: Error) => {
+      toast.error(`Erro Smartlead: ${err.message}`);
+      setSyncingSmartlead(false);
+    },
+  });
+
+  // Auto-sync
   useEffect(() => {
-    if (autoSyncDone || !orgId || cmhLoading || ploomesLoading) return;
+    if (autoSyncDone || !orgId || cmhLoading || ploomesLoading || smartleadLoading) return;
 
     const THIRTY_MIN = 30 * 60 * 1000;
     const now = Date.now();
@@ -602,21 +771,21 @@ const PinnSDRDashboard = () => {
     const needsPloomesSync = !ploomesSnapshots || Object.keys(ploomesSnapshots).length === 0 ||
       (ploomesSnapshots?.deals?.synced_at && (now - new Date(ploomesSnapshots.deals.synced_at).getTime()) > THIRTY_MIN);
 
+    const needsSmartleadSync = !smartleadSnapshots || Object.keys(smartleadSnapshots).length === 0 ||
+      (smartleadSnapshots?.aggregated?.synced_at && (now - new Date(smartleadSnapshots.aggregated.synced_at).getTime()) > THIRTY_MIN);
+
     setAutoSyncDone(true);
 
-    if (needsCmhSync) {
-      syncCmh.mutate();
-    }
-    if (needsPloomesSync) {
-      syncPloomes.mutate();
-    }
-  }, [orgId, cmhLoading, ploomesLoading, cmhSnapshots, ploomesSnapshots, autoSyncDone]);
+    if (needsCmhSync) syncCmh.mutate();
+    if (needsPloomesSync) syncPloomes.mutate();
+    if (needsSmartleadSync) syncSmartlead.mutate();
+  }, [orgId, cmhLoading, ploomesLoading, smartleadLoading, cmhSnapshots, ploomesSnapshots, smartleadSnapshots, autoSyncDone]);
 
-  const isLoading = orgLoading || cmhLoading || ploomesLoading;
-  const syncing = syncingCmh || syncingPloomes;
+  const isLoading = orgLoading || cmhLoading || ploomesLoading || smartleadLoading;
+  const syncing = syncingCmh || syncingPloomes || syncingSmartlead;
   const isAutoSyncing = syncing && !isLoading;
 
-  if (isLoading || (isAutoSyncing && !cmhSnapshots && !ploomesSnapshots)) {
+  if (isLoading || (isAutoSyncing && !cmhSnapshots && !ploomesSnapshots && !smartleadSnapshots)) {
     return (
       <div className="p-8 space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -634,18 +803,22 @@ const PinnSDRDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pinn SDR Painel</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            LinkedIn + Ploomes CRM · Visão unificada
+            LinkedIn + Ploomes + Smartlead · Visão unificada
             {syncing && <span className="ml-2 inline-flex items-center gap-1 text-primary"><Loader2 className="w-3 h-3 animate-spin" /> Sincronizando...</span>}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={() => syncCmh.mutate()} disabled={syncing} className="gap-2" size="sm">
             {syncingCmh ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Sincronizar LinkedIn
+            LinkedIn
           </Button>
-          <Button onClick={() => syncPloomes.mutate()} disabled={syncing} className="gap-2" size="sm">
+          <Button variant="outline" onClick={() => syncPloomes.mutate()} disabled={syncing} className="gap-2" size="sm">
             {syncingPloomes ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Sincronizar Ploomes
+            Ploomes
+          </Button>
+          <Button onClick={() => syncSmartlead.mutate()} disabled={syncing} className="gap-2" size="sm">
+            {syncingSmartlead ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Smartlead
           </Button>
         </div>
       </div>
@@ -658,6 +831,9 @@ const PinnSDRDashboard = () => {
           <TabsTrigger value="coldmail" className="gap-2">
             <Linkedin className="w-4 h-4" /> LinkedIn
           </TabsTrigger>
+          <TabsTrigger value="smartlead" className="gap-2">
+            <Mail className="w-4 h-4" /> Smartlead
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="ploomes" className="mt-4">
@@ -666,6 +842,10 @@ const PinnSDRDashboard = () => {
 
         <TabsContent value="coldmail" className="mt-4">
           <ColdMailTab snapshots={cmhSnapshots} syncing={syncingCmh} onSync={() => syncCmh.mutate()} />
+        </TabsContent>
+
+        <TabsContent value="smartlead" className="mt-4">
+          <SmartleadTab snapshots={smartleadSnapshots} syncing={syncingSmartlead} onSync={() => syncSmartlead.mutate()} />
         </TabsContent>
       </Tabs>
     </div>
