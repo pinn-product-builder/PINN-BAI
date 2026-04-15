@@ -130,7 +130,7 @@ function filterByPeriod(sessions: MariSession[], period: string): MariSession[] 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export const MariSDRTab = () => {
-  const { data, isLoading, isError, refetch, isFetching } = useMariSDR();
+  const { data, isLoading, isError, refetch, isFetching, isPlaceholderData } = useMariSDR();
   const queryClient = useQueryClient();
 
   // Filtros
