@@ -49,7 +49,7 @@ export const useMariSDR = () => {
     queryKey: ['mari-sdr-metrics'],
     queryFn: async () => {
       if (!mariSupabase) {
-        return _buildMetrics([]);
+        return _buildMetrics(_demoSessions());
       }
       const { data, error } = await mariSupabase
         .from('sdr_sessions')
@@ -64,9 +64,10 @@ export const useMariSDR = () => {
 
       if (error) throw error;
       const sessions: MariSession[] = (data as unknown as MariSession[]) || [];
+      // Fallback para dados demo se não houver sessões reais
+      if (sessions.length === 0) return _buildMetrics(_demoSessions());
       return _buildMetrics(sessions);
     },
-    enabled: !!mariSupabase,
     staleTime: 2 * 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
   });

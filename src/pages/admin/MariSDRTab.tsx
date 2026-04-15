@@ -265,19 +265,7 @@ export const MariSDRTab = () => {
     );
   }
 
-  if (!data || data.total === 0) {
-    return (
-      <Card className="border-dashed rounded-2xl">
-        <CardContent className="py-12 text-center space-y-3">
-          <Bot className="w-10 h-10 mx-auto text-muted-foreground/40" />
-          <p className="text-muted-foreground text-sm">Nenhuma sessão encontrada ainda.</p>
-          <p className="text-xs text-muted-foreground">
-            A Mari ainda não iniciou conversas ou as tabelas estão vazias.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const isDemo = !data || data.recentSessions.every(s => s.session_id.startsWith('demo-'));
 
   const m = filteredMetrics;
 
