@@ -425,17 +425,16 @@ export const MariSDRTab = () => {
         />
       </div>
 
-      {/* ── Charts ───────────────────────────────────────────────── */}
+      {/* ── Charts Row 1: Stage + Urgência lado a lado ────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
         {/* Funil por stage */}
-        {m.byStage.length > 0 && (
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-foreground">Leads por Stage</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-foreground">Leads por Stage</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {m.byStage.length > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={m.byStage} layout="vertical" margin={{ left: 4, right: 16 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
@@ -448,42 +447,20 @@ export const MariSDRTab = () => {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Por setor */}
-        {m.bySector.length > 0 && (
-          <Card className="rounded-2xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-foreground">Leads por Setor</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={m.bySector} layout="vertical" margin={{ left: 4, right: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis type="category" dataKey="sector" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} width={120} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" name="Leads" radius={[0, 6, 6, 0]}>
-                    {m.bySector.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-8">Sem dados</p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Distribuição de urgência */}
-        {m.byUrgency.length > 0 && (
-          <Card className="rounded-2xl shadow-sm lg:col-span-2">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-foreground">Distribuição de Urgência</CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={220}>
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-foreground">Distribuição de Urgência</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {m.byUrgency.length > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
                     data={m.byUrgency}
@@ -491,8 +468,8 @@ export const MariSDRTab = () => {
                     nameKey="level"
                     cx="50%"
                     cy="50%"
-                    outerRadius={85}
-                    innerRadius={45}
+                    outerRadius={80}
+                    innerRadius={42}
                     paddingAngle={3}
                     label={({ level, percent }) =>
                       `${level} ${(percent * 100).toFixed(0)}%`
@@ -513,10 +490,36 @@ export const MariSDRTab = () => {
                   />
                 </PieChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-8">Sem dados</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* ── Chart Row 2: Setor (full width) ──────────────────────── */}
+      {m.bySector.length > 0 && (
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-foreground">Leads por Setor</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={m.bySector} layout="vertical" margin={{ left: 4, right: 16 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                <YAxis type="category" dataKey="sector" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} width={120} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="count" name="Leads" radius={[0, 6, 6, 0]}>
+                  {m.bySector.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Tabela de leads recentes ─────────────────────────────── */}
       <Card className="rounded-2xl shadow-sm">
