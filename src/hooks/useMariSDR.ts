@@ -60,7 +60,7 @@ export const useMariSDR = () => {
         .limit(500);
 
       if (error) throw error;
-      const sessions: MariSession[] = data || [];
+      const sessions: MariSession[] = (data as unknown as MariSession[]) || [];
       return _buildMetrics(sessions);
     },
     staleTime: 2 * 60 * 1000,
