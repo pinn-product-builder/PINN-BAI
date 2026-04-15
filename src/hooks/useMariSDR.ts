@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { mariSupabase } from '@/integrations/supabase/mariClient';
+import { supabase } from '@/integrations/supabase/client';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ export interface MariMetrics {
 
 // ─── Hook principal ───────────────────────────────────────────────────────────
 
-// Placeholder é inicializado lazy para evitar referência antes da definição
+// Placeholder lazy para render instantâneo
 let _placeholderCache: MariMetrics | undefined;
 function _getPlaceholder(): MariMetrics {
   if (!_placeholderCache) _placeholderCache = _buildMetrics(_demoSessions());
@@ -55,22 +55,12 @@ export const useMariSDR = () => {
   return useQuery<MariMetrics>({
     queryKey: ['mari-sdr-metrics'],
     queryFn: async () => {
-      if (!mariSupabase) {
-        throw new Error('Mari Supabase não configurado');
-      }
-      const { data, error } = await mariSupabase
-        .from('sdr_sessions')
-        .select(
-          'session_id, phone, lead_name, company, sector, stage, pain, role, ' +
-          'lead_score, urgency_level, follow_up_count, briefing_sent, ' +
-          'confirmed_slot, last_outbound_at, last_inbound_at, ' +
-          'handoff, optout, created_at'
-        )
-        .order('created_at', { ascending: false })
-        .limit(500);
+      const { data, error } = await supabase.functions.invoke('fetch-mari-sdr');
 
-      if (error) throw error;
-      const sessions: MariSession[] = (data as unknown as MariSession[]) || [];
+      if (error) throw new Error(error.message || 'Erro ao buscar dados da Mari');
+      if (data?.error) throw new Error(data.error);
+
+      const sessions: MariSession[] = data?.sessions || [];
       return _buildMetrics(sessions);
     },
     placeholderData: _getPlaceholder(),
