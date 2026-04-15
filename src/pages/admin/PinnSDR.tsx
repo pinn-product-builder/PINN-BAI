@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { MariSDRTab } from './MariSDRTab';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   RefreshCw, Users, Mail, MessageSquare, Target, TrendingUp,
   Linkedin, BarChart3, Activity, Loader2, Zap, Briefcase, Phone,
-  CheckCircle, Clock, DollarSign, ListChecks
+  CheckCircle, Clock, DollarSign, ListChecks, Bot
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -841,7 +842,7 @@ const PinnSDRDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pinn SDR Painel</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            LinkedIn + Ploomes + Cold Mail · Visão unificada
+            Mari SDR + LinkedIn + Ploomes + Cold Mail · Visão unificada
             {syncing && <span className="ml-2 inline-flex items-center gap-1 text-primary"><Loader2 className="w-3 h-3 animate-spin" /> Sincronizando...</span>}
           </p>
         </div>
@@ -863,6 +864,9 @@ const PinnSDRDashboard = () => {
 
       <Tabs defaultValue="ploomes" className="w-full">
         <TabsList>
+          <TabsTrigger value="mari" className="gap-2">
+            <Bot className="w-4 h-4" /> Mari SDR
+          </TabsTrigger>
           <TabsTrigger value="ploomes" className="gap-2">
             <Briefcase className="w-4 h-4" /> SDR / Ploomes
           </TabsTrigger>
@@ -873,6 +877,10 @@ const PinnSDRDashboard = () => {
             <Mail className="w-4 h-4" /> Cold Mail
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="mari" className="mt-4">
+          <MariSDRTab />
+        </TabsContent>
 
         <TabsContent value="ploomes" className="mt-4">
           <PloomesTab snapshots={ploomesSnapshots} syncing={syncingPloomes} onSync={() => syncPloomes.mutate()} />
