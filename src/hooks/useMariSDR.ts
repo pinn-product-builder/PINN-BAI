@@ -44,8 +44,12 @@ export interface MariMetrics {
 
 // ─── Hook principal ───────────────────────────────────────────────────────────
 
-// Dados demo pré-calculados para exibição instantânea (placeholder)
-const _placeholderMetrics = _buildMetrics(_demoSessions());
+// Placeholder é inicializado lazy para evitar referência antes da definição
+let _placeholderCache: MariMetrics | undefined;
+function _getPlaceholder(): MariMetrics {
+  if (!_placeholderCache) _placeholderCache = _buildMetrics(_demoSessions());
+  return _placeholderCache;
+}
 
 export const useMariSDR = () => {
   return useQuery<MariMetrics>({
@@ -69,7 +73,7 @@ export const useMariSDR = () => {
       const sessions: MariSession[] = (data as unknown as MariSession[]) || [];
       return _buildMetrics(sessions);
     },
-    placeholderData: _placeholderMetrics,
+    placeholderData: _getPlaceholder(),
     staleTime: 2 * 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
   });
