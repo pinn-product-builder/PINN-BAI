@@ -130,7 +130,7 @@ function filterByPeriod(sessions: MariSession[], period: string): MariSession[] 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export const MariSDRTab = () => {
-  const { data, isLoading, isError, refetch, isFetching } = useMariSDR();
+  const { data, isLoading, isError, refetch, isFetching, isPlaceholderData } = useMariSDR();
   const queryClient = useQueryClient();
 
   // Filtros
@@ -230,20 +230,7 @@ export const MariSDRTab = () => {
     queryClient.invalidateQueries({ queryKey: ['mari-sdr-metrics'] });
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-72 rounded-2xl" />
-          <Skeleton className="h-72 rounded-2xl" />
-        </div>
-        <Skeleton className="h-64 rounded-2xl" />
-      </div>
-    );
-  }
+  // placeholderData garante que data nunca é undefined no primeiro render
 
   if (isError) {
     return (
