@@ -67,7 +67,6 @@ export const useMariSDR = () => {
 
       if (error) throw error;
       const sessions: MariSession[] = (data as unknown as MariSession[]) || [];
-      if (sessions.length === 0) return _buildMetrics(_demoSessions());
       return _buildMetrics(sessions);
     },
     placeholderData: _placeholderMetrics,
