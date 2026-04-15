@@ -44,6 +44,9 @@ export interface MariMetrics {
 
 // ─── Hook principal ───────────────────────────────────────────────────────────
 
+// Dados demo pré-calculados para exibição instantânea (placeholder)
+const _placeholderMetrics = _buildMetrics(_demoSessions());
+
 export const useMariSDR = () => {
   return useQuery<MariMetrics>({
     queryKey: ['mari-sdr-metrics'],
@@ -64,10 +67,10 @@ export const useMariSDR = () => {
 
       if (error) throw error;
       const sessions: MariSession[] = (data as unknown as MariSession[]) || [];
-      // Fallback para dados demo se não houver sessões reais
       if (sessions.length === 0) return _buildMetrics(_demoSessions());
       return _buildMetrics(sessions);
     },
+    placeholderData: _placeholderMetrics,
     staleTime: 2 * 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
   });
