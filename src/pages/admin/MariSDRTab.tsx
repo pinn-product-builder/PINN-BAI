@@ -280,8 +280,11 @@ export const MariSDRTab = () => {
             <p className="text-sm font-medium text-foreground">
               {m.total} sessões
               {hasFilters && <span className="text-muted-foreground font-normal"> (filtrado)</span>}
+              {isDemo && <Badge variant="outline" className="ml-2 text-[10px] font-normal">Demo</Badge>}
             </p>
-            <p className="text-[11px] text-muted-foreground">Atualização automática a cada 2 min</p>
+            <p className="text-[11px] text-muted-foreground">
+              {isDemo ? 'Dados de demonstração — conecte o Supabase da Mari para dados reais' : 'Atualização automática a cada 2 min'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
