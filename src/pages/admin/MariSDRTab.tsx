@@ -252,7 +252,7 @@ export const MariSDRTab = () => {
     );
   }
 
-  const isDemo = !data || data.recentSessions.every(s => s.session_id.startsWith('demo-'));
+  const isDemo = false;
 
   const m = filteredMetrics;
 
