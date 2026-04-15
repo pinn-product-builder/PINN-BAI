@@ -49,7 +49,7 @@ export const useMariSDR = () => {
     queryKey: ['mari-sdr-metrics'],
     queryFn: async () => {
       if (!mariSupabase) {
-        return _buildMetrics([]);
+        return _buildMetrics(_demoSessions());
       }
       const { data, error } = await mariSupabase
         .from('sdr_sessions')
@@ -64,13 +64,59 @@ export const useMariSDR = () => {
 
       if (error) throw error;
       const sessions: MariSession[] = (data as unknown as MariSession[]) || [];
+      // Fallback para dados demo se não houver sessões reais
+      if (sessions.length === 0) return _buildMetrics(_demoSessions());
       return _buildMetrics(sessions);
     },
-    enabled: !!mariSupabase,
     staleTime: 2 * 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
   });
 };
+
+// ─── Dados de demonstração ────────────────────────────────────────────────────
+
+function _demoSessions(): MariSession[] {
+  const now = Date.now();
+  const day = 86400000;
+  const stages = ['qualifying', 'scheduling', 'confirmed', 'rescheduling', 'handoff', 'cancelled', 'optout'] as const;
+  const sectors = ['Tecnologia', 'Saúde', 'E-commerce', 'Educação', 'Indústria', 'Financeiro'];
+  const urgencies = ['critical', 'high', 'medium', 'low'];
+  const names = [
+    'Ana Souza', 'Carlos Mendes', 'Beatriz Lima', 'Diego Oliveira',
+    'Fernanda Costa', 'Gabriel Santos', 'Helena Rocha', 'Igor Martins',
+    'Julia Alves', 'Leonardo Pereira', 'Mariana Duarte', 'Nathan Ribeiro',
+    'Paula Araújo', 'Rafael Gomes', 'Sofia Cardoso',
+  ];
+  const companies = [
+    'TechNova', 'MedStar', 'ShopBR', 'EduPrime', 'Industek',
+    'FinCore', 'CloudBase', 'DataWave', 'AgriSol', 'LogiMax',
+    'SmartPay', 'GreenTech', 'VitalCare', 'BuildUp', 'NetForce',
+  ];
+
+  return names.map((name, i): MariSession => {
+    const stageIdx = i < 4 ? 2 : i < 7 ? 1 : i < 10 ? 0 : i % stages.length;
+    return {
+      session_id: `demo-${i}`,
+      phone: `+55 11 9${String(1000 + i * 111).slice(0, 4)}-${String(2000 + i * 222).slice(0, 4)}`,
+      lead_name: name,
+      company: companies[i % companies.length],
+      sector: sectors[i % sectors.length],
+      stage: stages[stageIdx],
+      pain: 'Automação de vendas',
+      role: 'Gerente Comercial',
+      lead_score: Math.max(20, Math.min(95, 50 + (i * 7) % 50)),
+      urgency_level: urgencies[i % urgencies.length],
+      follow_up_count: i % 3,
+      briefing_sent: i < 8,
+      confirmed_slot: stageIdx === 2 ? new Date(now + day * 2).toISOString() : null,
+      last_outbound_at: new Date(now - day * (i % 5)).toISOString(),
+      last_inbound_at: new Date(now - day * (i % 3)).toISOString(),
+      handoff: stages[stageIdx] === 'handoff',
+      optout: stages[stageIdx] === 'optout',
+      created_at: new Date(now - day * (i + 1)).toISOString(),
+    };
+  });
+}
 
 // ─── Helpers de métricas ──────────────────────────────────────────────────────
 

@@ -265,19 +265,7 @@ export const MariSDRTab = () => {
     );
   }
 
-  if (!data || data.total === 0) {
-    return (
-      <Card className="border-dashed rounded-2xl">
-        <CardContent className="py-12 text-center space-y-3">
-          <Bot className="w-10 h-10 mx-auto text-muted-foreground/40" />
-          <p className="text-muted-foreground text-sm">Nenhuma sessão encontrada ainda.</p>
-          <p className="text-xs text-muted-foreground">
-            A Mari ainda não iniciou conversas ou as tabelas estão vazias.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const isDemo = !data || data.recentSessions.every(s => s.session_id.startsWith('demo-'));
 
   const m = filteredMetrics;
 
@@ -292,8 +280,11 @@ export const MariSDRTab = () => {
             <p className="text-sm font-medium text-foreground">
               {m.total} sessões
               {hasFilters && <span className="text-muted-foreground font-normal"> (filtrado)</span>}
+              {isDemo && <Badge variant="outline" className="ml-2 text-[10px] font-normal">Demo</Badge>}
             </p>
-            <p className="text-[11px] text-muted-foreground">Atualização automática a cada 2 min</p>
+            <p className="text-[11px] text-muted-foreground">
+              {isDemo ? 'Dados de demonstração — conecte o Supabase da Mari para dados reais' : 'Atualização automática a cada 2 min'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
