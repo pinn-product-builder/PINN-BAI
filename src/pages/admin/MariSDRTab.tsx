@@ -130,7 +130,7 @@ function filterByPeriod(sessions: MariSession[], period: string): MariSession[] 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export const MariSDRTab = () => {
-  const { data, isLoading, isError, refetch, isFetching, isPlaceholderData } = useMariSDR();
+  const { data, isLoading, isError, refetch, isFetching } = useMariSDR();
   const queryClient = useQueryClient();
 
   // Filtros
@@ -230,7 +230,16 @@ export const MariSDRTab = () => {
     queryClient.invalidateQueries({ queryKey: ['mari-sdr-metrics'] });
   };
 
-  // placeholderData garante que data nunca é undefined no primeiro render
+  if (isLoading) {
+    return (
+      <Card className="rounded-2xl">
+        <CardContent className="py-12 text-center space-y-3">
+          <RefreshCw className="w-8 h-8 mx-auto text-primary animate-spin" />
+          <p className="text-muted-foreground text-sm">Carregando dados da Mari...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isError) {
     return (
@@ -238,11 +247,11 @@ export const MariSDRTab = () => {
         <CardContent className="py-12 text-center space-y-3">
           <AlertTriangle className="w-10 h-10 mx-auto text-destructive/60" />
           <p className="text-muted-foreground text-sm">
-            Não foi possível conectar ao Supabase da Mari.
+            Não foi possível carregar dados da Mari SDR.
           </p>
           <p className="text-xs text-muted-foreground">
-            Verifique <code className="bg-muted px-1.5 py-0.5 rounded text-[11px]">VITE_MARI_SUPABASE_URL</code> e{' '}
-            <code className="bg-muted px-1.5 py-0.5 rounded text-[11px]">VITE_MARI_SUPABASE_KEY</code> no <code>.env</code>.
+            Verifique os secrets <code className="bg-muted px-1.5 py-0.5 rounded text-[11px]">MARI_SUPABASE_URL</code> e{' '}
+            <code className="bg-muted px-1.5 py-0.5 rounded text-[11px]">MARI_SUPABASE_KEY</code> nas Edge Functions.
           </p>
           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 mt-2">
             <RefreshCw className="w-4 h-4" /> Tentar novamente
@@ -251,8 +260,6 @@ export const MariSDRTab = () => {
       </Card>
     );
   }
-
-  const isDemo = false;
 
   const m = filteredMetrics;
 
@@ -267,10 +274,9 @@ export const MariSDRTab = () => {
             <p className="text-sm font-medium text-foreground">
               {m.total} sessões
               {hasFilters && <span className="text-muted-foreground font-normal"> (filtrado)</span>}
-              {isDemo && <Badge variant="outline" className="ml-2 text-[10px] font-normal">Demo</Badge>}
             </p>
             <p className="text-[11px] text-muted-foreground">
-              {isDemo ? 'Dados de demonstração — conecte o Supabase da Mari para dados reais' : 'Atualização automática a cada 2 min'}
+              Atualização automática a cada 2 min
             </p>
           </div>
         </div>

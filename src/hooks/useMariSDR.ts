@@ -44,13 +44,6 @@ export interface MariMetrics {
 
 // ─── Hook principal ───────────────────────────────────────────────────────────
 
-// Placeholder lazy para render instantâneo
-let _placeholderCache: MariMetrics | undefined;
-function _getPlaceholder(): MariMetrics {
-  if (!_placeholderCache) _placeholderCache = _buildMetrics(_demoSessions());
-  return _placeholderCache;
-}
-
 export const useMariSDR = () => {
   return useQuery<MariMetrics>({
     queryKey: ['mari-sdr-metrics'],
@@ -63,56 +56,10 @@ export const useMariSDR = () => {
       const sessions: MariSession[] = data?.sessions || [];
       return _buildMetrics(sessions);
     },
-    placeholderData: _getPlaceholder(),
     staleTime: 2 * 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
   });
 };
-
-// ─── Dados de demonstração ────────────────────────────────────────────────────
-
-function _demoSessions(): MariSession[] {
-  const now = Date.now();
-  const day = 86400000;
-  const stages = ['qualifying', 'scheduling', 'confirmed', 'rescheduling', 'handoff', 'cancelled', 'optout'] as const;
-  const sectors = ['Tecnologia', 'Saúde', 'E-commerce', 'Educação', 'Indústria', 'Financeiro'];
-  const urgencies = ['critical', 'high', 'medium', 'low'];
-  const names = [
-    'Ana Souza', 'Carlos Mendes', 'Beatriz Lima', 'Diego Oliveira',
-    'Fernanda Costa', 'Gabriel Santos', 'Helena Rocha', 'Igor Martins',
-    'Julia Alves', 'Leonardo Pereira', 'Mariana Duarte', 'Nathan Ribeiro',
-    'Paula Araújo', 'Rafael Gomes', 'Sofia Cardoso',
-  ];
-  const companies = [
-    'TechNova', 'MedStar', 'ShopBR', 'EduPrime', 'Industek',
-    'FinCore', 'CloudBase', 'DataWave', 'AgriSol', 'LogiMax',
-    'SmartPay', 'GreenTech', 'VitalCare', 'BuildUp', 'NetForce',
-  ];
-
-  return names.map((name, i): MariSession => {
-    const stageIdx = i < 4 ? 2 : i < 7 ? 1 : i < 10 ? 0 : i % stages.length;
-    return {
-      session_id: `demo-${i}`,
-      phone: `+55 11 9${String(1000 + i * 111).slice(0, 4)}-${String(2000 + i * 222).slice(0, 4)}`,
-      lead_name: name,
-      company: companies[i % companies.length],
-      sector: sectors[i % sectors.length],
-      stage: stages[stageIdx],
-      pain: 'Automação de vendas',
-      role: 'Gerente Comercial',
-      lead_score: Math.max(20, Math.min(95, 50 + (i * 7) % 50)),
-      urgency_level: urgencies[i % urgencies.length],
-      follow_up_count: i % 3,
-      briefing_sent: i < 8,
-      confirmed_slot: stageIdx === 2 ? new Date(now + day * 2).toISOString() : null,
-      last_outbound_at: new Date(now - day * (i % 5)).toISOString(),
-      last_inbound_at: new Date(now - day * (i % 3)).toISOString(),
-      handoff: stages[stageIdx] === 'handoff',
-      optout: stages[stageIdx] === 'optout',
-      created_at: new Date(now - day * (i + 1)).toISOString(),
-    };
-  });
-}
 
 // ─── Helpers de métricas ──────────────────────────────────────────────────────
 
@@ -148,7 +95,6 @@ function _buildMetrics(sessions: MariSession[]): MariMetrics {
     ? Math.round((confirmed / activeSessions) * 100)
     : 0;
 
-  // Funil por stage
   const stageCounts: Record<string, number> = {};
   sessions.forEach(s => {
     stageCounts[s.stage] = (stageCounts[s.stage] || 0) + 1;
@@ -157,7 +103,6 @@ function _buildMetrics(sessions: MariSession[]): MariMetrics {
     .map(([stage, count]) => ({ stage: STAGE_LABEL[stage] || stage, count }))
     .sort((a, b) => b.count - a.count);
 
-  // Por setor
   const sectorCounts: Record<string, number> = {};
   sessions.forEach(s => {
     if (s.sector) {
@@ -170,7 +115,6 @@ function _buildMetrics(sessions: MariSession[]): MariMetrics {
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
-  // Por urgência
   const urgencyCounts: Record<string, number> = {};
   sessions.forEach(s => {
     if (s.urgency_level) {
