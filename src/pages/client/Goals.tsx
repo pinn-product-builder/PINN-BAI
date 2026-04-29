@@ -147,8 +147,7 @@ function CreateGoalDialog({ orgId, onClose }: { orgId: string; onClose: () => vo
         period_end: periodEnd,
         icon: null,
         color,
-        created_by: null,
-      });
+      } as any);
       toast({ title: 'Meta criada!' });
       onClose();
     } catch {
@@ -230,8 +229,7 @@ function CreateAlertDialog({ orgId, onClose }: { orgId: string; onClose: () => v
         severity,
         channel: 'in_app',
         enabled: true,
-        created_by: null,
-      });
+      } as any);
       toast({ title: 'Regra de alerta criada!' });
       onClose();
     } catch {
