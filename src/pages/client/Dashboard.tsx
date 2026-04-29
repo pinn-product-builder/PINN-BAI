@@ -286,4 +286,10 @@ const TrendingUpIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const Dashboard = () => (
+  <DashboardFilterProvider defaultPeriod="30d">
+    <DashboardInner />
+  </DashboardFilterProvider>
+);
+
 export default Dashboard;
