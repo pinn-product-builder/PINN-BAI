@@ -17,6 +17,7 @@ import { DashboardWidget } from '@/lib/types';
 import { useExternalData } from '@/hooks/useExternalData';
 import { resolveByWidgetTitle } from '@/lib/referenceMappings';
 import { REFERENCE_MAPPINGS } from '@/lib/referenceMappings';
+import { useDashboardFilters, filterRowsByDateRange } from '@/contexts/DashboardFilterContext';
 
 // Import chart widgets
 import MetricCard from '@/components/dashboard/widgets/MetricCard';
@@ -511,7 +512,12 @@ const WidgetRenderer = ({
     if (onRemove) onRemove(widget.id);
   };
   
-  const rawData = externalData?.data || [];
+  const allRows = externalData?.data || [];
+  const { filters } = useDashboardFilters();
+  const rawData = React.useMemo(
+    () => filterRowsByDateRange(allRows, filters.startDate, filters.endDate),
+    [allRows, filters.startDate, filters.endDate]
+  );
   
   // Debug logging
   console.log(`[WidgetRenderer] ${widget.title} (${widget.type}):`, {
