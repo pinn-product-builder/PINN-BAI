@@ -79,7 +79,9 @@ const formatDateLabel = (dateStr: string): string => {
  */
 const isDateField = (field: string): boolean => {
   const lower = field.toLowerCase();
-  return ['day', 'date', 'created_at', 'updated_at', 'dia', 'data'].some(k => lower.includes(k));
+  // Ignorar campos de timestamp Unix (sufixo _ts) — preferimos campos ISO/legíveis
+  if (lower.endsWith('_ts') || lower.endsWith('_unix') || lower.endsWith('_epoch')) return false;
+  return ['day', 'date', 'created_at', 'updated_at', 'dia', 'data', '_iso', '_at'].some(k => lower.includes(k));
 };
 
 /**
