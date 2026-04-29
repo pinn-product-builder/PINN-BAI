@@ -1237,11 +1237,24 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Tables, Bar charts & Insights — paired side-by-side */}
-      {(tablesAndBars.length > 0 || insightWidgets.length > 0) && (
+      {/* Tables & Bar charts — paired side-by-side */}
+      {tablesAndBars.length > 0 && (
         <section>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {[...tablesAndBars, ...insightWidgets].map(widget => (
+            {tablesAndBars.map(widget => (
+              <div key={widget.id} className="min-h-[340px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Pie charts pareados com Insights IA — lado a lado */}
+      {(pieCharts.length > 0 || insightWidgets.length > 0) && (
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[...pieCharts, ...insightWidgets].map(widget => (
               <div key={widget.id} className="min-h-[340px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
@@ -1256,19 +1269,6 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
           <h2 className="text-sm font-semibold text-foreground mb-3">Retenção e Relacionamento</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {rfmChurnWidgets.map(widget => (
-              <div key={widget.id} className="min-h-[320px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Pie charts if any */}
-      {pieCharts.length > 0 && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {pieCharts.map(widget => (
               <div key={widget.id} className="min-h-[320px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
