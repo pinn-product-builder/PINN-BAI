@@ -68,6 +68,7 @@ const DashboardInner = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDashId, setSelectedDashId] = useState<string | null>(null);
   const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
+  const { filters: periodFilters } = useDashboardFilters();
 
   // Fetch ALL dashboards for this org
   const { data: dashboards, isLoading: isLoadingDashes } = useQuery({
@@ -152,7 +153,7 @@ const DashboardInner = () => {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground/60 pl-0.5">
-            {activeDash?.description || PERIOD_LABELS[useDashboardFilters().filters.period]}
+            {activeDash?.description || PERIOD_LABELS[periodFilters.period]}
           </p>
         </div>
 
