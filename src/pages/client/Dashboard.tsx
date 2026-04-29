@@ -60,7 +60,7 @@ const DASH_ICONS: Record<string, React.ReactNode> = {
   'Ligações VAPI': <Phone className="w-4 h-4" />,
 };
 
-const Dashboard = () => {
+const DashboardInner = () => {
   const { orgId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
