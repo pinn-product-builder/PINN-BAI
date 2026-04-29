@@ -152,7 +152,7 @@ const DashboardInner = () => {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground/60 pl-0.5">
-            {activeDash?.description || 'Performance dos últimos 30 dias'}
+            {activeDash?.description || PERIOD_LABELS[useDashboardFilters().filters.period]}
           </p>
         </div>
 
