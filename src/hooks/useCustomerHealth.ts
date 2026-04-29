@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import type { CustomerAlert, CustomerHealthScore, HealthBand } from '@/lib/types';
+
+// Tabelas customer_health_scores e customer_alerts não estão tipadas em types.ts
+const supabase = supabaseClient as any;
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
 
