@@ -1210,8 +1210,8 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Secondary KPIs row */}
-      {secondaryMetrics.length > 0 && (
+      {/* Secondary KPIs row — OCULTO: dados de "Últimos 30 dias" estavam incorretos */}
+      {false && secondaryMetrics.length > 0 && (
         <section>
           <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
             {secondaryMetrics.map(widget => (
@@ -1223,8 +1223,8 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Extra metrics if any */}
-      {extraMetrics.length > 0 && (
+      {/* Extra metrics if any — OCULTO: dados de "Últimos 30 dias" estavam incorretos */}
+      {false && extraMetrics.length > 0 && (
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {extraMetrics.map(widget => (
