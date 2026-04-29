@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Target, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useRfmChurnAnalysis } from '@/hooks/useRfmChurnAnalysis';
+import { useFilters } from '@/hooks/useFilters';
 
 interface RfmChurnModuleProps {
   orgId: string;
@@ -28,7 +29,8 @@ const RfmChurnModule = ({
   description = 'Novo módulo analítico para segmentação de clientes e risco de evasão.',
   dashboardNames = ['Executivo', 'Tráfego Pago', 'Conversas'],
 }: RfmChurnModuleProps) => {
-  const { analysis, isLoading, isFetching, refetch } = useRfmChurnAnalysis(orgId);
+  const { dateRangeISO } = useFilters();
+  const { analysis, isLoading, isFetching, refetch } = useRfmChurnAnalysis(orgId, dateRangeISO);
   const { rows, summary } = analysis;
 
   const topRisk = useMemo(() => rows.slice(0, 10), [rows]);

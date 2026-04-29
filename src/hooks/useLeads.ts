@@ -186,16 +186,21 @@ export const useLeadsTimeSeries = (
 };
 
 // Get leads distribution by source
-export const useLeadsBySource = (orgId: string | undefined) => {
+export const useLeadsBySource = (orgId: string | undefined, dateRange?: { start: string; end: string }) => {
   return useQuery({
-    queryKey: ['leads-by-source', orgId],
+    queryKey: ['leads-by-source', orgId, dateRange?.start, dateRange?.end],
     queryFn: async () => {
       if (!orgId) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('leads')
-        .select('source')
+        .select('source, created_at')
         .eq('org_id', orgId);
+
+      if (dateRange?.start) query = query.gte('created_at', dateRange.start);
+      if (dateRange?.end) query = query.lte('created_at', dateRange.end);
+
+      const { data, error } = await query;
 
       if (error) throw error;
 

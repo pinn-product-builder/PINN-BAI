@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useFilters } from '@/hooks/useFilters';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,6 @@ import {
   Volume2,
   Sparkles,
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
 
 interface InsightResult {
@@ -56,15 +54,13 @@ const priorityConfig = {
 
 const Insights = () => {
   const { orgId } = useParams();
-  const { toast } = useToast();
-  const { profile } = useAuth();
+  const { dateRangeISO } = useFilters();
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // Fetch real AI insights from the edge function
+  // Fetch AI insights using structured mode (multi-source, chain-of-thought)
   const { data: insights, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['ai-insights', orgId],
+    queryKey: ['ai-insights', orgId, dateRangeISO.start, dateRangeISO.end],
     queryFn: async (): Promise<InsightResult[]> => {
-      // Call the AI edge function to generate insights based on real data
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-data-chat`, {
         method: 'POST',
         headers: {
@@ -73,69 +69,17 @@ const Insights = () => {
         },
         body: JSON.stringify({
           orgId,
-          messages: [
-            {
-              role: 'user',
-              content: `Analise todos os dados disponíveis da organização e gere exatamente 5 insights acionáveis. 
-              
-Para cada insight, responda APENAS com um JSON array válido (sem markdown, sem backticks, sem explicação), seguindo este formato:
-[
-  {"type": "recommendation|alert|trend", "priority": "high|medium|low", "title": "Título curto", "content": "Descrição detalhada com dados concretos e ação sugerida"}
-]
-
-Use dados reais dos leads, conversões, fontes e tendências. Inclua números e porcentagens concretas.`,
-            },
-          ],
+          mode: 'insights',
+          dateRange: dateRangeISO,
         }),
       });
 
       if (!resp.ok) throw new Error('Falha ao gerar insights');
-
-      // Read streamed response
-      const reader = resp.body?.getReader();
-      if (!reader) throw new Error('No stream');
-
-      const decoder = new TextDecoder();
-      let fullContent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-
-        for (const line of chunk.split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) fullContent += content;
-          } catch { /* skip */ }
-        }
-      }
-
-      // Parse the JSON from AI response
-      try {
-        // Try to extract JSON array from response
-        const jsonMatch = fullContent.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          return JSON.parse(jsonMatch[0]);
-        }
-      } catch (e) {
-        console.error('Failed to parse insights JSON:', e, fullContent);
-      }
-
-      // Fallback: return as single insight
-      return [{
-        type: 'recommendation',
-        priority: 'medium',
-        title: 'Análise Geral',
-        content: fullContent || 'Não foi possível gerar insights no momento.',
-      }];
+      const { insights: result } = await resp.json();
+      return Array.isArray(result) ? result : [];
     },
     enabled: !!orgId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 

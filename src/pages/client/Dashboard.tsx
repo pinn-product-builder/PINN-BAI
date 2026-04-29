@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { ShareDashboardDialog } from '@/components/dashboard/ShareDashboardDialog';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import {
   Download,
+  Share2,
   Loader2,
   TrendingDown,
   Volume2,
@@ -28,30 +30,8 @@ import DashboardEngine from '@/components/dashboard/DashboardEngine';
 import { ReportGenerator } from '@/lib/report-generator';
 import { useDashboardNarrative } from '@/hooks/useDashboardNarrative';
 import { isRfmChurnEnabledForOrg } from '@/lib/featureFlags';
-import {
-  DashboardFilterProvider,
-  useDashboardFilters,
-  PERIOD_LABELS,
-  type PeriodPreset,
-} from '@/contexts/DashboardFilterContext';
-
-const PeriodFilter = () => {
-  const { filters, setPeriod } = useDashboardFilters();
-  return (
-    <Select value={filters.period} onValueChange={(v) => setPeriod(v as PeriodPreset)}>
-      <SelectTrigger className="h-8 w-auto gap-1.5 px-3 text-xs font-medium border-border/50 bg-card/60 text-muted-foreground hover:text-foreground hover:border-border/80 transition-all rounded-lg">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent className="bg-popover border-border z-50">
-        {(Object.keys(PERIOD_LABELS) as PeriodPreset[]).map((p) => (
-          <SelectItem key={p} value={p} className="text-xs">
-            {PERIOD_LABELS[p]}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-};
+import { KpiCard } from '@/components/ui/KpiCard';
+import { useKpiComparison, type IsoRange } from '@/hooks/useKpiComparison';
 
 const DASH_ICONS: Record<string, React.ReactNode> = {
   'Executivo': <LayoutDashboard className="w-4 h-4" />,
@@ -60,17 +40,139 @@ const DASH_ICONS: Record<string, React.ReactNode> = {
   'Ligações VAPI': <Phone className="w-4 h-4" />,
 };
 
-const DashboardInner = () => {
+// ─── Query functions (fora do componente = referência estável) ─────────────────
+
+async function fetchLeadsCount(orgId: string, range: IsoRange): Promise<number> {
+  const { count, error } = await supabase
+    .from('leads')
+    .select('id', { count: 'exact', head: true })
+    .eq('org_id', orgId)
+    .gte('created_at', range.start)
+    .lte('created_at', range.end);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+async function fetchConversionsCount(orgId: string, range: IsoRange): Promise<number> {
+  const { count, error } = await supabase
+    .from('leads')
+    .select('id', { count: 'exact', head: true })
+    .eq('org_id', orgId)
+    .eq('status', 'converted')
+    .gte('created_at', range.start)
+    .lte('created_at', range.end);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+async function fetchConversionRate(orgId: string, range: IsoRange): Promise<number> {
+  const { data, error } = await supabase
+    .from('leads')
+    .select('status')
+    .eq('org_id', orgId)
+    .gte('created_at', range.start)
+    .lte('created_at', range.end);
+  if (error) throw error;
+  const leads = data ?? [];
+  if (leads.length === 0) return 0;
+  const converted = leads.filter((l) => l.status === 'converted').length;
+  return (converted / leads.length) * 100;
+}
+
+async function fetchRevenue(orgId: string, range: IsoRange): Promise<number> {
+  const { data, error } = await supabase
+    .from('leads')
+    .select('value')
+    .eq('org_id', orgId)
+    .eq('status', 'converted')
+    .gte('created_at', range.start)
+    .lte('created_at', range.end);
+  if (error) throw error;
+  return (data ?? []).reduce((sum, l) => sum + (Number(l.value) || 0), 0);
+}
+
+// ─── Bloco de KPIs ─────────────────────────────────────────────────────────────
+
+function KpiRow({ orgId }: { orgId: string }) {
+  const isEnabled = !!orgId;
+
+  const totalLeads = useKpiComparison({
+    queryKey: ['kpi-leads', orgId],
+    queryFn: (range) => fetchLeadsCount(orgId, range),
+    enabled: isEnabled,
+  });
+
+  const conversions = useKpiComparison({
+    queryKey: ['kpi-conversions', orgId],
+    queryFn: (range) => fetchConversionsCount(orgId, range),
+    enabled: isEnabled,
+  });
+
+  const conversionRate = useKpiComparison({
+    queryKey: ['kpi-conv-rate', orgId],
+    queryFn: (range) => fetchConversionRate(orgId, range),
+    enabled: isEnabled,
+  });
+
+  const revenue = useKpiComparison({
+    queryKey: ['kpi-revenue', orgId],
+    queryFn: (range) => fetchRevenue(orgId, range),
+    enabled: isEnabled,
+  });
+
+  // Todos compartilham o mesmo periodLabel (vêm do mesmo usePreviousPeriod internamente)
+  const periodLabel = totalLeads.periodLabel;
+
+  return (
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <KpiCard
+        title="Total de Leads"
+        value={totalLeads.current ?? 0}
+        previousValue={totalLeads.previous ?? undefined}
+        format="number"
+        periodLabel={periodLabel}
+        isLoading={totalLeads.isLoading}
+      />
+      <KpiCard
+        title="Conversões"
+        value={conversions.current ?? 0}
+        previousValue={conversions.previous ?? undefined}
+        format="number"
+        periodLabel={periodLabel}
+        isLoading={conversions.isLoading}
+      />
+      <KpiCard
+        title="Taxa de Conversão"
+        value={conversionRate.current ?? 0}
+        previousValue={conversionRate.previous ?? undefined}
+        format="percent"
+        periodLabel={periodLabel}
+        isLoading={conversionRate.isLoading}
+      />
+      <KpiCard
+        title="Receita"
+        value={revenue.current ?? 0}
+        previousValue={revenue.previous ?? undefined}
+        format="currency"
+        periodLabel={periodLabel}
+        isLoading={revenue.isLoading}
+      />
+    </div>
+  );
+}
+
+// ─── Dashboard ─────────────────────────────────────────────────────────────────
+
+const Dashboard = () => {
   const { orgId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDashId, setSelectedDashId] = useState<string | null>(null);
+  const [showShare, setShowShare] = useState(false);
   const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
-  const { filters: periodFilters } = useDashboardFilters();
 
-  // Fetch ALL dashboards for this org
   const { data: dashboards, isLoading: isLoadingDashes } = useQuery({
     queryKey: ['org-dashboards', orgId],
     queryFn: async () => {
@@ -87,12 +189,10 @@ const DashboardInner = () => {
     enabled: !!orgId,
   });
 
-  // Auto-select default dashboard
-  const activeDash = dashboards?.find(d => d.id === selectedDashId) 
-    || dashboards?.find(d => d.is_default) 
+  const activeDash = dashboards?.find(d => d.id === selectedDashId)
+    || dashboards?.find(d => d.is_default)
     || dashboards?.[0];
 
-  // Generate dynamic narrative
   const { narrative, isLoading: isLoadingNarrative } = useDashboardNarrative(activeDash?.id, orgId);
 
   const handleExportPDF = async () => {
@@ -130,7 +230,6 @@ const DashboardInner = () => {
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2">
-          {/* Dashboard selector */}
           <Select value={activeDash?.id || ''} onValueChange={(id) => setSelectedDashId(id)}>
             <SelectTrigger
               className="w-auto h-9 gap-2 border-border/40 bg-transparent text-foreground font-semibold text-base pl-0 pr-3 hover:bg-card/60 transition-colors focus:ring-0"
@@ -153,13 +252,11 @@ const DashboardInner = () => {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground/60 pl-0.5">
-            {activeDash?.description || PERIOD_LABELS[periodFilters.period]}
+            {activeDash?.description || 'Performance dos últimos 30 dias'}
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-wrap items-center gap-2">
-          <PeriodFilter />
+        <div className="flex items-center gap-2">
           {showRfmChurn && (
             <button
               type="button"
@@ -168,6 +265,15 @@ const DashboardInner = () => {
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
               RFM + Churn
+            </button>
+          )}
+          {activeDash && (
+            <button
+              onClick={() => setShowShare(true)}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border border-border/50 bg-card/60 text-muted-foreground hover:text-foreground hover:border-border/80 transition-all"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              Compartilhar
             </button>
           )}
           <button
@@ -201,12 +307,14 @@ const DashboardInner = () => {
         </div>
       </div>
 
+      {/* ── KPIs com comparativo de período ── */}
+      {orgId && <KpiRow orgId={orgId} />}
+
       {/* ── AI Narrative ── */}
       <div
         className="rounded-xl border border-border/30 p-4 relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, rgba(255,105,0,0.04) 0%, hsl(var(--card)) 60%)' }}
       >
-        {/* Background icon */}
         <Sparkles className="absolute top-3 right-3 w-20 h-20 text-primary/[0.04]" />
 
         <div className="flex gap-3 items-start relative z-10">
@@ -276,21 +384,22 @@ const DashboardInner = () => {
           </div>
         )}
       </div>
+      {showShare && activeDash && orgId && (
+        <ShareDashboardDialog
+          orgId={orgId}
+          dashboardId={activeDash.id}
+          dashboardName={activeDash.name}
+          onClose={() => setShowShare(false)}
+        />
+      )}
     </div>
   );
 };
 
-// Placeholder icon
 const TrendingUpIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
   </svg>
-);
-
-const Dashboard = () => (
-  <DashboardFilterProvider defaultPeriod="30d">
-    <DashboardInner />
-  </DashboardFilterProvider>
 );
 
 export default Dashboard;

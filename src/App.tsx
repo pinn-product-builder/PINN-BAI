@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { OrganizationBrandingProvider } from "@/contexts/OrganizationBrandingContext";
+import { FilterProvider } from "@/contexts/FilterContext";
 import { AppMuiProvider } from "@/theme/AppMuiProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
@@ -39,6 +40,13 @@ import Insights from "./pages/client/Insights";
 import ClientUsers from "./pages/client/Users";
 import ClientSettings from "./pages/client/Settings";
 import ClientRfmChurn from "./pages/client/RfmChurn";
+import Integrations from "./pages/client/Integrations";
+import CustomerHealth from "./pages/client/CustomerHealth";
+import PaidTraffic from "./pages/client/PaidTraffic";
+import UnitEconomics from "./pages/client/UnitEconomics";
+import Goals from "./pages/client/Goals";
+import Gamification from "./pages/client/Gamification";
+import PublicDashboard from "./pages/PublicDashboard";
 import { isRfmChurnEnabledForAdmin, isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
 import { useParams } from "react-router-dom";
 
@@ -61,6 +69,7 @@ const App = () => (
           <BrowserRouter>
             <OrganizationBrandingProvider>
               <AppMuiProvider>
+            <FilterProvider>
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Navigate to="/login" replace />} />
@@ -108,13 +117,23 @@ const App = () => (
                 <Route path="datasets" element={<Datasets />} />
                 <Route path="insights" element={<Insights />} />
                 <Route path="rfm-churn" element={<ClientRfmChurnGate />} />
+                <Route path="paid-traffic" element={<PaidTraffic />} />
+                <Route path="customer-health" element={<CustomerHealth />} />
+                <Route path="unit-economics" element={<UnitEconomics />} />
+                <Route path="goals" element={<Goals />} />
+                <Route path="gamification" element={<Gamification />} />
+                <Route path="integrations" element={<Integrations />} />
                 <Route path="users" element={<ClientUsers />} />
                 <Route path="settings" element={<ClientSettings />} />
               </Route>
 
+              {/* Public share */}
+              <Route path="/share/:token" element={<PublicDashboard />} />
+
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </FilterProvider>
               </AppMuiProvider>
             </OrganizationBrandingProvider>
           </BrowserRouter>

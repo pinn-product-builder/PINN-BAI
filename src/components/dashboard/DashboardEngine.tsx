@@ -15,9 +15,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { DashboardWidget } from '@/lib/types';
 import { useExternalData } from '@/hooks/useExternalData';
+import { useFilters } from '@/hooks/useFilters';
 import { resolveByWidgetTitle } from '@/lib/referenceMappings';
 import { REFERENCE_MAPPINGS } from '@/lib/referenceMappings';
-import { useDashboardFilters, filterRowsByDateRange } from '@/contexts/DashboardFilterContext';
 
 // Import chart widgets
 import MetricCard from '@/components/dashboard/widgets/MetricCard';
@@ -477,7 +477,7 @@ const WidgetRenderer = ({
   widget, 
   orgId,
   onRemove
-}: { 
+}: {
   widget: DashboardWidget;
   orgId: string;
   onRemove?: (widgetId: string) => void;
@@ -489,10 +489,13 @@ const WidgetRenderer = ({
     metric: rawConfig.metric || rawConfig.metricField,
   };
   const tableName = config.dataSource || config.sourceTable;
-  
+  const { dateRangeISO } = useFilters();
+
   const { data: externalData, isLoading, error, refetch } = useExternalData(
     orgId,
-    tableName ? { tableName, limit: 1000 } : undefined
+    tableName
+      ? { tableName, limit: 1000, dateRange: dateRangeISO, dateField: config.groupBy }
+      : undefined
   );
   
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -512,13 +515,26 @@ const WidgetRenderer = ({
     if (onRemove) onRemove(widget.id);
   };
   
-  const allRows = externalData?.data || [];
-  const { filters } = useDashboardFilters();
-  const rawData = React.useMemo(
-    () => filterRowsByDateRange(allRows, filters.startDate, filters.endDate),
-    [allRows, filters.startDate, filters.endDate]
-  );
-  
+  const unfilteredData = externalData?.data || [];
+
+  // Client-side date filter: detect date field from config or common column names
+  const rawData = (() => {
+    if (!unfilteredData.length) return unfilteredData;
+    const start = dateRangeISO.start;
+    const end = dateRangeISO.end;
+    // Detect which column holds the date value
+    const candidate = config.groupBy && isDateField(config.groupBy)
+      ? config.groupBy
+      : Object.keys(unfilteredData[0] as Record<string, unknown>).find(isDateField);
+    if (!candidate) return unfilteredData;
+    return unfilteredData.filter((row) => {
+      const val = (row as Record<string, unknown>)[candidate];
+      if (!val) return true;
+      const ts = new Date(val as string).getTime();
+      return ts >= new Date(start).getTime() && ts <= new Date(end).getTime();
+    });
+  })();
+
   // Debug logging
   console.log(`[WidgetRenderer] ${widget.title} (${widget.type}):`, {
     tableName: tableName || 'NOT SET',
@@ -1171,27 +1187,45 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   // Combine tables + bar charts sorted by position for side-by-side pairing
   const tablesAndBars = [...tableWidgets, ...barCharts].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
-  // Todas as métricas em uma única linha lado a lado
-  const totalMetrics = metricWidgets.length;
-  // Cap em 8 colunas para não ficar minúsculo; a partir daí quebra em 2 linhas
-  const colsClass = totalMetrics <= 4
-    ? 'grid-cols-2 lg:grid-cols-4'
-    : totalMetrics <= 5
-    ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
-    : totalMetrics <= 6
-    ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
-    : totalMetrics <= 7
-    ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
-    : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-8';
+  const heroCount = Math.min(metricWidgets.length, 4);
+  const heroMetrics = metricWidgets.slice(0, heroCount);
+  const secondaryMetrics = metricWidgets.slice(heroCount, heroCount + 4);
+  const extraMetrics = metricWidgets.slice(heroCount + 4);
 
   return (
     <div className="space-y-8 pb-24">
-      {/* Section: Indicadores Principais — todos lado a lado */}
-      {metricWidgets.length > 0 && (
+      {/* Section: Indicadores Principais */}
+      {heroMetrics.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Indicadores</h2>
-          <div className={`grid ${colsClass} gap-3`}>
-            {metricWidgets.map(widget => (
+          <h2 className="text-sm font-semibold text-foreground mb-3">Últimos 30 Dias</h2>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
+            {heroMetrics.map(widget => (
+              <div key={widget.id} className="min-h-[130px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Secondary KPIs row */}
+      {secondaryMetrics.length > 0 && (
+        <section>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
+            {secondaryMetrics.map(widget => (
+              <div key={widget.id} className="min-h-[120px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Extra metrics if any */}
+      {extraMetrics.length > 0 && (
+        <section>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {extraMetrics.map(widget => (
               <div key={widget.id} className="min-h-[120px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
@@ -1237,24 +1271,11 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Tables & Bar charts — paired side-by-side */}
-      {tablesAndBars.length > 0 && (
+      {/* Tables, Bar charts & Insights — paired side-by-side */}
+      {(tablesAndBars.length > 0 || insightWidgets.length > 0) && (
         <section>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {tablesAndBars.map(widget => (
-              <div key={widget.id} className="min-h-[340px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Pie charts pareados com Insights IA — lado a lado */}
-      {(pieCharts.length > 0 || insightWidgets.length > 0) && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {[...pieCharts, ...insightWidgets].map(widget => (
+            {[...tablesAndBars, ...insightWidgets].map(widget => (
               <div key={widget.id} className="min-h-[340px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
@@ -1269,6 +1290,19 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
           <h2 className="text-sm font-semibold text-foreground mb-3">Retenção e Relacionamento</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {rfmChurnWidgets.map(widget => (
+              <div key={widget.id} className="min-h-[320px]">
+                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Pie charts if any */}
+      {pieCharts.length > 0 && (
+        <section>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {pieCharts.map(widget => (
               <div key={widget.id} className="min-h-[320px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>

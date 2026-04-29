@@ -5,6 +5,8 @@ interface FetchParams {
   tableName: string;
   columns?: string[];
   filters?: Record<string, unknown>;
+  dateRange?: { start: string; end: string };
+  dateField?: string;
   limit?: number;
   orderBy?: string;
   orderAsc?: boolean;
@@ -28,7 +30,7 @@ export const useExternalData = <T = Record<string, unknown>>(
   options?: { enabled?: boolean }
 ) => {
   return useQuery({
-    queryKey: ['external-data', orgId, params?.tableName, params?.filters, params?.columns],
+    queryKey: ['external-data', orgId, params?.tableName, params?.filters, params?.columns, params?.dateRange?.start, params?.dateRange?.end],
     queryFn: async (): Promise<FetchResult<T>> => {
       if (!orgId || !params) {
         throw new Error('orgId and params are required');

@@ -8,7 +8,7 @@ export type AppRole = 'platform_admin' | 'client_admin' | 'analyst' | 'viewer';
 export type OrgStatus = 'active' | 'suspended' | 'trial';
 export type IntegrationType = 'supabase' | 'google_sheets' | 'csv' | 'api';
 export type IntegrationStatus = 'pending' | 'connected' | 'error' | 'syncing';
-export type LeadSource = 'google_ads' | 'linkedin' | 'referral' | 'organic' | 'email' | 'other';
+export type LeadSource = 'google_ads' | 'meta_ads' | 'linkedin' | 'referral' | 'organic' | 'email' | 'other';
 export type LeadStatus = 'new' | 'qualified' | 'in_analysis' | 'proposal' | 'converted' | 'lost';
 export type WidgetType =
   | 'metric_card'
@@ -21,6 +21,130 @@ export type WidgetType =
   | 'insight_card'
   | 'rfm_matrix'
   | 'churn_prediction';
+
+// ============= Integration Hub =============
+
+export type ProviderCategory = 'crm' | 'paid_traffic' | 'analytics' | 'data' | 'messaging';
+export type AuthFlow = 'api_key' | 'oauth2' | 'webhook';
+export type HubConnectionStatus = 'pending' | 'connected' | 'error' | 'paused';
+export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+
+export interface CredentialField {
+  key: string;
+  label: string;
+  placeholder: string;
+  type?: 'text' | 'password' | 'textarea';
+  required?: boolean;
+}
+
+export interface IntegrationProvider {
+  id: string;
+  slug: string;
+  name: string;
+  category: ProviderCategory;
+  description: string;
+  logo_url: string | null;
+  auth_flow: AuthFlow;
+  credentials_schema: CredentialField[];
+  docs_url: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface HubConnection {
+  id: string;
+  org_id: string;
+  provider_slug: string;
+  display_name: string;
+  status: HubConnectionStatus;
+  sync_status: SyncStatus;
+  last_sync_at: string | null;
+  sync_error: string | null;
+  sync_config: Json;
+  metadata: Json;
+  created_at: string;
+}
+
+// ============= Customer Health =============
+
+export type HealthBand = 'saudavel' | 'atencao' | 'risco' | 'critico';
+export type AlertSeverity = 'critical' | 'warning' | 'info';
+export type HealthTrend = 'up' | 'stable' | 'down';
+
+export interface HealthSignal {
+  type: string;
+  label: string;
+  severity: AlertSeverity;
+}
+
+export interface CustomerHealthScore {
+  id: string;
+  org_id: string;
+  customer_key: string;
+  customer_name: string;
+  customer_email: string | null;
+  health_score: number;
+  health_band: HealthBand;
+  engagement_score: number;
+  revenue_score: number;
+  momentum_score: number;
+  loyalty_score: number;
+  health_delta: number | null;
+  trend: HealthTrend;
+  signals: HealthSignal[];
+  calculated_at: string;
+}
+
+export interface CustomerAlert {
+  id: string;
+  org_id: string;
+  customer_key: string;
+  customer_name: string;
+  alert_type: string;
+  severity: AlertSeverity;
+  title: string;
+  description: string;
+  metadata: Json;
+  acknowledged: boolean;
+  resolved: boolean;
+  created_at: string;
+}
+
+// ============= Paid Traffic =============
+
+export interface PaidTrafficMetrics {
+  id: string;
+  org_id: string;
+  platform_slug: string;
+  campaign_id: string;
+  adset_id: string | null;
+  date: string;
+  impressions: number;
+  clicks: number;
+  spend: number;
+  reach: number | null;
+  leads: number;
+  purchases: number;
+  purchase_value: number;
+  ctr: number | null;
+  cpl: number | null;
+  cpa: number | null;
+  roas: number | null;
+}
+
+export interface PaidTrafficCampaign {
+  id: string;
+  org_id: string;
+  platform_slug: string;
+  external_id: string;
+  account_id: string;
+  name: string;
+  status: string;
+  objective: string | null;
+  daily_budget: number | null;
+  start_date: string | null;
+  end_date: string | null;
+}
 
 // ============= Organization =============
 // Aligned with Supabase schema (organizations table)

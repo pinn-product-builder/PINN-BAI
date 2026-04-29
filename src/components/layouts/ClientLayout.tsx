@@ -20,21 +20,34 @@ import {
   Logout as LogoutIcon,
   TrackChanges as TargetIcon,
   AutoAwesome as SparklesIcon,
+  Campaign as CampaignIcon,
+  FavoriteBorder as HeartIcon,
+  Hub as HubIcon,
+  TrendingUp as TrendingUpIcon,
+  EmojiEvents as TrophyIcon,
+  WorkspacePremium as AchievementIcon,
 } from "@mui/icons-material";
 import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
 import { useAuth } from "@/contexts/AuthContext";
 import AIChat from "@/components/ai/AIChat";
+import { GlobalFilterBar } from "@/components/GlobalFilterBar";
 import { useState } from "react";
 import { isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
 
 const DRAWER_WIDTH = 220;
 
 const baseNavItems = [
-  { path: "dashboard", label: "Dashboard", icon: DashboardIcon },
-  { path: "import", label: "Dados", icon: UploadIcon },
-  { path: "insights", label: "Inteligência IA", icon: LightbulbIcon },
-  { path: "rfm-churn", label: "RFM + Churn", icon: TargetIcon },
-  { path: "settings", label: "White Label", icon: SettingsIcon },
+  { path: "dashboard",       label: "Dashboard",        icon: DashboardIcon },
+  { path: "import",          label: "Dados",            icon: UploadIcon },
+  { path: "insights",        label: "Inteligência IA",  icon: LightbulbIcon },
+  { path: "rfm-churn",       label: "RFM + Churn",      icon: TargetIcon },
+  { path: "paid-traffic",    label: "Tráfego Pago",     icon: CampaignIcon },
+  { path: "customer-health", label: "Saúde do Cliente", icon: HeartIcon },
+  { path: "unit-economics",  label: "CAC + LTV",        icon: TrendingUpIcon },
+  { path: "goals",           label: "Metas & Alertas",  icon: TrophyIcon },
+  { path: "gamification",    label: "Conquistas",       icon: AchievementIcon },
+  { path: "integrations",    label: "Integrações",      icon: HubIcon },
+  { path: "settings",        label: "White Label",      icon: SettingsIcon },
 ];
 
 const ClientLayout = () => {
@@ -187,7 +200,8 @@ const ClientLayout = () => {
         </Box>
       </Drawer>
 
-      <Box component="main" sx={{ flex: 1, minHeight: "100vh", minWidth: 0 }}>
+      <Box component="main" sx={{ flex: 1, minHeight: "100vh", minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <GlobalFilterBar />
         <Outlet />
       </Box>
 
