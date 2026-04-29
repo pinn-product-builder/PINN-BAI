@@ -14,7 +14,7 @@ export const useHealthScores = (
     queryKey: ['customer-health', orgId, options?.band],
     queryFn: async (): Promise<CustomerHealthScore[]> => {
       if (!orgId) return [];
-      let q = supabase
+      let q = (supabase as any)
         .from('customer_health_scores')
         .select('*')
         .eq('org_id', orgId)
