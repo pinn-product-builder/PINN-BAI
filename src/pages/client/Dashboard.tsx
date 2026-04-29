@@ -28,6 +28,30 @@ import DashboardEngine from '@/components/dashboard/DashboardEngine';
 import { ReportGenerator } from '@/lib/report-generator';
 import { useDashboardNarrative } from '@/hooks/useDashboardNarrative';
 import { isRfmChurnEnabledForOrg } from '@/lib/featureFlags';
+import {
+  DashboardFilterProvider,
+  useDashboardFilters,
+  PERIOD_LABELS,
+  type PeriodPreset,
+} from '@/contexts/DashboardFilterContext';
+
+const PeriodFilter = () => {
+  const { filters, setPeriod } = useDashboardFilters();
+  return (
+    <Select value={filters.period} onValueChange={(v) => setPeriod(v as PeriodPreset)}>
+      <SelectTrigger className="h-8 w-auto gap-1.5 px-3 text-xs font-medium border-border/50 bg-card/60 text-muted-foreground hover:text-foreground hover:border-border/80 transition-all rounded-lg">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="bg-popover border-border z-50">
+        {(Object.keys(PERIOD_LABELS) as PeriodPreset[]).map((p) => (
+          <SelectItem key={p} value={p} className="text-xs">
+            {PERIOD_LABELS[p]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
 
 const DASH_ICONS: Record<string, React.ReactNode> = {
   'Executivo': <LayoutDashboard className="w-4 h-4" />,
