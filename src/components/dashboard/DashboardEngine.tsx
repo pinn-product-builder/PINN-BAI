@@ -17,6 +17,7 @@ import { DashboardWidget } from '@/lib/types';
 import { useExternalData } from '@/hooks/useExternalData';
 import { resolveByWidgetTitle } from '@/lib/referenceMappings';
 import { REFERENCE_MAPPINGS } from '@/lib/referenceMappings';
+import { useDashboardFilters, filterRowsByDateRange } from '@/contexts/DashboardFilterContext';
 
 // Import chart widgets
 import MetricCard from '@/components/dashboard/widgets/MetricCard';
@@ -511,7 +512,12 @@ const WidgetRenderer = ({
     if (onRemove) onRemove(widget.id);
   };
   
-  const rawData = externalData?.data || [];
+  const allRows = externalData?.data || [];
+  const { filters } = useDashboardFilters();
+  const rawData = React.useMemo(
+    () => filterRowsByDateRange(allRows, filters.startDate, filters.endDate),
+    [allRows, filters.startDate, filters.endDate]
+  );
   
   // Debug logging
   console.log(`[WidgetRenderer] ${widget.title} (${widget.type}):`, {
@@ -1165,45 +1171,27 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
   // Combine tables + bar charts sorted by position for side-by-side pairing
   const tablesAndBars = [...tableWidgets, ...barCharts].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
-  const heroCount = Math.min(metricWidgets.length, 4);
-  const heroMetrics = metricWidgets.slice(0, heroCount);
-  const secondaryMetrics = metricWidgets.slice(heroCount, heroCount + 4);
-  const extraMetrics = metricWidgets.slice(heroCount + 4);
+  // Todas as métricas em uma única linha lado a lado
+  const totalMetrics = metricWidgets.length;
+  // Cap em 8 colunas para não ficar minúsculo; a partir daí quebra em 2 linhas
+  const colsClass = totalMetrics <= 4
+    ? 'grid-cols-2 lg:grid-cols-4'
+    : totalMetrics <= 5
+    ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+    : totalMetrics <= 6
+    ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
+    : totalMetrics <= 7
+    ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
+    : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-8';
 
   return (
     <div className="space-y-8 pb-24">
-      {/* Section: Indicadores Principais */}
-      {heroMetrics.length > 0 && (
+      {/* Section: Indicadores Principais — todos lado a lado */}
+      {metricWidgets.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Últimos 30 Dias</h2>
-          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
-            {heroMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[130px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Secondary KPIs row */}
-      {secondaryMetrics.length > 0 && (
-        <section>
-          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
-            {secondaryMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[120px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Extra metrics if any */}
-      {extraMetrics.length > 0 && (
-        <section>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            {extraMetrics.map(widget => (
+          <h2 className="text-sm font-semibold text-foreground mb-3">Indicadores</h2>
+          <div className={`grid ${colsClass} gap-3`}>
+            {metricWidgets.map(widget => (
               <div key={widget.id} className="min-h-[120px]">
                 <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
               </div>
