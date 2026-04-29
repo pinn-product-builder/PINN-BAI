@@ -147,6 +147,7 @@ export default function Gamification() {
         {checkAchievements.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
         Verificar Conquistas
       </Button>
+      </div>
 
       {/* My progress */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
