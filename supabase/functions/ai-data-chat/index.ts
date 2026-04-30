@@ -614,7 +614,7 @@ FORMATO:
 - Termine com "Próxima ação recomendada:" quando a pergunta pedir decisão.
 
 DADOS REAIS DA ORGANIZAÇÃO:
-${dataContext}`;
+${dataContextText}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
