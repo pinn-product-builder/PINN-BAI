@@ -28,11 +28,25 @@ function brl(v: number): string {
 
 // ── Context builder ────────────────────────────────────────────────────────────
 
+interface CalculationTrail {
+  key: string;
+  label: string;
+  formula: string;
+  inputs: Record<string, string | number>;
+  value: string;
+  available: boolean;
+}
+
+interface DataContextResult {
+  text: string;
+  trail: CalculationTrail[];
+}
+
 async function buildDataContext(
   supabase: ReturnType<typeof createClient>,
   orgId: string,
   dateRange?: { start: string; end: string },
-): Promise<string> {
+): Promise<DataContextResult> {
   const start = dateRange?.start?.substring(0, 10) ?? "";
   const end = dateRange?.end?.substring(0, 10) ?? "";
 
