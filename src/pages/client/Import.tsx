@@ -188,6 +188,98 @@ const ClientImport = () => {
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const [detectedColumns, setDetectedColumns] = useState<DetectedColumn[]>([]);
 
+  // CSV pre-validation state
+  const EXPECTED_COLUMNS = ['nome', 'email', 'telefone', 'empresa', 'origem', 'status', 'valor'];
+  type CsvPreview = {
+    headers: string[];
+    rows: string[][];
+    rowCount: number;
+    types: Record<string, 'number' | 'date' | 'email' | 'string'>;
+    missingExpected: string[];
+    matchedExpected: string[];
+    issues: string[];
+  };
+  const [csvPreview, setCsvPreview] = useState<CsvPreview | null>(null);
+  const [csvValidating, setCsvValidating] = useState(false);
+
+  function detectType(values: string[]): 'number' | 'date' | 'email' | 'string' {
+    const clean = values.filter((v) => v && v.trim() !== '');
+    if (clean.length === 0) return 'string';
+    const isNum = clean.every((v) => !isNaN(Number(v.replace(',', '.'))));
+    if (isNum) return 'number';
+    const isEmail = clean.every((v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v));
+    if (isEmail) return 'email';
+    const isDate = clean.every((v) => !isNaN(Date.parse(v)));
+    if (isDate) return 'date';
+    return 'string';
+  }
+
+  function parseCsvLine(line: string, delim: string): string[] {
+    const out: string[] = [];
+    let cur = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === delim && !inQuotes) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map((c) => c.trim());
+  }
+
+  async function validateCsv(file: File) {
+    setCsvValidating(true);
+    setCsvPreview(null);
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
+      if (lines.length === 0) {
+        setCsvPreview({
+          headers: [], rows: [], rowCount: 0, types: {},
+          missingExpected: EXPECTED_COLUMNS, matchedExpected: [],
+          issues: ['Arquivo vazio.'],
+        });
+        return;
+      }
+      const delim = (lines[0].match(/;/g)?.length ?? 0) > (lines[0].match(/,/g)?.length ?? 0) ? ';' : ',';
+      const headers = parseCsvLine(lines[0], delim);
+      const dataLines = lines.slice(1);
+      const sample = dataLines.slice(0, 20).map((l) => parseCsvLine(l, delim));
+
+      const types: Record<string, 'number' | 'date' | 'email' | 'string'> = {};
+      headers.forEach((h, i) => {
+        types[h] = detectType(sample.map((r) => r[i] ?? ''));
+      });
+
+      const lower = headers.map((h) => h.toLowerCase());
+      const matchedExpected = EXPECTED_COLUMNS.filter((e) => lower.some((h) => h.includes(e)));
+      const missingExpected = EXPECTED_COLUMNS.filter((e) => !matchedExpected.includes(e));
+
+      const issues: string[] = [];
+      if (headers.length < 2) issues.push('Apenas uma coluna detectada — verifique o delimitador.');
+      if (new Set(headers).size !== headers.length) issues.push('Existem cabeçalhos duplicados.');
+      if (headers.some((h) => !h)) issues.push('Há cabeçalhos vazios.');
+      if (dataLines.length === 0) issues.push('Nenhuma linha de dados encontrada.');
+      const inconsistent = sample.filter((r) => r.length !== headers.length).length;
+      if (inconsistent > 0) issues.push(`${inconsistent} linha(s) com número de colunas inconsistente.`);
+
+      setCsvPreview({
+        headers, rows: sample, rowCount: dataLines.length,
+        types, missingExpected, matchedExpected, issues,
+      });
+    } catch (e) {
+      setCsvPreview({
+        headers: [], rows: [], rowCount: 0, types: {},
+        missingExpected: [], matchedExpected: [],
+        issues: [e instanceof Error ? e.message : 'Falha ao ler arquivo.'],
+      });
+    } finally {
+      setCsvValidating(false);
+    }
+  }
+
   const steps = [
     { id: 'upload', label: 'Upload', icon: Upload },
     { id: 'analyze', label: 'Análise', icon: FileSpreadsheet },
@@ -213,6 +305,8 @@ const ClientImport = () => {
     const file = e.dataTransfer.files[0];
     if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
       setSelectedFile(file);
+      if (file.name.endsWith('.csv')) validateCsv(file);
+      else setCsvPreview(null);
     } else {
       toast({
         title: 'Formato inválido',
@@ -220,12 +314,15 @@ const ClientImport = () => {
         variant: 'destructive',
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      if (file.name.endsWith('.csv')) validateCsv(file);
+      else setCsvPreview(null);
     }
   };
 
@@ -522,7 +619,86 @@ const ClientImport = () => {
                 )}
               </div>
 
-              {selectedFile && (
+              {selectedFile && selectedFile.name.endsWith('.csv') && (
+                <div className="mt-6 space-y-3">
+                  {csvValidating && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Validando CSV (cabeçalhos, tipos e amostra)...
+                    </div>
+                  )}
+                  {csvPreview && (
+                    <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                        <span><strong>{csvPreview.rowCount}</strong> linhas</span>
+                        <span><strong>{csvPreview.headers.length}</strong> colunas</span>
+                        <span className="text-emerald-600">
+                          {csvPreview.matchedExpected.length}/{EXPECTED_COLUMNS.length} colunas esperadas detectadas
+                        </span>
+                      </div>
+
+                      {csvPreview.issues.length > 0 && (
+                        <div className="text-xs space-y-1 text-destructive">
+                          {csvPreview.issues.map((i) => (
+                            <div key={i} className="flex items-center gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5" />{i}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {csvPreview.missingExpected.length > 0 && (
+                        <div className="text-xs text-amber-600">
+                          Colunas esperadas ausentes (opcional): {csvPreview.missingExpected.join(', ')}
+                        </div>
+                      )}
+
+                      {csvPreview.headers.length > 0 && (
+                        <div className="overflow-x-auto">
+                          <table className="text-xs w-full border-collapse">
+                            <thead>
+                              <tr className="border-b">
+                                {csvPreview.headers.map((h) => (
+                                  <th key={h} className="text-left p-1.5 font-semibold">
+                                    <div>{h || <em className="text-destructive">vazio</em>}</div>
+                                    <div className="text-[10px] text-muted-foreground font-normal">
+                                      {csvPreview.types[h] ?? 'string'}
+                                    </div>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {csvPreview.rows.slice(0, 5).map((row, ri) => (
+                                <tr key={ri} className="border-b border-border/30">
+                                  {csvPreview.headers.map((_, ci) => (
+                                    <td key={ci} className="p-1.5 text-muted-foreground truncate max-w-[180px]">
+                                      {row[ci] ?? ''}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                      onClick={handleAnalyze}
+                      disabled={csvValidating || (csvPreview?.issues.length ?? 0) > 0}
+                    >
+                      Continuar
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selectedFile && !selectedFile.name.endsWith('.csv') && (
                 <div className="mt-6 flex justify-end">
                   <Button
                     className="bg-accent hover:bg-accent/90 text-accent-foreground"
