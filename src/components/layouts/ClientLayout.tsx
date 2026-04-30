@@ -1,4 +1,4 @@
-import { Link as RouterLink, useParams, useLocation, Outlet } from "react-router-dom";
+import { Link as RouterLink, useParams, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   Box,
   Drawer,
@@ -11,6 +11,7 @@ import {
   Stack,
   CircularProgress,
   Fab,
+  Button,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
@@ -26,6 +27,7 @@ import {
   TrendingUp as TrendingUpIcon,
   EmojiEvents as TrophyIcon,
   WorkspacePremium as AchievementIcon,
+  ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
 import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,7 +57,8 @@ const ClientLayout = () => {
   const location = useLocation();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const { organization, isLoading } = useOrganizationBranding();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, isPlatformAdmin } = useAuth();
+  const navigate = useNavigate();
   const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
   const navItems = baseNavItems.filter((item) => item.path !== "rfm-churn" || showRfmChurn);
   const currentPath = location.pathname.split("/").pop();
@@ -138,6 +141,32 @@ const ClientLayout = () => {
             </Box>
           </Stack>
         </Box>
+
+        {isPlatformAdmin && (
+          <Box sx={{ px: 1.5, pt: 1.5 }}>
+            <Button
+              fullWidth
+              size="small"
+              startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+              onClick={() => navigate("/admin/hq")}
+              variant="outlined"
+              sx={{
+                justifyContent: "flex-start",
+                borderColor: (t) => `${t.palette.primary.main}40`,
+                color: "primary.main",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                textTransform: "none",
+                "&:hover": {
+                  borderColor: "primary.main",
+                  bgcolor: (t) => `${t.palette.primary.main}0d`,
+                },
+              }}
+            >
+              Voltar ao Admin
+            </Button>
+          </Box>
+        )}
 
         <List sx={{ flex: 1, px: 1.5, py: 2, overflow: "auto" }}>
           {navItems.map(({ path, label, icon: Icon }) => {
