@@ -17,6 +17,9 @@ interface AIInsight {
   type: 'recommendation' | 'alert' | 'trend';
   priority: 'high' | 'medium' | 'low';
   content: string;
+  evidence?: string;
+  metric?: string;
+  title?: string;
 }
 
 const typeConfig = {
