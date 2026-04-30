@@ -188,6 +188,98 @@ const ClientImport = () => {
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const [detectedColumns, setDetectedColumns] = useState<DetectedColumn[]>([]);
 
+  // CSV pre-validation state
+  const EXPECTED_COLUMNS = ['nome', 'email', 'telefone', 'empresa', 'origem', 'status', 'valor'];
+  type CsvPreview = {
+    headers: string[];
+    rows: string[][];
+    rowCount: number;
+    types: Record<string, 'number' | 'date' | 'email' | 'string'>;
+    missingExpected: string[];
+    matchedExpected: string[];
+    issues: string[];
+  };
+  const [csvPreview, setCsvPreview] = useState<CsvPreview | null>(null);
+  const [csvValidating, setCsvValidating] = useState(false);
+
+  function detectType(values: string[]): 'number' | 'date' | 'email' | 'string' {
+    const clean = values.filter((v) => v && v.trim() !== '');
+    if (clean.length === 0) return 'string';
+    const isNum = clean.every((v) => !isNaN(Number(v.replace(',', '.'))));
+    if (isNum) return 'number';
+    const isEmail = clean.every((v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v));
+    if (isEmail) return 'email';
+    const isDate = clean.every((v) => !isNaN(Date.parse(v)));
+    if (isDate) return 'date';
+    return 'string';
+  }
+
+  function parseCsvLine(line: string, delim: string): string[] {
+    const out: string[] = [];
+    let cur = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === delim && !inQuotes) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map((c) => c.trim());
+  }
+
+  async function validateCsv(file: File) {
+    setCsvValidating(true);
+    setCsvPreview(null);
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
+      if (lines.length === 0) {
+        setCsvPreview({
+          headers: [], rows: [], rowCount: 0, types: {},
+          missingExpected: EXPECTED_COLUMNS, matchedExpected: [],
+          issues: ['Arquivo vazio.'],
+        });
+        return;
+      }
+      const delim = (lines[0].match(/;/g)?.length ?? 0) > (lines[0].match(/,/g)?.length ?? 0) ? ';' : ',';
+      const headers = parseCsvLine(lines[0], delim);
+      const dataLines = lines.slice(1);
+      const sample = dataLines.slice(0, 20).map((l) => parseCsvLine(l, delim));
+
+      const types: Record<string, 'number' | 'date' | 'email' | 'string'> = {};
+      headers.forEach((h, i) => {
+        types[h] = detectType(sample.map((r) => r[i] ?? ''));
+      });
+
+      const lower = headers.map((h) => h.toLowerCase());
+      const matchedExpected = EXPECTED_COLUMNS.filter((e) => lower.some((h) => h.includes(e)));
+      const missingExpected = EXPECTED_COLUMNS.filter((e) => !matchedExpected.includes(e));
+
+      const issues: string[] = [];
+      if (headers.length < 2) issues.push('Apenas uma coluna detectada — verifique o delimitador.');
+      if (new Set(headers).size !== headers.length) issues.push('Existem cabeçalhos duplicados.');
+      if (headers.some((h) => !h)) issues.push('Há cabeçalhos vazios.');
+      if (dataLines.length === 0) issues.push('Nenhuma linha de dados encontrada.');
+      const inconsistent = sample.filter((r) => r.length !== headers.length).length;
+      if (inconsistent > 0) issues.push(`${inconsistent} linha(s) com número de colunas inconsistente.`);
+
+      setCsvPreview({
+        headers, rows: sample, rowCount: dataLines.length,
+        types, missingExpected, matchedExpected, issues,
+      });
+    } catch (e) {
+      setCsvPreview({
+        headers: [], rows: [], rowCount: 0, types: {},
+        missingExpected: [], matchedExpected: [],
+        issues: [e instanceof Error ? e.message : 'Falha ao ler arquivo.'],
+      });
+    } finally {
+      setCsvValidating(false);
+    }
+  }
+
   const steps = [
     { id: 'upload', label: 'Upload', icon: Upload },
     { id: 'analyze', label: 'Análise', icon: FileSpreadsheet },
