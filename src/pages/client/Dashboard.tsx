@@ -307,9 +307,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── KPIs com comparativo de período ── */}
-      {orgId && <KpiRow orgId={orgId} />}
-
       {/* ── AI Narrative ── */}
       <div
         className="rounded-xl border border-border/30 p-4 relative overflow-hidden"
