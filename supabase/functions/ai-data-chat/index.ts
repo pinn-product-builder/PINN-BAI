@@ -577,6 +577,60 @@ ${dataContextText}`;
         i.evidence.length > 5
       );
 
+      // ── Auditoria por insight: extrai números citados, marca quais existem
+      // no contexto e linka aos cálculos pré-computados (trail) quando aplicável.
+      const trailLabels = calcTrail.map((t) => t.label.toLowerCase());
+      const enrichWithAudit = (insight: any) => {
+        const cited = (insight.content?.match(/\d[\d.,]*/g) ?? []) as string[];
+        const numbers = cited.map((c) => {
+          const norm = c.replace(/\.$/, "").replace(/,$/, "");
+          let foundIn: "context" | "derived" | "missing" = "missing";
+          if (contextNumbers.has(norm)) foundIn = "context";
+          else if (norm.length >= 2) {
+            for (const ctx of contextNumbers) {
+              if (ctx.includes(norm) || norm.includes(ctx)) {
+                foundIn = "context";
+                break;
+              }
+            }
+          }
+          return { value: c, foundIn };
+        });
+
+        // Trilha relacionada (pré-cálculos cujo label aparece no content/evidence/metric)
+        const haystack = `${insight.title ?? ""} ${insight.content ?? ""} ${insight.evidence ?? ""} ${insight.metric ?? ""}`.toLowerCase();
+        const relatedTrail = calcTrail.filter((t, idx) =>
+          haystack.includes(trailLabels[idx]) ||
+          (t.key === "cac_via_ads" && /\bcac\b/.test(haystack)) ||
+          (t.key === "global_roas" && /\broas\b/.test(haystack)) ||
+          (t.key === "global_cpl" && /\bcpl\b/.test(haystack)) ||
+          (t.key === "conversion_rate" && /convers[aã]o/.test(haystack))
+        );
+
+        // Evidence verificada: tenta achar substring exata (>=15 chars) no contexto
+        const evidenceText: string = insight.evidence ?? "";
+        const evidenceSnippet = evidenceText.length >= 15 ? evidenceText.slice(0, 80) : evidenceText;
+        const evidenceVerified = evidenceSnippet.length >= 15
+          ? dataContextText.includes(evidenceSnippet)
+          : false;
+
+        return {
+          ...insight,
+          audit: {
+            numbers,
+            relatedTrail: relatedTrail.map((t) => ({
+              label: t.label,
+              formula: t.formula,
+              inputs: t.inputs,
+              value: t.value,
+            })),
+            evidenceVerified,
+          },
+        };
+      };
+
+      insights = insights.map(enrichWithAudit);
+
       if (insights.length === 0) {
         insights = [{
           type: "recommendation",
@@ -585,10 +639,14 @@ ${dataContextText}`;
           content: "A IA não conseguiu gerar insights ancorados em números reais dos dados atuais. Verifique se as integrações estão sincronizadas e tente novamente.",
           evidence: "",
           metric: "",
+          audit: { numbers: [], relatedTrail: [], evidenceVerified: false },
         }];
       }
 
-      return new Response(JSON.stringify({ insights }), {
+      return new Response(JSON.stringify({
+        insights,
+        calculationTrail: calcTrail,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
