@@ -289,6 +289,12 @@ ${
 - Probabilidade média de churn: ${avgChurnProb.toFixed(1)}%`
     : "- Sem predições de churn disponíveis"
 }
+
+### 7. Cruzamentos Pré-Calculados (use estes números, não recalcule)
+${cacPaid > 0 ? `- CAC via Ads = ${brl(cacPaid)} (investimento ${brl(totalSpend)} ÷ ${totalConverted} convertidos)` : "- CAC via Ads: indisponível (faltam convertidos ou investimento)"}
+${marginPerLead !== 0 ? `- Margem por lead pago = ${brl(marginPerLead)} (ticket médio ${brl(avgTicket)} - CPL ${brl(globalCPL)})` : "- Margem por lead pago: indisponível"}
+${paidShareOfLeads > 0 ? `- Participação de Ads no funil = ${paidShareOfLeads.toFixed(1)}% (${totalPaidLeads} de ${totalLeads} leads)` : "- Participação de Ads no funil: indisponível"}
+${totalSpend > 0 ? `- Lucro bruto dos Ads = ${brl(grossProfitFromAds)} (receita compras ${brl(totalPurchaseValue)} - investimento ${brl(totalSpend)})` : ""}
 `.trim();
 }
 
