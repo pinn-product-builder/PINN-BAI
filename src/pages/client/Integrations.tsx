@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useIntegrations,
   useDeleteIntegration,
@@ -10,13 +11,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plug, PlugZap, Trash2, CheckCircle2, AlertCircle, Clock, Loader2,
-  RefreshCw, Database, Globe, Search,
+  RefreshCw, Database, Globe, Search, History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 type ProviderCategory = 'data' | 'crm' | 'messaging';
@@ -30,7 +34,7 @@ type ProviderDef = {
   syncFn?: string;
 };
 
-const PROVIDERS: ProviderDef[] = [
+const PROVIDERS: ReadonlyArray<ProviderDef> = [
   { slug: 'supabase',      name: 'Supabase',           description: 'Conecte um banco Postgres externo via Supabase.',         category: 'data',      logo: '⚡' },
   { slug: 'google_sheets', name: 'Google Sheets',      description: 'Importe dados de planilhas do Google Sheets.',            category: 'data',      logo: '🟩' },
   { slug: 'csv',           name: 'Upload CSV',         description: 'Faça upload manual de arquivos CSV.',                     category: 'data',      logo: '📄' },
@@ -40,7 +44,7 @@ const PROVIDERS: ProviderDef[] = [
   { slug: 'smartlead',     name: 'Smartlead',          description: 'Sincronize cold email e métricas do Smartlead.',          category: 'messaging', logo: '📧', syncFn: 'sync-smartlead' },
 ];
 
-const CATEGORIES: { value: ProviderCategory | 'all'; label: string }[] = [
+const CATEGORIES: ReadonlyArray<{ value: ProviderCategory | 'all'; label: string }> = [
   { value: 'all',       label: 'Todas' },
   { value: 'data',      label: 'Dados' },
   { value: 'crm',       label: 'CRM' },
@@ -54,16 +58,54 @@ const STATUS_CONFIG = {
   syncing:   { label: 'Sincronizando', icon: Loader2,      color: 'text-blue-500'    },
 } as const;
 
+// Snapshot tables that hold sync history per provider
+const SNAPSHOT_TABLES: Partial<Record<IntegrationType, 'ploomes_sync_snapshots' | 'cmh_sync_snapshots' | 'smartlead_sync_snapshots'>> = {
+  ploomes: 'ploomes_sync_snapshots',
+  coldmail: 'cmh_sync_snapshots',
+  smartlead: 'smartlead_sync_snapshots',
+};
+
+interface SyncSnapshot {
+  id: string;
+  snapshot_type: string;
+  synced_at: string;
+}
+
 export default function Integrations() {
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: integrations = [], isLoading, refetch } = useIntegrations(orgId);
   const deleteIntegration = useDeleteIntegration();
 
   const [activeCategory, setActiveCategory] = useState<ProviderCategory | 'all'>('all');
   const [search, setSearch] = useState('');
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [historyFor, setHistoryFor] = useState<Integration | null>(null);
+  const [history, setHistory] = useState<SyncSnapshot[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Auto-refresh on tab focus / window visibility (returning from /import)
+  useEffect(() => {
+    const onFocus = () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations', orgId] });
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [orgId, queryClient]);
+
+  // Poll while there is a syncing connection
+  useEffect(() => {
+    const isSyncing = integrations.some((i) => i.status === 'syncing') || !!syncingId;
+    if (!isSyncing) return;
+    const id = setInterval(() => refetch(), 4000);
+    return () => clearInterval(id);
+  }, [integrations, syncingId, refetch]);
 
   const providerBySlug = useMemo(
     () => Object.fromEntries(PROVIDERS.map((p) => [p.slug, p])) as Record<IntegrationType, ProviderDef>,
@@ -83,11 +125,11 @@ export default function Integrations() {
     });
   }, [activeCategory, search]);
 
-  const handleConnect = (slug: IntegrationType) => {
+  const handleConnect = (slug: IntegrationType): void => {
     navigate(`/client/${orgId}/import?provider=${slug}`);
   };
 
-  const handleSync = async (integration: Integration) => {
+  const handleSync = async (integration: Integration): Promise<void> => {
     const provider = providerBySlug[integration.type];
     if (!provider?.syncFn) {
       toast({ title: 'Sincronização manual não disponível para este conector.' });
@@ -119,6 +161,32 @@ export default function Integrations() {
       toast({ title: 'Integração removida.' });
     } catch {
       toast({ variant: 'destructive', title: 'Falha ao remover.' });
+    }
+  };
+
+  const openHistory = async (integration: Integration) => {
+    setHistoryFor(integration);
+    setHistory([]);
+    const table = SNAPSHOT_TABLES[integration.type];
+    if (!table || !orgId) return;
+    setHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from(table)
+        .select('id, snapshot_type, synced_at')
+        .eq('org_id', orgId)
+        .order('synced_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      setHistory((data ?? []) as SyncSnapshot[]);
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Não foi possível carregar histórico',
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -156,6 +224,7 @@ export default function Integrations() {
               const provider = providerBySlug[conn.type];
               const status = STATUS_CONFIG[conn.status] ?? STATUS_CONFIG.pending;
               const StatusIcon = status.icon;
+              const isSyncingNow = syncingId === conn.id || conn.status === 'syncing';
               return (
                 <div
                   key={conn.id}
@@ -167,30 +236,37 @@ export default function Integrations() {
                     <p className="text-xs text-muted-foreground">{provider?.name ?? conn.type}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <StatusIcon className={cn('w-4 h-4', status.color)} />
-                    <span className="text-xs text-muted-foreground hidden sm:block">{status.label}</span>
+                    <StatusIcon className={cn('w-4 h-4', status.color, isSyncingNow && 'animate-spin')} />
+                    <span className="text-xs text-muted-foreground hidden sm:block">
+                      {isSyncingNow ? 'Sincronizando' : status.label}
+                    </span>
                     {conn.last_sync_at && (
                       <span className="text-[10px] text-muted-foreground hidden md:block">
                         {format(new Date(conn.last_sync_at), 'dd/MM HH:mm', { locale: ptBR })}
                       </span>
                     )}
+                    {SNAPSHOT_TABLES[conn.type] && (
+                      <Button
+                        size="sm" variant="ghost" className="h-7 w-7 p-0"
+                        onClick={() => openHistory(conn)} title="Ver histórico"
+                      >
+                        <History className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                     {provider?.syncFn && (
                       <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
+                        size="sm" variant="ghost" className="h-7 w-7 p-0"
                         onClick={() => handleSync(conn)}
-                        disabled={syncingId === conn.id}
+                        disabled={isSyncingNow}
                         title="Sincronizar agora"
                       >
-                        {syncingId === conn.id
+                        {isSyncingNow
                           ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           : <RefreshCw className="w-3.5 h-3.5" />}
                       </Button>
                     )}
                     <Button
-                      size="sm"
-                      variant="ghost"
+                      size="sm" variant="ghost"
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                       onClick={() => handleDelete(conn.id, conn.name)}
                       disabled={deleteIntegration.isPending}
@@ -272,7 +348,11 @@ export default function Integrations() {
                           </Badge>
                         </div>
                       </div>
-                      {isConnected && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
+                      {isConnected && (
+                        <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] px-1.5 py-0 gap-1">
+                          <CheckCircle2 className="w-3 h-3" />Conectado
+                        </Badge>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0 space-y-3">
@@ -295,6 +375,49 @@ export default function Integrations() {
           </div>
         )}
       </section>
+
+      <Dialog open={!!historyFor} onOpenChange={(o) => !o && setHistoryFor(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Histórico — {historyFor?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Últimas execuções de sincronização registradas.
+            </DialogDescription>
+          </DialogHeader>
+          {historyLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : history.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              Nenhuma sincronização registrada ainda.
+            </p>
+          ) : (
+            <ul className="space-y-2 max-h-80 overflow-y-auto">
+              {history.map((h) => (
+                <li
+                  key={h.id}
+                  className="flex items-center justify-between p-2.5 rounded-md border border-border/50 text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="font-medium capitalize">{h.snapshot_type}</span>
+                  </div>
+                  <div className="text-right">
+                    <div>{format(new Date(h.synced_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {formatDistanceToNow(new Date(h.synced_at), { addSuffix: true, locale: ptBR })}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
