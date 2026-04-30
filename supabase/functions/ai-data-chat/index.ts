@@ -227,6 +227,12 @@ async function buildDataContext(
 
   const periodStr = start && end ? `${start} a ${end}` : "todos os dados disponíveis";
 
+  // ── Cruzamentos pré-calculados (para evitar erros de cálculo da IA) ───────
+  const cacPaid = totalConverted > 0 && totalSpend > 0 ? totalSpend / totalConverted : 0;
+  const marginPerLead = avgTicket > 0 && globalCPL > 0 ? avgTicket - globalCPL : 0;
+  const paidShareOfLeads = totalLeads > 0 && totalPaidLeads > 0 ? (totalPaidLeads / totalLeads) * 100 : 0;
+  const grossProfitFromAds = totalPurchaseValue - totalSpend;
+
   return `
 ## Dados da Organização: "${org?.name ?? "Cliente"}" | Período: ${periodStr}
 
@@ -283,6 +289,12 @@ ${
 - Probabilidade média de churn: ${avgChurnProb.toFixed(1)}%`
     : "- Sem predições de churn disponíveis"
 }
+
+### 7. Cruzamentos Pré-Calculados (use estes números, não recalcule)
+${cacPaid > 0 ? `- CAC via Ads = ${brl(cacPaid)} (investimento ${brl(totalSpend)} ÷ ${totalConverted} convertidos)` : "- CAC via Ads: indisponível (faltam convertidos ou investimento)"}
+${marginPerLead !== 0 ? `- Margem por lead pago = ${brl(marginPerLead)} (ticket médio ${brl(avgTicket)} - CPL ${brl(globalCPL)})` : "- Margem por lead pago: indisponível"}
+${paidShareOfLeads > 0 ? `- Participação de Ads no funil = ${paidShareOfLeads.toFixed(1)}% (${totalPaidLeads} de ${totalLeads} leads)` : "- Participação de Ads no funil: indisponível"}
+${totalSpend > 0 ? `- Lucro bruto dos Ads = ${brl(grossProfitFromAds)} (receita compras ${brl(totalPurchaseValue)} - investimento ${brl(totalSpend)})` : ""}
 `.trim();
 }
 
@@ -329,33 +341,35 @@ serve(async (req) => {
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      const systemPrompt = `Você é o Pinn AI — analista sênior de Revenue Operations (vendas + marketing + CS) com rigor estatístico.
+      const systemPrompt = `Você é o Pinn AI — analista sênior de Revenue Operations com rigor estatístico de auditoria.
 
-OBJETIVO: gerar insights EXTREMAMENTE PRECISOS a partir EXCLUSIVAMENTE dos dados abaixo. Nunca invente ou estime números que não estejam no contexto.
+MISSÃO: gerar insights de PRECISÃO ABSOLUTA usando EXCLUSIVAMENTE os números do contexto. Tolerância zero para alucinação.
 
-PROTOCOLO DE ANÁLISE (siga em ordem, internamente):
-1) Inventário: liste mentalmente todas as métricas presentes e marque as que estão "sem dados" — você NÃO pode citá-las.
-2) Cálculos derivados permitidos (faça com base APENAS nos números do contexto):
-   - Taxa de conversão = convertidos / leads
-   - CAC aproximado = investimento / leads convertidos (apenas se ambos existirem no mesmo período)
-   - LTV proxy = ticket médio × frequência média RFM (apenas se ambos existirem)
-   - Eficiência por canal = ROAS por plataforma
-3) Cruzamentos obrigatórios quando houver dados em ambos os lados:
-   - Tráfego Pago × CRM (CPL vs ticket médio → margem)
-   - Churn × Health (clientes em risco crítico)
-   - RFM × Receita (segmentos mais lucrativos)
-4) Para cada insight, escolha 1 métrica-âncora real do contexto e CITE o número exato.
-5) Priorização: high = perda/risco financeiro mensurável OU oportunidade > 20% de impacto; medium = otimização clara; low = monitoramento.
+PROTOCOLO (siga em ordem):
+1) INVENTÁRIO: liste mentalmente todas as métricas presentes. Se uma seção diz "sem dados" / "indisponível", essa área NÃO PODE aparecer em insight algum.
+2) USE OS CRUZAMENTOS PRÉ-CALCULADOS da seção 7 — NÃO recalcule CAC, margem, lucro bruto ou participação de Ads. Eles já estão prontos e corretos.
+3) Para cada insight, escolha UMA métrica-âncora e copie o número EXATAMENTE como aparece no contexto (mesmos dígitos, mesma formatação: "R$ 12.300", "2.34x", "47", "23.5%").
+4) Cruzamentos obrigatórios quando ambos lados existirem: Tráfego Pago × CRM (CAC vs ticket), Churn × Health (risco crítico), RFM × Receita.
+5) Priorização: high = perda/risco financeiro mensurável OU oportunidade ≥20% de impacto; medium = otimização clara; low = monitoramento.
 
-REGRAS DE PRECISÃO (críticas):
-- Cite SEMPRE o número exato como aparece no contexto (ex: "ROAS de 2.34x", "47 leads", "R$ 12.300").
-- Se uma seção disser "sem dados", NÃO mencione essa área.
-- NUNCA invente comparações temporais ("subiu 30%") a menos que ambos os valores estejam no contexto.
-- Cada insight deve ter: (a) número real, (b) interpretação causal plausível, (c) ação concreta com verbo no imperativo.
-- "evidence" deve copiar literalmente o trecho do contexto que sustenta o insight (1 linha).
-- Gere entre 4 e 6 insights — qualidade > quantidade. Se só houver dados para 4, gere 4.
+REGRAS DE PRECISÃO (violação = insight descartado automaticamente):
+- PROIBIDO inventar números. Todo dígito citado deve existir no contexto.
+- PROIBIDO inferir tendências temporais ("aumentou X%", "caiu Y%") — não há série histórica no contexto.
+- PROIBIDO usar valores aproximados ou arredondados diferentes dos do contexto.
+- PROIBIDO citar áreas marcadas "sem dados".
+- "evidence" DEVE ser uma cópia literal de 1 linha do contexto (mesmas palavras, mesmos números).
+- "content" deve ter: (a) número exato citado, (b) interpretação causal, (c) ação concreta no imperativo iniciada por verbo (Ex: "Realoque...", "Reative...", "Negocie...").
+- Gere 4 a 6 insights — só gere mais que 4 se houver dados ricos para sustentar.
 
-DADOS REAIS DA ORGANIZAÇÃO:
+EXEMPLO DE INSIGHT CORRETO:
+{
+  "type": "alert", "priority": "high", "metric": "CAC",
+  "title": "CAC supera ticket médio",
+  "content": "O CAC via Ads de R$ 450 é 1.5x maior que o ticket médio de R$ 300, indicando prejuízo unitário. Renegocie criativos da plataforma com pior ROAS ou pause campanhas com CPL acima de R$ 200.",
+  "evidence": "CAC via Ads = R$ 450 (investimento R$ 9.000 ÷ 20 convertidos)"
+}
+
+DADOS REAIS DA ORGANIZAÇÃO (única fonte de verdade):
 ${dataContext}`;
 
       const insightTool = {
@@ -401,7 +415,7 @@ ${dataContext}`;
             { role: "user", content: "Execute o protocolo de análise e chame emit_insights com 4 a 6 insights de máxima precisão. Cada insight deve citar um número exato do contexto." },
           ],
           stream: false,
-          temperature: 0.1,
+          temperature: 0,
           tools: [insightTool],
           tool_choice: { type: "function", function: { name: "emit_insights" } },
         }),
@@ -441,10 +455,38 @@ ${dataContext}`;
         }
       }
 
-      // Validação de precisão: descarta insights sem números reais ou sem evidência
-      const numericRegex = /\d/;
+      // Validação anti-alucinação: cada insight precisa citar pelo menos UM número
+      // que apareça literalmente no contexto de dados.
+      const contextNumbers = new Set<string>();
+      const numMatches = dataContext.match(/\d[\d.,]*/g) ?? [];
+      for (const n of numMatches) {
+        const normalized = n.replace(/\.$/, "").replace(/,$/, "");
+        if (normalized.length >= 1) contextNumbers.add(normalized);
+      }
+
+      const hasGroundedNumber = (text: string): boolean => {
+        const cited = text.match(/\d[\d.,]*/g) ?? [];
+        if (cited.length === 0) return false;
+        return cited.some((c) => {
+          const norm = c.replace(/\.$/, "").replace(/,$/, "");
+          // aceita match exato OU substring de pelo menos 2 dígitos no contexto
+          if (contextNumbers.has(norm)) return true;
+          if (norm.length >= 2) {
+            for (const ctx of contextNumbers) {
+              if (ctx.includes(norm) || norm.includes(ctx)) return true;
+            }
+          }
+          return false;
+        });
+      };
+
       insights = insights.filter((i) =>
-        i && typeof i.content === "string" && numericRegex.test(i.content) && i.content.length > 30
+        i &&
+        typeof i.content === "string" &&
+        i.content.length > 40 &&
+        hasGroundedNumber(i.content) &&
+        typeof i.evidence === "string" &&
+        i.evidence.length > 5
       );
 
       if (insights.length === 0) {
@@ -452,7 +494,7 @@ ${dataContext}`;
           type: "recommendation",
           priority: "medium",
           title: "Análise inconclusiva",
-          content: "A IA não conseguiu gerar insights com precisão suficiente nos dados atuais. Verifique se as integrações estão sincronizadas e tente novamente.",
+          content: "A IA não conseguiu gerar insights ancorados em números reais dos dados atuais. Verifique se as integrações estão sincronizadas e tente novamente.",
           evidence: "",
           metric: "",
         }];
