@@ -398,20 +398,23 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let dataContext = "";
+    let dataContextText = "";
+    let calcTrail: CalculationTrail[] = [];
     if (orgId) {
-      dataContext = await buildDataContext(supabase, orgId, dateRange);
+      const ctx = await buildDataContext(supabase, orgId, dateRange);
+      dataContextText = ctx.text;
+      calcTrail = ctx.trail;
     }
 
     // ── Insights mode (structured via tool-calling, non-streaming) ────────────
 
     if (mode === "insights") {
       // Detecta se há dados mínimos. Se tudo zerado, retorna mensagem honesta.
-      const hasAnyData = /Leads no período: [1-9]/.test(dataContext)
-        || /Investimento total:/.test(dataContext)
-        || /Score médio:/.test(dataContext)
-        || /Total analisado: [1-9]/.test(dataContext)
-        || /Total com predição: [1-9]/.test(dataContext);
+      const hasAnyData = /Leads no período: [1-9]/.test(dataContextText)
+        || /Investimento total:/.test(dataContextText)
+        || /Score médio:/.test(dataContextText)
+        || /Total analisado: [1-9]/.test(dataContextText)
+        || /Total com predição: [1-9]/.test(dataContextText);
 
       if (!hasAnyData) {
         return new Response(JSON.stringify({
@@ -421,6 +424,8 @@ serve(async (req) => {
             title: "Sem dados suficientes para análise",
             content: "Nenhuma fonte (CRM, Tráfego Pago, Health, RFM, Churn) retornou dados no período. Conecte uma integração ou amplie o período para gerar insights precisos.",
           }],
+          calculationTrail: calcTrail,
+          contextText: dataContextText,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
