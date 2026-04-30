@@ -28,11 +28,25 @@ function brl(v: number): string {
 
 // ── Context builder ────────────────────────────────────────────────────────────
 
+interface CalculationTrail {
+  key: string;
+  label: string;
+  formula: string;
+  inputs: Record<string, string | number>;
+  value: string;
+  available: boolean;
+}
+
+interface DataContextResult {
+  text: string;
+  trail: CalculationTrail[];
+}
+
 async function buildDataContext(
   supabase: ReturnType<typeof createClient>,
   orgId: string,
   dateRange?: { start: string; end: string },
-): Promise<string> {
+): Promise<DataContextResult> {
   const start = dateRange?.start?.substring(0, 10) ?? "";
   const end = dateRange?.end?.substring(0, 10) ?? "";
 
@@ -232,8 +246,77 @@ async function buildDataContext(
   const marginPerLead = avgTicket > 0 && globalCPL > 0 ? avgTicket - globalCPL : 0;
   const paidShareOfLeads = totalLeads > 0 && totalPaidLeads > 0 ? (totalPaidLeads / totalLeads) * 100 : 0;
   const grossProfitFromAds = totalPurchaseValue - totalSpend;
+  const convRateNum = totalLeads > 0 ? (totalConverted / totalLeads) * 100 : 0;
 
-  return `
+  // ── Trilha de auditoria dos cálculos ───────────────────────────────────────
+  const trail: CalculationTrail[] = [
+    {
+      key: "conversion_rate",
+      label: "Taxa de conversão",
+      formula: "convertidos ÷ leads × 100",
+      inputs: { convertidos: totalConverted, leads: totalLeads },
+      value: totalLeads > 0 ? `${convRateNum.toFixed(1)}%` : "indisponível",
+      available: totalLeads > 0,
+    },
+    {
+      key: "avg_ticket",
+      label: "Ticket médio",
+      formula: "receita ÷ convertidos",
+      inputs: { receita: brl(totalRevenue), convertidos: totalConverted },
+      value: totalConverted > 0 ? brl(avgTicket) : "indisponível",
+      available: totalConverted > 0,
+    },
+    {
+      key: "global_roas",
+      label: "ROAS global",
+      formula: "receita_compras ÷ investimento",
+      inputs: { receita_compras: brl(totalPurchaseValue), investimento: brl(totalSpend) },
+      value: totalSpend > 0 ? `${globalROAS.toFixed(2)}x` : "indisponível",
+      available: totalSpend > 0,
+    },
+    {
+      key: "global_cpl",
+      label: "CPL global",
+      formula: "investimento ÷ leads_pagos",
+      inputs: { investimento: brl(totalSpend), leads_pagos: totalPaidLeads },
+      value: totalPaidLeads > 0 ? brl(globalCPL) : "indisponível",
+      available: totalPaidLeads > 0,
+    },
+    {
+      key: "cac_via_ads",
+      label: "CAC via Ads",
+      formula: "investimento_total ÷ convertidos",
+      inputs: { investimento_total: brl(totalSpend), convertidos: totalConverted },
+      value: cacPaid > 0 ? brl(cacPaid) : "indisponível",
+      available: cacPaid > 0,
+    },
+    {
+      key: "margin_per_lead",
+      label: "Margem por lead pago",
+      formula: "ticket_medio − CPL",
+      inputs: { ticket_medio: brl(avgTicket), CPL: brl(globalCPL) },
+      value: marginPerLead !== 0 ? brl(marginPerLead) : "indisponível",
+      available: marginPerLead !== 0,
+    },
+    {
+      key: "paid_share",
+      label: "Participação de Ads no funil",
+      formula: "leads_pagos ÷ leads_totais × 100",
+      inputs: { leads_pagos: totalPaidLeads, leads_totais: totalLeads },
+      value: paidShareOfLeads > 0 ? `${paidShareOfLeads.toFixed(1)}%` : "indisponível",
+      available: paidShareOfLeads > 0,
+    },
+    {
+      key: "gross_profit_ads",
+      label: "Lucro bruto dos Ads",
+      formula: "receita_compras − investimento",
+      inputs: { receita_compras: brl(totalPurchaseValue), investimento: brl(totalSpend) },
+      value: totalSpend > 0 ? brl(grossProfitFromAds) : "indisponível",
+      available: totalSpend > 0,
+    },
+  ];
+
+  const text = `
 ## Dados da Organização: "${org?.name ?? "Cliente"}" | Período: ${periodStr}
 
 ### 1. Funil de Vendas (CRM)
@@ -291,11 +374,11 @@ ${
 }
 
 ### 7. Cruzamentos Pré-Calculados (use estes números, não recalcule)
-${cacPaid > 0 ? `- CAC via Ads = ${brl(cacPaid)} (investimento ${brl(totalSpend)} ÷ ${totalConverted} convertidos)` : "- CAC via Ads: indisponível (faltam convertidos ou investimento)"}
-${marginPerLead !== 0 ? `- Margem por lead pago = ${brl(marginPerLead)} (ticket médio ${brl(avgTicket)} - CPL ${brl(globalCPL)})` : "- Margem por lead pago: indisponível"}
-${paidShareOfLeads > 0 ? `- Participação de Ads no funil = ${paidShareOfLeads.toFixed(1)}% (${totalPaidLeads} de ${totalLeads} leads)` : "- Participação de Ads no funil: indisponível"}
-${totalSpend > 0 ? `- Lucro bruto dos Ads = ${brl(grossProfitFromAds)} (receita compras ${brl(totalPurchaseValue)} - investimento ${brl(totalSpend)})` : ""}
+${trail.filter(t => t.available).map(t => `- ${t.label} = ${t.value} [fórmula: ${t.formula}; entradas: ${Object.entries(t.inputs).map(([k,v]) => `${k}=${v}`).join(", ")}]`).join("\n")}
+${trail.filter(t => !t.available).length > 0 ? `\nIndisponíveis (não use): ${trail.filter(t => !t.available).map(t => t.label).join(", ")}` : ""}
 `.trim();
+
+  return { text, trail };
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────────
@@ -315,20 +398,23 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let dataContext = "";
+    let dataContextText = "";
+    let calcTrail: CalculationTrail[] = [];
     if (orgId) {
-      dataContext = await buildDataContext(supabase, orgId, dateRange);
+      const ctx = await buildDataContext(supabase, orgId, dateRange);
+      dataContextText = ctx.text;
+      calcTrail = ctx.trail;
     }
 
     // ── Insights mode (structured via tool-calling, non-streaming) ────────────
 
     if (mode === "insights") {
       // Detecta se há dados mínimos. Se tudo zerado, retorna mensagem honesta.
-      const hasAnyData = /Leads no período: [1-9]/.test(dataContext)
-        || /Investimento total:/.test(dataContext)
-        || /Score médio:/.test(dataContext)
-        || /Total analisado: [1-9]/.test(dataContext)
-        || /Total com predição: [1-9]/.test(dataContext);
+      const hasAnyData = /Leads no período: [1-9]/.test(dataContextText)
+        || /Investimento total:/.test(dataContextText)
+        || /Score médio:/.test(dataContextText)
+        || /Total analisado: [1-9]/.test(dataContextText)
+        || /Total com predição: [1-9]/.test(dataContextText);
 
       if (!hasAnyData) {
         return new Response(JSON.stringify({
@@ -338,6 +424,8 @@ serve(async (req) => {
             title: "Sem dados suficientes para análise",
             content: "Nenhuma fonte (CRM, Tráfego Pago, Health, RFM, Churn) retornou dados no período. Conecte uma integração ou amplie o período para gerar insights precisos.",
           }],
+          calculationTrail: calcTrail,
+          contextText: dataContextText,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
@@ -370,7 +458,7 @@ EXEMPLO DE INSIGHT CORRETO:
 }
 
 DADOS REAIS DA ORGANIZAÇÃO (única fonte de verdade):
-${dataContext}`;
+${dataContextText}`;
 
       const insightTool = {
         type: "function",
@@ -386,15 +474,16 @@ ${dataContext}`;
                 maxItems: 6,
                 items: {
                   type: "object",
-                  properties: {
+                properties: {
                     type: { type: "string", enum: ["alert", "recommendation", "trend"] },
                     priority: { type: "string", enum: ["high", "medium", "low"] },
                     title: { type: "string", description: "Máx 8 palavras, impactante." },
                     content: { type: "string", description: "Análise com número exato + causa + ação ('Para resolver: ...')." },
                     evidence: { type: "string", description: "Trecho literal do contexto que sustenta o insight." },
                     metric: { type: "string", description: "Nome da métrica-âncora (ex: ROAS, CPL, taxa de conversão)." },
+                    sourceSection: { type: "string", description: "Seção do contexto usada (ex: '1. Funil de Vendas', '7. Cruzamentos Pré-Calculados')." },
                   },
-                  required: ["type", "priority", "title", "content", "evidence", "metric"],
+                  required: ["type", "priority", "title", "content", "evidence", "metric", "sourceSection"],
                   additionalProperties: false,
                 },
               },
@@ -458,7 +547,7 @@ ${dataContext}`;
       // Validação anti-alucinação: cada insight precisa citar pelo menos UM número
       // que apareça literalmente no contexto de dados.
       const contextNumbers = new Set<string>();
-      const numMatches = dataContext.match(/\d[\d.,]*/g) ?? [];
+      const numMatches = dataContextText.match(/\d[\d.,]*/g) ?? [];
       for (const n of numMatches) {
         const normalized = n.replace(/\.$/, "").replace(/,$/, "");
         if (normalized.length >= 1) contextNumbers.add(normalized);
@@ -489,6 +578,60 @@ ${dataContext}`;
         i.evidence.length > 5
       );
 
+      // ── Auditoria por insight: extrai números citados, marca quais existem
+      // no contexto e linka aos cálculos pré-computados (trail) quando aplicável.
+      const trailLabels = calcTrail.map((t) => t.label.toLowerCase());
+      const enrichWithAudit = (insight: any) => {
+        const cited = (insight.content?.match(/\d[\d.,]*/g) ?? []) as string[];
+        const numbers = cited.map((c) => {
+          const norm = c.replace(/\.$/, "").replace(/,$/, "");
+          let foundIn: "context" | "derived" | "missing" = "missing";
+          if (contextNumbers.has(norm)) foundIn = "context";
+          else if (norm.length >= 2) {
+            for (const ctx of contextNumbers) {
+              if (ctx.includes(norm) || norm.includes(ctx)) {
+                foundIn = "context";
+                break;
+              }
+            }
+          }
+          return { value: c, foundIn };
+        });
+
+        // Trilha relacionada (pré-cálculos cujo label aparece no content/evidence/metric)
+        const haystack = `${insight.title ?? ""} ${insight.content ?? ""} ${insight.evidence ?? ""} ${insight.metric ?? ""}`.toLowerCase();
+        const relatedTrail = calcTrail.filter((t, idx) =>
+          haystack.includes(trailLabels[idx]) ||
+          (t.key === "cac_via_ads" && /\bcac\b/.test(haystack)) ||
+          (t.key === "global_roas" && /\broas\b/.test(haystack)) ||
+          (t.key === "global_cpl" && /\bcpl\b/.test(haystack)) ||
+          (t.key === "conversion_rate" && /convers[aã]o/.test(haystack))
+        );
+
+        // Evidence verificada: tenta achar substring exata (>=15 chars) no contexto
+        const evidenceText: string = insight.evidence ?? "";
+        const evidenceSnippet = evidenceText.length >= 15 ? evidenceText.slice(0, 80) : evidenceText;
+        const evidenceVerified = evidenceSnippet.length >= 15
+          ? dataContextText.includes(evidenceSnippet)
+          : false;
+
+        return {
+          ...insight,
+          audit: {
+            numbers,
+            relatedTrail: relatedTrail.map((t) => ({
+              label: t.label,
+              formula: t.formula,
+              inputs: t.inputs,
+              value: t.value,
+            })),
+            evidenceVerified,
+          },
+        };
+      };
+
+      insights = insights.map(enrichWithAudit);
+
       if (insights.length === 0) {
         insights = [{
           type: "recommendation",
@@ -497,10 +640,14 @@ ${dataContext}`;
           content: "A IA não conseguiu gerar insights ancorados em números reais dos dados atuais. Verifique se as integrações estão sincronizadas e tente novamente.",
           evidence: "",
           metric: "",
+          audit: { numbers: [], relatedTrail: [], evidenceVerified: false },
         }];
       }
 
-      return new Response(JSON.stringify({ insights }), {
+      return new Response(JSON.stringify({
+        insights,
+        calculationTrail: calcTrail,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -526,7 +673,7 @@ FORMATO:
 - Termine com "Próxima ação recomendada:" quando a pergunta pedir decisão.
 
 DADOS REAIS DA ORGANIZAÇÃO:
-${dataContext}`;
+${dataContextText}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
