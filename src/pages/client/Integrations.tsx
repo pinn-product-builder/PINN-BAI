@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -12,18 +12,24 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonner } from 'sonner';
 import {
   Plug, PlugZap, Trash2, CheckCircle2, AlertCircle, Clock, Loader2,
-  RefreshCw, Database, Globe, Search, History,
+  RefreshCw, Database, Globe, Search, History, Download, FileText, FileDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 type ProviderCategory = 'data' | 'crm' | 'messaging';
+type StatusFilter = 'all' | 'connected' | 'pending' | 'error' | 'syncing';
+type SortMode = 'recent' | 'name';
 
 type ProviderDef = {
   slug: IntegrationType;
@@ -58,7 +64,14 @@ const STATUS_CONFIG = {
   syncing:   { label: 'Sincronizando', icon: Loader2,      color: 'text-blue-500'    },
 } as const;
 
-// Snapshot tables that hold sync history per provider
+const STATUS_FILTERS: ReadonlyArray<{ value: StatusFilter; label: string }> = [
+  { value: 'all',       label: 'Todos' },
+  { value: 'connected', label: 'Conectados' },
+  { value: 'syncing',   label: 'Sincronizando' },
+  { value: 'pending',   label: 'Pendentes' },
+  { value: 'error',     label: 'Com erro' },
+];
+
 const SNAPSHOT_TABLES: Partial<Record<IntegrationType, 'ploomes_sync_snapshots' | 'cmh_sync_snapshots' | 'smartlead_sync_snapshots'>> = {
   ploomes: 'ploomes_sync_snapshots',
   coldmail: 'cmh_sync_snapshots',
@@ -71,6 +84,60 @@ interface SyncSnapshot {
   synced_at: string;
 }
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportHistoryCsv(integrationName: string, rows: SyncSnapshot[]) {
+  const header = ['Tipo', 'Sincronizado em', 'ID'];
+  const lines = rows.map((r) => [
+    `"${r.snapshot_type.replace(/"/g, '""')}"`,
+    `"${format(new Date(r.synced_at), 'dd/MM/yyyy HH:mm:ss')}"`,
+    `"${r.id}"`,
+  ].join(';'));
+  const csv = '\uFEFF' + [header.join(';'), ...lines].join('\r\n');
+  downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }),
+    `historico-${integrationName.replace(/\s+/g, '_')}.csv`);
+}
+
+function exportHistoryPdf(integrationName: string, rows: SyncSnapshot[]) {
+  // Lightweight printable HTML → user prints to PDF (no extra deps)
+  const win = window.open('', '_blank');
+  if (!win) return;
+  const tableRows = rows.map((r) => `
+    <tr>
+      <td>${r.snapshot_type}</td>
+      <td>${format(new Date(r.synced_at), 'dd/MM/yyyy HH:mm:ss')}</td>
+      <td style="font-family:monospace;font-size:11px">${r.id}</td>
+    </tr>`).join('');
+  win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/>
+    <title>Histórico — ${integrationName}</title>
+    <style>
+      body{font-family:system-ui,-apple-system,sans-serif;padding:32px;color:#111}
+      h1{font-size:18px;margin:0 0 4px}
+      p{color:#555;margin:0 0 16px;font-size:13px}
+      table{width:100%;border-collapse:collapse;font-size:13px}
+      th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #e5e7eb}
+      th{background:#f3f4f6;text-transform:uppercase;font-size:11px;letter-spacing:0.05em}
+      @media print{button{display:none}}
+    </style></head><body>
+    <h1>Histórico de sincronização</h1>
+    <p>${integrationName} — gerado em ${format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+    <button onclick="window.print()" style="margin-bottom:16px;padding:6px 12px">Imprimir / Salvar PDF</button>
+    <table><thead><tr><th>Tipo</th><th>Data</th><th>ID</th></tr></thead>
+    <tbody>${tableRows || '<tr><td colspan="3" style="text-align:center;color:#888;padding:24px">Sem registros</td></tr>'}</tbody></table>
+    </body></html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 400);
+}
+
 export default function Integrations() {
   const { orgId } = useParams<{ orgId: string }>();
   const navigate = useNavigate();
@@ -80,17 +147,36 @@ export default function Integrations() {
   const deleteIntegration = useDeleteIntegration();
 
   const [activeCategory, setActiveCategory] = useState<ProviderCategory | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [search, setSearch] = useState('');
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [historyFor, setHistoryFor] = useState<Integration | null>(null);
   const [history, setHistory] = useState<SyncSnapshot[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [errorFor, setErrorFor] = useState<Integration | null>(null);
 
-  // Auto-refresh on tab focus / window visibility (returning from /import)
+  // Track previous statuses to fire success/error toasts when sync completes
+  const prevStatusRef = useRef<Map<string, string>>(new Map());
+
   useEffect(() => {
-    const onFocus = () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations', orgId] });
-    };
+    const prev = prevStatusRef.current;
+    integrations.forEach((i) => {
+      const before = prev.get(i.id);
+      if (before === 'syncing' && i.status === 'connected') {
+        sonner.success(`${i.name}: sincronização concluída.`);
+      } else if (before === 'syncing' && i.status === 'error') {
+        sonner.error(`${i.name}: falha na sincronização.`, {
+          description: i.sync_error?.slice(0, 140) ?? 'Veja detalhes na central.',
+        });
+      }
+      prev.set(i.id, i.status);
+    });
+  }, [integrations]);
+
+  // Auto-refresh on tab focus
+  useEffect(() => {
+    const onFocus = () => queryClient.invalidateQueries({ queryKey: ['integrations', orgId] });
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
     return () => {
@@ -99,7 +185,7 @@ export default function Integrations() {
     };
   }, [orgId, queryClient]);
 
-  // Poll while there is a syncing connection
+  // Poll while syncing
   useEffect(() => {
     const isSyncing = integrations.some((i) => i.status === 'syncing') || !!syncingId;
     if (!isSyncing) return;
@@ -115,6 +201,27 @@ export default function Integrations() {
     () => new Set<IntegrationType>(integrations.map((i) => i.type)),
     [integrations],
   );
+
+  const visibleIntegrations = useMemo(() => {
+    let list = [...integrations];
+    if (statusFilter !== 'all') list = list.filter((i) => i.status === statusFilter);
+    if (sortMode === 'recent') {
+      list.sort((a, b) => {
+        const ta = a.last_sync_at ? new Date(a.last_sync_at).getTime() : 0;
+        const tb = b.last_sync_at ? new Date(b.last_sync_at).getTime() : 0;
+        return tb - ta;
+      });
+    } else {
+      list.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    }
+    return list;
+  }, [integrations, statusFilter, sortMode]);
+
+  const statusCounts = useMemo(() => {
+    const c = { connected: 0, pending: 0, error: 0, syncing: 0 } as Record<string, number>;
+    integrations.forEach((i) => { c[i.status] = (c[i.status] ?? 0) + 1; });
+    return c;
+  }, [integrations]);
 
   const filteredProviders = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -141,12 +248,10 @@ export default function Integrations() {
         body: { integrationId: integration.id, orgId },
       });
       if (error) throw error;
-      toast({ title: 'Sincronização iniciada com sucesso!' });
+      sonner.info(`Sincronização iniciada — ${integration.name}`);
       refetch();
     } catch (err) {
-      toast({
-        variant: 'destructive',
-        title: 'Falha na sincronização',
+      sonner.error('Falha ao iniciar sincronização', {
         description: err instanceof Error ? err.message : 'Tente novamente.',
       });
     } finally {
@@ -158,9 +263,9 @@ export default function Integrations() {
     if (!confirm(`Desconectar "${name}"?`)) return;
     try {
       await deleteIntegration.mutateAsync(id);
-      toast({ title: 'Integração removida.' });
+      sonner.success('Integração removida.');
     } catch {
-      toast({ variant: 'destructive', title: 'Falha ao remover.' });
+      sonner.error('Falha ao remover.');
     }
   };
 
@@ -176,13 +281,11 @@ export default function Integrations() {
         .select('id, snapshot_type, synced_at')
         .eq('org_id', orgId)
         .order('synced_at', { ascending: false })
-        .limit(20);
+        .limit(50);
       if (error) throw error;
       setHistory((data ?? []) as SyncSnapshot[]);
     } catch (err) {
-      toast({
-        variant: 'destructive',
-        title: 'Não foi possível carregar histórico',
+      sonner.error('Não foi possível carregar histórico', {
         description: err instanceof Error ? err.message : undefined,
       });
     } finally {
@@ -215,20 +318,63 @@ export default function Integrations() {
 
       {integrations.length > 0 && (
         <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <PlugZap className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold">Conexões Ativas ({integrations.length})</h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <PlugZap className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-semibold">Conexões Ativas</h2>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex gap-1 flex-wrap">
+                {STATUS_FILTERS.map((s) => {
+                  const count = s.value === 'all' ? integrations.length : statusCounts[s.value] ?? 0;
+                  return (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setStatusFilter(s.value)}
+                      className={cn(
+                        'h-7 px-2.5 rounded-full text-[11px] font-medium transition-colors flex items-center gap-1',
+                        statusFilter === s.value
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {s.label}
+                      <span className="opacity-70">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                <SelectTrigger className="h-7 w-[180px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Última sincronização</SelectItem>
+                  <SelectItem value="name">Nome (A–Z)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
           <div className="space-y-2">
-            {integrations.map((conn) => {
+            {visibleIntegrations.length === 0 ? (
+              <div className="text-center text-xs text-muted-foreground py-6 border border-dashed rounded-lg">
+                Nenhuma integração corresponde a este filtro.
+              </div>
+            ) : visibleIntegrations.map((conn) => {
               const provider = providerBySlug[conn.type];
               const status = STATUS_CONFIG[conn.status] ?? STATUS_CONFIG.pending;
               const StatusIcon = status.icon;
               const isSyncingNow = syncingId === conn.id || conn.status === 'syncing';
+              const isError = conn.status === 'error';
               return (
                 <div
                   key={conn.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-border transition-colors"
+                  className={cn(
+                    'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+                    isError ? 'border-destructive/40 bg-destructive/5' : 'border-border/50 hover:border-border',
+                  )}
                 >
                   <span className="text-xl">{provider?.logo ?? '🔌'}</span>
                   <div className="flex-1 min-w-0">
@@ -244,6 +390,14 @@ export default function Integrations() {
                       <span className="text-[10px] text-muted-foreground hidden md:block">
                         {format(new Date(conn.last_sync_at), 'dd/MM HH:mm', { locale: ptBR })}
                       </span>
+                    )}
+                    {isError && (
+                      <Button
+                        size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive"
+                        onClick={() => setErrorFor(conn)} title="Ver erro"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5" />
+                      </Button>
                     )}
                     {SNAPSHOT_TABLES[conn.type] && (
                       <Button
@@ -376,6 +530,7 @@ export default function Integrations() {
         )}
       </section>
 
+      {/* History dialog with CSV/PDF export */}
       <Dialog open={!!historyFor} onOpenChange={(o) => !o && setHistoryFor(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -387,6 +542,24 @@ export default function Integrations() {
               Últimas execuções de sincronização registradas.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              size="sm" variant="outline" className="h-8 text-xs"
+              disabled={historyLoading || history.length === 0}
+              onClick={() => historyFor && exportHistoryCsv(historyFor.name, history)}
+            >
+              <FileDown className="w-3.5 h-3.5 mr-1.5" /> CSV
+            </Button>
+            <Button
+              size="sm" variant="outline" className="h-8 text-xs"
+              disabled={historyLoading || history.length === 0}
+              onClick={() => historyFor && exportHistoryPdf(historyFor.name, history)}
+            >
+              <FileText className="w-3.5 h-3.5 mr-1.5" /> PDF
+            </Button>
+          </div>
+
           {historyLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -416,6 +589,53 @@ export default function Integrations() {
               ))}
             </ul>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Error dialog */}
+      <Dialog open={!!errorFor} onOpenChange={(o) => !o && setErrorFor(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="w-4 h-4" />
+              Erro de sincronização — {errorFor?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Detalhes reportados pelo conector na última tentativa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p className="text-muted-foreground">Conector</p>
+                <p className="font-medium">{providerBySlug[errorFor?.type as IntegrationType]?.name ?? errorFor?.type}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Última tentativa</p>
+                <p className="font-medium">
+                  {errorFor?.last_sync_at
+                    ? format(new Date(errorFor.last_sync_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })
+                    : '—'}
+                </p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Mensagem</p>
+              <pre className="bg-muted p-3 rounded-md text-[11px] whitespace-pre-wrap break-words max-h-64 overflow-auto font-mono">
+{errorFor?.sync_error?.trim() || 'Sem detalhes registrados.'}
+              </pre>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setErrorFor(null)}>Fechar</Button>
+            {errorFor && providerBySlug[errorFor.type]?.syncFn && (
+              <Button
+                onClick={() => { const i = errorFor; setErrorFor(null); handleSync(i); }}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" /> Tentar novamente
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
