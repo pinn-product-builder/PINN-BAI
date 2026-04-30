@@ -185,10 +185,12 @@ export default function PaidTraffic() {
         <div className="text-center py-24 text-muted-foreground">
           <Megaphone className="w-12 h-12 mx-auto mb-4 opacity-30" />
           <p className="font-medium">Nenhum dado de tráfego pago</p>
-          <p className="text-sm mt-1">
-            Conecte Meta Ads ou Google Ads na{' '}
-            <a href="../integrations" className="text-primary hover:underline">Central de Integrações</a>.
+          <p className="text-sm mt-1 mb-4">
+            Conecte Meta Ads ou Google Ads para começar a ver suas métricas.
           </p>
+          <Button onClick={() => navigate(`/client/${orgId}/paid-traffic/connect`)}>
+            <Plug className="w-4 h-4 mr-2" /> Conectar plataforma
+          </Button>
         </div>
       ) : (
         <>
