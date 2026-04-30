@@ -43,6 +43,7 @@ import ClientRfmChurn from "./pages/client/RfmChurn";
 import Integrations from "./pages/client/Integrations";
 import CustomerHealth from "./pages/client/CustomerHealth";
 import PaidTraffic from "./pages/client/PaidTraffic";
+import PaidTrafficConnect from "./pages/client/PaidTrafficConnect";
 import UnitEconomics from "./pages/client/UnitEconomics";
 import Goals from "./pages/client/Goals";
 import Gamification from "./pages/client/Gamification";
@@ -118,6 +119,7 @@ const App = () => (
                 <Route path="insights" element={<Insights />} />
                 <Route path="rfm-churn" element={<ClientRfmChurnGate />} />
                 <Route path="paid-traffic" element={<PaidTraffic />} />
+                <Route path="paid-traffic/connect" element={<PaidTrafficConnect />} />
                 <Route path="customer-health" element={<CustomerHealth />} />
                 <Route path="unit-economics" element={<UnitEconomics />} />
                 <Route path="goals" element={<Goals />} />

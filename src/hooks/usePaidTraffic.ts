@@ -3,7 +3,7 @@ import { supabase as supabaseClient } from '@/integrations/supabase/client';
 const supabase = supabaseClient as any;
 import type { PaidTrafficCampaign, PaidTrafficMetrics } from '@/lib/types';
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
+
 
 // ── Campaigns ──────────────────────────────────────────────────────────────────
 
@@ -139,16 +139,17 @@ export const useSyncAdPlatform = () => {
       platformSlug: string;
       daysBack?: number;
     }) => {
-      const resp = await fetch(
-        `${BACKEND}/ads/sync/${orgId}/${platformSlug}?days_back=${daysBack}`,
-        { method: 'POST' },
-      );
-      if (!resp.ok) throw new Error('Falha ao sincronizar');
-      return { orgId };
+      const { data, error } = await supabase.functions.invoke('sync-paid-traffic', {
+        body: { orgId, platformSlug, daysBack },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { orgId, ...(data ?? {}) };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['paid-traffic-metrics', data.orgId] });
       queryClient.invalidateQueries({ queryKey: ['paid-traffic-campaigns', data.orgId] });
+      queryClient.invalidateQueries({ queryKey: ['paid-traffic-connections', data.orgId] });
     },
   });
 };

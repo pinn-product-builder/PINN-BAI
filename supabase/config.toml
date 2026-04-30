@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.sync-smartlead]
 verify_jwt = false
+
+[functions.sync-paid-traffic]
+verify_jwt = false
