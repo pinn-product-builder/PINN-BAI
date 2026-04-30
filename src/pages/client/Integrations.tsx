@@ -27,34 +27,42 @@ import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-type ProviderCategory = 'data' | 'crm' | 'messaging';
+type ProviderCategory = 'data' | 'crm' | 'messaging' | 'paid_traffic';
 type StatusFilter = 'all' | 'connected' | 'pending' | 'error' | 'syncing';
 type SortMode = 'recent' | 'name';
 
+// Slug "estendido" — inclui plataformas de tráfego pago que vivem em outra tabela
+type ExtendedSlug = IntegrationType | 'meta_ads' | 'google_ads';
+
 type ProviderDef = {
-  slug: IntegrationType;
+  slug: ExtendedSlug;
   name: string;
   description: string;
   category: ProviderCategory;
   logo: string;
   syncFn?: string;
+  /** Redireciona para uma rota específica em vez do /import padrão. */
+  customConnectPath?: (orgId: string) => string;
 };
 
 const PROVIDERS: ReadonlyArray<ProviderDef> = [
-  { slug: 'supabase',      name: 'Supabase',           description: 'Conecte um banco Postgres externo via Supabase.',         category: 'data',      logo: '⚡' },
-  { slug: 'google_sheets', name: 'Google Sheets',      description: 'Importe dados de planilhas do Google Sheets.',            category: 'data',      logo: '🟩' },
-  { slug: 'csv',           name: 'Upload CSV',         description: 'Faça upload manual de arquivos CSV.',                     category: 'data',      logo: '📄' },
-  { slug: 'api',           name: 'API REST',           description: 'Conecte qualquer API REST com autenticação por token.',   category: 'data',      logo: '🔌', syncFn: 'sync-external-api' },
-  { slug: 'ploomes',       name: 'Ploomes CRM',        description: 'Sincronize negócios e contatos do Ploomes.',              category: 'crm',       logo: '🟦', syncFn: 'sync-ploomes' },
-  { slug: 'coldmail',      name: 'Cold Mail Hackers',  description: 'Importe campanhas e respostas do CMH (LinkedIn).',        category: 'messaging', logo: '✉️', syncFn: 'sync-coldmail' },
-  { slug: 'smartlead',     name: 'Smartlead',          description: 'Sincronize cold email e métricas do Smartlead.',          category: 'messaging', logo: '📧', syncFn: 'sync-smartlead' },
+  { slug: 'supabase',      name: 'Supabase',           description: 'Conecte um banco Postgres externo via Supabase.',         category: 'data',         logo: '⚡' },
+  { slug: 'google_sheets', name: 'Google Sheets',      description: 'Importe dados de planilhas do Google Sheets.',            category: 'data',         logo: '🟩' },
+  { slug: 'csv',           name: 'Upload CSV',         description: 'Faça upload manual de arquivos CSV.',                     category: 'data',         logo: '📄' },
+  { slug: 'api',           name: 'API REST',           description: 'Conecte qualquer API REST com autenticação por token.',   category: 'data',         logo: '🔌', syncFn: 'sync-external-api' },
+  { slug: 'ploomes',       name: 'Ploomes CRM',        description: 'Sincronize negócios e contatos do Ploomes.',              category: 'crm',          logo: '🟦', syncFn: 'sync-ploomes' },
+  { slug: 'coldmail',      name: 'Cold Mail Hackers',  description: 'Importe campanhas e respostas do CMH (LinkedIn).',        category: 'messaging',    logo: '✉️', syncFn: 'sync-coldmail' },
+  { slug: 'smartlead',     name: 'Smartlead',          description: 'Sincronize cold email e métricas do Smartlead.',          category: 'messaging',    logo: '📧', syncFn: 'sync-smartlead' },
+  { slug: 'meta_ads',      name: 'Meta Ads',           description: 'Campanhas, gastos, leads e ROAS do Facebook/Instagram.',  category: 'paid_traffic', logo: '🔵', customConnectPath: (orgId) => `/client/${orgId}/paid-traffic/connect?platform=meta_ads` },
+  { slug: 'google_ads',    name: 'Google Ads',         description: 'Campanhas e conversões do Google Ads via OAuth.',          category: 'paid_traffic', logo: '🔴', customConnectPath: (orgId) => `/client/${orgId}/paid-traffic/connect?platform=google_ads` },
 ];
 
 const CATEGORIES: ReadonlyArray<{ value: ProviderCategory | 'all'; label: string }> = [
-  { value: 'all',       label: 'Todas' },
-  { value: 'data',      label: 'Dados' },
-  { value: 'crm',       label: 'CRM' },
-  { value: 'messaging', label: 'Mensageria' },
+  { value: 'all',          label: 'Todas' },
+  { value: 'data',         label: 'Dados' },
+  { value: 'crm',          label: 'CRM' },
+  { value: 'paid_traffic', label: 'Tráfego Pago' },
+  { value: 'messaging',    label: 'Mensageria' },
 ];
 
 const STATUS_CONFIG = {
