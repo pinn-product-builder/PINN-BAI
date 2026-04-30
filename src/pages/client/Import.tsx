@@ -285,6 +285,70 @@ const ClientImport = () => {
     }
   };
 
+  if (providerForm) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <Button
+          variant="ghost"
+          className="mb-4"
+          onClick={() => navigate(`/client/${orgId}/integrations`)}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Voltar à Central de Integrações
+        </Button>
+
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <span>{providerForm.logo}</span>
+              Conectar {providerForm.name}
+            </CardTitle>
+            <CardDescription>
+              Informe as credenciais para autorizar o Pinn a sincronizar seus dados.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Nome da conexão</Label>
+              <Input
+                value={connectionName}
+                onChange={(e) => setConnectionName(e.target.value)}
+                placeholder={`Ex.: ${providerForm.name} — Conta Principal`}
+              />
+            </div>
+
+            {providerForm.fields.map((field) => (
+              <div key={field.key} className="space-y-1.5">
+                <Label>
+                  {field.label} <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  type={field.type === 'password' ? 'password' : 'text'}
+                  placeholder={field.placeholder}
+                  value={creds[field.key] ?? ''}
+                  onChange={(e) => setCreds((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                />
+              </div>
+            ))}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/client/${orgId}/integrations`)}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleProviderConnect} disabled={isConnecting}>
+                {isConnecting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Conectar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
