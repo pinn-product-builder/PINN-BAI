@@ -305,6 +305,8 @@ const ClientImport = () => {
     const file = e.dataTransfer.files[0];
     if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
       setSelectedFile(file);
+      if (file.name.endsWith('.csv')) validateCsv(file);
+      else setCsvPreview(null);
     } else {
       toast({
         title: 'Formato inválido',
@@ -312,12 +314,15 @@ const ClientImport = () => {
         variant: 'destructive',
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      if (file.name.endsWith('.csv')) validateCsv(file);
+      else setCsvPreview(null);
     }
   };
 
