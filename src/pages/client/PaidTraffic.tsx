@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { usePaidTrafficSummary, usePaidTrafficCampaigns, useSyncAdPlatform } from '@/hooks/usePaidTraffic';
 import { useFilters } from '@/hooks/useFilters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import {
   Megaphone, RefreshCw, Loader2, TrendingUp,
-  MousePointerClick, DollarSign, Target,
+  MousePointerClick, DollarSign, Target, Plug,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -107,6 +107,7 @@ const CHART_COLORS = { meta_ads: '#1877f2', google_ads: '#ea4335', total: 'hsl(v
 
 export default function PaidTraffic() {
   const { orgId } = useParams<{ orgId: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { dateRangeISO } = useFilters();
   const [activePlatform, setActivePlatform] = useState<string | undefined>(undefined);
@@ -146,7 +147,15 @@ export default function PaidTraffic() {
             Performance de campanhas Meta Ads e Google Ads com atribuição de receita.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            className="gap-2"
+            onClick={() => navigate(`/client/${orgId}/paid-traffic/connect`)}
+          >
+            <Plug className="w-3.5 h-3.5" />
+            Conectar plataforma
+          </Button>
           {['meta_ads', 'google_ads'].map((slug) => {
             const pl = PLATFORM_LABELS[slug];
             return (
