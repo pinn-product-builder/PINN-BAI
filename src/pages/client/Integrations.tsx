@@ -58,7 +58,7 @@ export default function Integrations() {
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const providerBySlug = Object.fromEntries(PROVIDERS.map((p) => [p.slug, p]));
-  const connectedSlugs = new Set(integrations.map((i) => i.type));
+  const connectedSlugs = new Set<string>(integrations.map((i) => i.type as string));
 
   const filteredProviders = activeCategory === 'all'
     ? PROVIDERS
