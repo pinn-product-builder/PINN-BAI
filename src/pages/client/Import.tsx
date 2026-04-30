@@ -1,5 +1,9 @@
-import { useState, useCallback } from 'react';
-import { Link, useNavigate, useParams, Outlet } from 'react-router-dom';
+import { useState, useCallback, useMemo } from 'react';
+import { Link, useNavigate, useParams, Outlet, useSearchParams } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useCreateIntegration } from '@/hooks/useIntegrations';
+import type { IntegrationType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
