@@ -845,12 +845,44 @@ const PinnSDRDashboard = () => {
             LinkedIn + Ploomes + Cold Mail · Visão unificada
             {syncing && <span className="ml-2 inline-flex items-center gap-1 text-primary"><Loader2 className="w-3 h-3 animate-spin" /> Sincronizando...</span>}
           </p>
-...
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => syncCmh.mutate()} disabled={syncing} className="gap-2" size="sm">
+            {syncingCmh ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            LinkedIn
+          </Button>
+          <Button variant="outline" onClick={() => syncPloomes.mutate()} disabled={syncing} className="gap-2" size="sm">
+            {syncingPloomes ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Ploomes
+          </Button>
+          <Button onClick={() => syncColdMail.mutate()} disabled={syncing} className="gap-2" size="sm">
+            {syncingColdMail ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Cold Mail
+          </Button>
+        </div>
+      </div>
+
+      <Tabs defaultValue="ploomes" className="w-full">
+        <TabsList>
+          <TabsTrigger value="ploomes" className="gap-2">
+            <Briefcase className="w-4 h-4" /> SDR / Ploomes
+          </TabsTrigger>
+          <TabsTrigger value="linkedin" className="gap-2">
+            <Linkedin className="w-4 h-4" /> LinkedIn
+          </TabsTrigger>
           <TabsTrigger value="coldmail" className="gap-2">
             <Mail className="w-4 h-4" /> Cold Mail
           </TabsTrigger>
         </TabsList>
-...
+
+        <TabsContent value="ploomes" className="mt-4">
+          <PloomesTab snapshots={ploomesSnapshots} syncing={syncingPloomes} onSync={() => syncPloomes.mutate()} />
+        </TabsContent>
+
+        <TabsContent value="linkedin" className="mt-4">
+          <LinkedInTab snapshots={cmhSnapshots} syncing={syncingCmh} onSync={() => syncCmh.mutate()} />
+        </TabsContent>
+
         <TabsContent value="coldmail" className="mt-4">
           <ColdMailTab snapshots={coldmailSnapshots} syncing={syncingColdMail} onSync={() => syncColdMail.mutate()} />
         </TabsContent>
