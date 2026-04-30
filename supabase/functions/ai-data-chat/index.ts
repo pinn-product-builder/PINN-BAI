@@ -458,7 +458,7 @@ EXEMPLO DE INSIGHT CORRETO:
 }
 
 DADOS REAIS DA ORGANIZAÇÃO (única fonte de verdade):
-${dataContext}`;
+${dataContextText}`;
 
       const insightTool = {
         type: "function",
