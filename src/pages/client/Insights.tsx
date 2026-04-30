@@ -23,6 +23,8 @@ interface InsightResult {
   priority: 'high' | 'medium' | 'low';
   title: string;
   content: string;
+  evidence?: string;
+  metric?: string;
 }
 
 const insightConfig = {
