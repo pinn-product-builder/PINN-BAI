@@ -415,7 +415,7 @@ ${dataContext}`;
             { role: "user", content: "Execute o protocolo de análise e chame emit_insights com 4 a 6 insights de máxima precisão. Cada insight deve citar um número exato do contexto." },
           ],
           stream: false,
-          temperature: 0.1,
+          temperature: 0,
           tools: [insightTool],
           tool_choice: { type: "function", function: { name: "emit_insights" } },
         }),
