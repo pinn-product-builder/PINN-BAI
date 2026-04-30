@@ -240,8 +240,12 @@ export default function Integrations() {
     });
   }, [activeCategory, search]);
 
-  const handleConnect = (slug: IntegrationType): void => {
-    navigate(`/client/${orgId}/import?provider=${slug}`);
+  const handleConnect = (provider: ProviderDef): void => {
+    if (provider.customConnectPath && orgId) {
+      navigate(provider.customConnectPath(orgId));
+      return;
+    }
+    navigate(`/client/${orgId}/import?provider=${provider.slug}`);
   };
 
   const handleSync = async (integration: Integration): Promise<void> => {
@@ -488,7 +492,7 @@ export default function Integrations() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredProviders.map((provider) => {
-              const isConnected = connectedSlugs.has(provider.slug);
+              const isConnected = connectedSlugs.has(provider.slug as IntegrationType);
               return (
                 <Card
                   key={provider.slug}
@@ -525,7 +529,7 @@ export default function Integrations() {
                       size="sm"
                       variant={isConnected ? 'outline' : 'default'}
                       className="w-full h-8 text-xs"
-                      onClick={() => handleConnect(provider.slug)}
+                      onClick={() => handleConnect(provider)}
                     >
                       <Plug className="w-3.5 h-3.5 mr-1.5" />
                       {isConnected ? 'Adicionar outra' : 'Conectar'}
