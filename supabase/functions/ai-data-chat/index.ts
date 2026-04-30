@@ -308,67 +308,154 @@ serve(async (req) => {
       dataContext = await buildDataContext(supabase, orgId, dateRange);
     }
 
-    // ── Insights mode (structured JSON, non-streaming) ────────────────────────
+    // ── Insights mode (structured via tool-calling, non-streaming) ────────────
 
     if (mode === "insights") {
-      const systemPrompt = `Você é o Pinn AI — analista sênior de negócios especializado em SaaS e e-commerce brasileiro.
-Você recebe dados reais de múltiplas fontes e deve cruzá-los para identificar insights críticos.
+      // Detecta se há dados mínimos. Se tudo zerado, retorna mensagem honesta.
+      const hasAnyData = /Leads no período: [1-9]/.test(dataContext)
+        || /Investimento total:/.test(dataContext)
+        || /Score médio:/.test(dataContext)
+        || /Total analisado: [1-9]/.test(dataContext)
+        || /Total com predição: [1-9]/.test(dataContext);
 
-FONTES DISPONÍVEIS: CRM (leads/conversões), Tráfego Pago (Meta/Google Ads), Saúde do Cliente (health scores), Churn Risk, RFM.
+      if (!hasAnyData) {
+        return new Response(JSON.stringify({
+          insights: [{
+            type: "recommendation",
+            priority: "high",
+            title: "Sem dados suficientes para análise",
+            content: "Nenhuma fonte (CRM, Tráfego Pago, Health, RFM, Churn) retornou dados no período. Conecte uma integração ou amplie o período para gerar insights precisos.",
+          }],
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
-MÉTODO — Chain-of-Thought:
-1. Analise cada fonte de dados individualmente.
-2. Identifique correlações entre fontes (ex: alta verba em ads + baixa conversão = problema de qualificação).
-3. Priorize pelos impactos financeiros mais altos.
-4. Formule insight acionável com dado concreto + causa provável + ação recomendada.
+      const systemPrompt = `Você é o Pinn AI — analista sênior de Revenue Operations (vendas + marketing + CS) com rigor estatístico.
 
-REGRAS:
-- Responda APENAS com JSON válido — nenhum texto fora do array
-- Use EXCLUSIVAMENTE dados do contexto fornecido; nunca invente números
-- Gere exatamente 6 insights (misture tipos)
-- "title" deve ser curto e impactante (máx 8 palavras)
-- "content" deve incluir: número/dado concreto + causa + ação ("Para resolver: ...")
-- Priorize: alto impacto financeiro ou risco de perda = high; oportunidade de melhoria = medium; manutenção = low
+OBJETIVO: gerar insights EXTREMAMENTE PRECISOS a partir EXCLUSIVAMENTE dos dados abaixo. Nunca invente ou estime números que não estejam no contexto.
 
-Formato esperado (JSON puro):
-[
-  {"type":"alert|recommendation|trend","priority":"high|medium|low","title":"Título curto","content":"Análise com dado concreto. Para resolver: ação específica."}
-]
+PROTOCOLO DE ANÁLISE (siga em ordem, internamente):
+1) Inventário: liste mentalmente todas as métricas presentes e marque as que estão "sem dados" — você NÃO pode citá-las.
+2) Cálculos derivados permitidos (faça com base APENAS nos números do contexto):
+   - Taxa de conversão = convertidos / leads
+   - CAC aproximado = investimento / leads convertidos (apenas se ambos existirem no mesmo período)
+   - LTV proxy = ticket médio × frequência média RFM (apenas se ambos existirem)
+   - Eficiência por canal = ROAS por plataforma
+3) Cruzamentos obrigatórios quando houver dados em ambos os lados:
+   - Tráfego Pago × CRM (CPL vs ticket médio → margem)
+   - Churn × Health (clientes em risco crítico)
+   - RFM × Receita (segmentos mais lucrativos)
+4) Para cada insight, escolha 1 métrica-âncora real do contexto e CITE o número exato.
+5) Priorização: high = perda/risco financeiro mensurável OU oportunidade > 20% de impacto; medium = otimização clara; low = monitoramento.
 
+REGRAS DE PRECISÃO (críticas):
+- Cite SEMPRE o número exato como aparece no contexto (ex: "ROAS de 2.34x", "47 leads", "R$ 12.300").
+- Se uma seção disser "sem dados", NÃO mencione essa área.
+- NUNCA invente comparações temporais ("subiu 30%") a menos que ambos os valores estejam no contexto.
+- Cada insight deve ter: (a) número real, (b) interpretação causal plausível, (c) ação concreta com verbo no imperativo.
+- "evidence" deve copiar literalmente o trecho do contexto que sustenta o insight (1 linha).
+- Gere entre 4 e 6 insights — qualidade > quantidade. Se só houver dados para 4, gere 4.
+
+DADOS REAIS DA ORGANIZAÇÃO:
 ${dataContext}`;
+
+      const insightTool = {
+        type: "function",
+        function: {
+          name: "emit_insights",
+          description: "Emite insights de negócio precisos baseados exclusivamente nos dados fornecidos.",
+          parameters: {
+            type: "object",
+            properties: {
+              insights: {
+                type: "array",
+                minItems: 4,
+                maxItems: 6,
+                items: {
+                  type: "object",
+                  properties: {
+                    type: { type: "string", enum: ["alert", "recommendation", "trend"] },
+                    priority: { type: "string", enum: ["high", "medium", "low"] },
+                    title: { type: "string", description: "Máx 8 palavras, impactante." },
+                    content: { type: "string", description: "Análise com número exato + causa + ação ('Para resolver: ...')." },
+                    evidence: { type: "string", description: "Trecho literal do contexto que sustenta o insight." },
+                    metric: { type: "string", description: "Nome da métrica-âncora (ex: ROAS, CPL, taxa de conversão)." },
+                  },
+                  required: ["type", "priority", "title", "content", "evidence", "metric"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["insights"],
+            additionalProperties: false,
+          },
+        },
+      };
 
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-pro",
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: "Analise todos os dados acima em conjunto e gere exatamente 6 insights acionáveis cruzando as múltiplas fontes. Retorne apenas o JSON array." },
+            { role: "user", content: "Execute o protocolo de análise e chame emit_insights com 4 a 6 insights de máxima precisão. Cada insight deve citar um número exato do contexto." },
           ],
           stream: false,
-          temperature: 0.3,
+          temperature: 0.1,
+          tools: [insightTool],
+          tool_choice: { type: "function", function: { name: "emit_insights" } },
         }),
       });
 
       if (!response.ok) {
         const status = response.status;
+        const txt = await response.text().catch(() => "");
+        console.error("AI gateway error (insights):", status, txt);
         if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         if (status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const aiResult = await response.json();
-      const rawContent = aiResult.choices?.[0]?.message?.content ?? "[]";
+      const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
+      let insights: any[] = [];
 
-      let insights;
-      try {
-        const cleaned = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-        insights = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
-      } catch {
-        console.error("Failed to parse insights JSON:", rawContent);
-        insights = [{ type: "recommendation", priority: "medium", title: "Dados insuficientes", content: "Adicione mais registros para gerar insights automáticos." }];
+      if (toolCall?.function?.arguments) {
+        try {
+          const args = JSON.parse(toolCall.function.arguments);
+          insights = Array.isArray(args.insights) ? args.insights : [];
+        } catch (e) {
+          console.error("Failed to parse tool arguments:", e, toolCall.function.arguments);
+        }
+      }
+
+      // Fallback: tenta parsing de JSON se modelo não usou tool
+      if (insights.length === 0) {
+        const rawContent = aiResult.choices?.[0]?.message?.content ?? "";
+        try {
+          const cleaned = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+          const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+          if (jsonMatch) insights = JSON.parse(jsonMatch[0]);
+        } catch {
+          // ignore
+        }
+      }
+
+      // Validação de precisão: descarta insights sem números reais ou sem evidência
+      const numericRegex = /\d/;
+      insights = insights.filter((i) =>
+        i && typeof i.content === "string" && numericRegex.test(i.content) && i.content.length > 30
+      );
+
+      if (insights.length === 0) {
+        insights = [{
+          type: "recommendation",
+          priority: "medium",
+          title: "Análise inconclusiva",
+          content: "A IA não conseguiu gerar insights com precisão suficiente nos dados atuais. Verifique se as integrações estão sincronizadas e tente novamente.",
+          evidence: "",
+          metric: "",
+        }];
       }
 
       return new Response(JSON.stringify({ insights }), {
