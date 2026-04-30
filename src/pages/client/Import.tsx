@@ -351,19 +351,30 @@ const ClientImport = () => {
               />
             </div>
 
-            {providerForm.fields.map((field) => (
-              <div key={field.key} className="space-y-1.5">
-                <Label>
-                  {field.label} <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  type={field.type === 'password' ? 'password' : 'text'}
-                  placeholder={field.placeholder}
-                  value={creds[field.key] ?? ''}
-                  onChange={(e) => setCreds((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                />
-              </div>
-            ))}
+            {providerForm.fields.map((field) => {
+              const value = creds[field.key] ?? '';
+              const err = value.length > 0 ? fieldErrors[field.key] : null;
+              return (
+                <div key={field.key} className="space-y-1.5">
+                  <Label>
+                    {field.label} <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type={field.type === 'password' ? 'password' : 'text'}
+                    placeholder={field.placeholder}
+                    value={value}
+                    aria-invalid={!!err}
+                    className={err ? 'border-destructive focus-visible:ring-destructive' : ''}
+                    onChange={(e) => setCreds((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  />
+                  {err && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />{err}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button
@@ -372,7 +383,7 @@ const ClientImport = () => {
               >
                 Cancelar
               </Button>
-              <Button onClick={handleProviderConnect} disabled={isConnecting}>
+              <Button onClick={handleProviderConnect} disabled={isConnecting || hasErrors}>
                 {isConnecting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                 Conectar
               </Button>
