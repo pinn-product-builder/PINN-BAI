@@ -227,6 +227,12 @@ async function buildDataContext(
 
   const periodStr = start && end ? `${start} a ${end}` : "todos os dados disponíveis";
 
+  // ── Cruzamentos pré-calculados (para evitar erros de cálculo da IA) ───────
+  const cacPaid = totalConverted > 0 && totalSpend > 0 ? totalSpend / totalConverted : 0;
+  const marginPerLead = avgTicket > 0 && globalCPL > 0 ? avgTicket - globalCPL : 0;
+  const paidShareOfLeads = totalLeads > 0 && totalPaidLeads > 0 ? (totalPaidLeads / totalLeads) * 100 : 0;
+  const grossProfitFromAds = totalPurchaseValue - totalSpend;
+
   return `
 ## Dados da Organização: "${org?.name ?? "Cliente"}" | Período: ${periodStr}
 
