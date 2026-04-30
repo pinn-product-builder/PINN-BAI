@@ -3,7 +3,7 @@ import { supabase as supabaseClient } from '@/integrations/supabase/client';
 const supabase = supabaseClient as any;
 import type { PaidTrafficCampaign, PaidTrafficMetrics } from '@/lib/types';
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
+
 
 // ── Campaigns ──────────────────────────────────────────────────────────────────
 
