@@ -79,49 +79,83 @@ const ClientImport = () => {
   const [connectionName, setConnectionName] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const PROVIDER_FORMS: Record<string, { name: string; logo: string; fields: { key: string; label: string; type?: string; placeholder?: string }[] }> = useMemo(() => ({
+  type FieldDef = {
+    key: string;
+    label: string;
+    type?: string;
+    placeholder?: string;
+    validate?: (v: string) => string | null;
+  };
+
+  const validators = useMemo(() => ({
+    url: (v: string) => {
+      if (!v.trim()) return 'Campo obrigatório.';
+      try {
+        const u = new URL(v.trim());
+        if (!u.protocol.startsWith('http')) return 'Use http(s)://';
+        return null;
+      } catch { return 'URL inválida.'; }
+    },
+    minLen: (n: number) => (v: string) =>
+      !v.trim() ? 'Campo obrigatório.' : v.trim().length < n ? `Mínimo ${n} caracteres.` : null,
+    required: (v: string) => (!v.trim() ? 'Campo obrigatório.' : null),
+  }), []);
+
+  const PROVIDER_FORMS: Record<IntegrationType, { name: string; logo: string; fields: FieldDef[] }> = useMemo(() => ({
     supabase: {
       name: 'Supabase', logo: '⚡',
       fields: [
-        { key: 'url', label: 'Project URL', placeholder: 'https://xxx.supabase.co' },
-        { key: 'anon_key', label: 'Anon Public Key', type: 'password' },
+        { key: 'url', label: 'Project URL', placeholder: 'https://xxx.supabase.co', validate: validators.url },
+        { key: 'anon_key', label: 'Anon Public Key', type: 'password', validate: validators.minLen(20) },
       ],
     },
     google_sheets: {
       name: 'Google Sheets', logo: '🟩',
       fields: [
-        { key: 'spreadsheet_id', label: 'ID da Planilha', placeholder: 'Cole o ID entre /d/ e /edit' },
-        { key: 'sheet_name', label: 'Nome da Aba', placeholder: 'Sheet1' },
+        { key: 'spreadsheet_id', label: 'ID da Planilha', placeholder: 'Cole o ID entre /d/ e /edit', validate: validators.minLen(10) },
+        { key: 'sheet_name', label: 'Nome da Aba', placeholder: 'Sheet1', validate: validators.required },
       ],
+    },
+    csv: {
+      name: 'Upload CSV', logo: '📄',
+      fields: [{ key: 'file_name', label: 'Nome do arquivo', placeholder: 'leads.csv', validate: validators.required }],
     },
     api: {
       name: 'API REST', logo: '🔌',
       fields: [
-        { key: 'base_url', label: 'URL Base', placeholder: 'https://api.exemplo.com' },
-        { key: 'api_key', label: 'API Key / Token', type: 'password' },
+        { key: 'base_url', label: 'URL Base', placeholder: 'https://api.exemplo.com', validate: validators.url },
+        { key: 'api_key', label: 'API Key / Token', type: 'password', validate: validators.minLen(8) },
       ],
     },
     ploomes: {
       name: 'Ploomes CRM', logo: '🟦',
-      fields: [{ key: 'user_key', label: 'User-Key', type: 'password', placeholder: 'Sua chave do Ploomes' }],
+      fields: [{ key: 'user_key', label: 'User-Key', type: 'password', placeholder: 'Sua chave do Ploomes', validate: validators.minLen(16) }],
     },
     coldmail: {
       name: 'Cold Mail Hackers', logo: '✉️',
-      fields: [{ key: 'api_key', label: 'API Key (CMH)', type: 'password' }],
+      fields: [{ key: 'api_key', label: 'API Key (CMH)', type: 'password', validate: validators.minLen(8) }],
     },
     smartlead: {
       name: 'Smartlead', logo: '📧',
-      fields: [{ key: 'api_key', label: 'API Key (Smartlead)', type: 'password' }],
+      fields: [{ key: 'api_key', label: 'API Key (Smartlead)', type: 'password', validate: validators.minLen(8) }],
     },
-  }), []);
+  }), [validators]);
 
   const providerForm = providerSlug ? PROVIDER_FORMS[providerSlug] : null;
 
+  const fieldErrors = useMemo(() => {
+    if (!providerForm) return {} as Record<string, string | null>;
+    return Object.fromEntries(
+      providerForm.fields.map((f) => [f.key, f.validate ? f.validate(creds[f.key] ?? '') : null]),
+    );
+  }, [providerForm, creds]);
+
+  const hasErrors = Object.values(fieldErrors).some(Boolean);
+
   const handleProviderConnect = async () => {
     if (!orgId || !providerSlug || !providerForm) return;
-    const missing = providerForm.fields.find((f) => !creds[f.key]?.trim());
-    if (missing) {
-      toast({ variant: 'destructive', title: `Preencha: ${missing.label}` });
+    if (hasErrors) {
+      toast({ variant: 'destructive', title: 'Corrija os campos destacados antes de conectar.' });
       return;
     }
     setIsConnecting(true);
@@ -317,19 +351,30 @@ const ClientImport = () => {
               />
             </div>
 
-            {providerForm.fields.map((field) => (
-              <div key={field.key} className="space-y-1.5">
-                <Label>
-                  {field.label} <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  type={field.type === 'password' ? 'password' : 'text'}
-                  placeholder={field.placeholder}
-                  value={creds[field.key] ?? ''}
-                  onChange={(e) => setCreds((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                />
-              </div>
-            ))}
+            {providerForm.fields.map((field) => {
+              const value = creds[field.key] ?? '';
+              const err = value.length > 0 ? fieldErrors[field.key] : null;
+              return (
+                <div key={field.key} className="space-y-1.5">
+                  <Label>
+                    {field.label} <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type={field.type === 'password' ? 'password' : 'text'}
+                    placeholder={field.placeholder}
+                    value={value}
+                    aria-invalid={!!err}
+                    className={err ? 'border-destructive focus-visible:ring-destructive' : ''}
+                    onChange={(e) => setCreds((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  />
+                  {err && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />{err}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button
@@ -338,7 +383,7 @@ const ClientImport = () => {
               >
                 Cancelar
               </Button>
-              <Button onClick={handleProviderConnect} disabled={isConnecting}>
+              <Button onClick={handleProviderConnect} disabled={isConnecting || hasErrors}>
                 {isConnecting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                 Conectar
               </Button>
