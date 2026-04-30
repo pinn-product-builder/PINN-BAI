@@ -546,7 +546,7 @@ ${dataContextText}`;
       // Validação anti-alucinação: cada insight precisa citar pelo menos UM número
       // que apareça literalmente no contexto de dados.
       const contextNumbers = new Set<string>();
-      const numMatches = dataContext.match(/\d[\d.,]*/g) ?? [];
+      const numMatches = dataContextText.match(/\d[\d.,]*/g) ?? [];
       for (const n of numMatches) {
         const normalized = n.replace(/\.$/, "").replace(/,$/, "");
         if (normalized.length >= 1) contextNumbers.add(normalized);
