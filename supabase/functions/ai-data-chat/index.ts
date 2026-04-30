@@ -453,10 +453,38 @@ ${dataContext}`;
         }
       }
 
-      // Validação de precisão: descarta insights sem números reais ou sem evidência
-      const numericRegex = /\d/;
+      // Validação anti-alucinação: cada insight precisa citar pelo menos UM número
+      // que apareça literalmente no contexto de dados.
+      const contextNumbers = new Set<string>();
+      const numMatches = dataContext.match(/\d[\d.,]*/g) ?? [];
+      for (const n of numMatches) {
+        const normalized = n.replace(/\.$/, "").replace(/,$/, "");
+        if (normalized.length >= 1) contextNumbers.add(normalized);
+      }
+
+      const hasGroundedNumber = (text: string): boolean => {
+        const cited = text.match(/\d[\d.,]*/g) ?? [];
+        if (cited.length === 0) return false;
+        return cited.some((c) => {
+          const norm = c.replace(/\.$/, "").replace(/,$/, "");
+          // aceita match exato OU substring de pelo menos 2 dígitos no contexto
+          if (contextNumbers.has(norm)) return true;
+          if (norm.length >= 2) {
+            for (const ctx of contextNumbers) {
+              if (ctx.includes(norm) || norm.includes(ctx)) return true;
+            }
+          }
+          return false;
+        });
+      };
+
       insights = insights.filter((i) =>
-        i && typeof i.content === "string" && numericRegex.test(i.content) && i.content.length > 30
+        i &&
+        typeof i.content === "string" &&
+        i.content.length > 40 &&
+        hasGroundedNumber(i.content) &&
+        typeof i.evidence === "string" &&
+        i.evidence.length > 5
       );
 
       if (insights.length === 0) {
@@ -464,7 +492,7 @@ ${dataContext}`;
           type: "recommendation",
           priority: "medium",
           title: "Análise inconclusiva",
-          content: "A IA não conseguiu gerar insights com precisão suficiente nos dados atuais. Verifique se as integrações estão sincronizadas e tente novamente.",
+          content: "A IA não conseguiu gerar insights ancorados em números reais dos dados atuais. Verifique se as integrações estão sincronizadas e tente novamente.",
           evidence: "",
           metric: "",
         }];
