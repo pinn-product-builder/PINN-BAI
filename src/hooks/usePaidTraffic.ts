@@ -100,7 +100,7 @@ export const usePaidTrafficSummary = (
     const ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
     const cpl = totals.leads > 0 ? totals.spend / totals.leads : null;
     const cpa = totals.purchases > 0 ? totals.spend / totals.purchases : null;
-    const roas = totals.spend > 0 ? totals.purchase_value / totals.spend : null;
+    const roas = totals.spend > 0 ? totals.purchase_value / totals.spend : 0;
 
     return { totals, byPlatform, ctr, cpl, cpa, roas };
   })();

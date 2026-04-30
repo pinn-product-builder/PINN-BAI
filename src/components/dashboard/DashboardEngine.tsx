@@ -901,11 +901,6 @@ const WidgetRenderer = ({
       let metricValue = calculateMetricValue();
       const format = resolveFormat(config, widget.title || '');
       
-      // Override: "Reuniões Realizadas" forçado a 0 (não está sendo marcado no CRM)
-      if (widget.title && widget.title.toLowerCase().includes('reuniões realizadas')) {
-        metricValue = 0;
-      }
-      
       return (
         <WidgetWrapper {...wrapperProps}>
           <MetricCard

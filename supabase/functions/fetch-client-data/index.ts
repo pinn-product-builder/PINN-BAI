@@ -75,10 +75,8 @@ serve(async (req) => {
     }
 
     if (!integrations || integrations.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No connected integration found for this organization" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Fallback: query Pinn BAI internal database (service role, filtered by org_id)
+      return await queryInternalDb(internalSupabase, orgId, tableName, columns, filters, limit, orderBy, orderAsc, corsHeaders);
     }
     const apiIntegration = integrations.find((i) => i.type === "api");
     const supabaseIntegration = integrations.find((i) => i.type === "supabase");
@@ -248,6 +246,52 @@ serve(async (req) => {
     );
   }
 });
+
+async function queryInternalDb(
+  // deno-lint-ignore no-explicit-any
+  client: any,
+  orgId: string,
+  tableName: string,
+  columns: string[] | undefined,
+  filters: Record<string, unknown> | undefined,
+  limit: number,
+  orderBy: string | undefined,
+  orderAsc: boolean,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  const selectColumns = columns && columns.length > 0 ? columns.join(", ") : "*";
+  // deno-lint-ignore no-explicit-any
+  let query: any = client.from(tableName).select(selectColumns, { count: "exact" }).eq("org_id", orgId);
+
+  if (filters) {
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== null && value !== undefined && key !== "org_id") {
+        query = query.eq(key, value);
+      }
+    }
+  }
+
+  if (orderBy) {
+    query = query.order(orderBy, { ascending: orderAsc });
+  }
+
+  query = query.limit(limit);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("Internal DB query error:", error);
+    return new Response(
+      JSON.stringify({ error: `Failed to fetch data from ${tableName}: ${error.message}` }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  return new Response(
+    JSON.stringify({ success: true, data: data || [], count: count || 0, tableName }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}
 
 function normalizeApiPayload(payload: unknown, action: string): { data: Record<string, unknown>[]; count: number } {
   if (Array.isArray(payload)) {
