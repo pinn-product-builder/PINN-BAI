@@ -130,7 +130,7 @@ const ClientImport = () => {
         org_id: orgId,
         name: connectionName.trim() || providerForm.name,
         type: providerSlug,
-        config: creds,
+        config: creds as never,
       });
       toast({ title: 'Integração conectada com sucesso!' });
       navigate(`/client/${orgId}/integrations`);
