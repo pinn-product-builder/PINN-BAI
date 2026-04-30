@@ -72,6 +72,79 @@ const ClientImport = () => {
   const { toast } = useToast();
   const { organization } = useOrganizationBranding();
   const { profile, signOut } = useAuth();
+  const [searchParams] = useSearchParams();
+  const providerSlug = searchParams.get('provider') as IntegrationType | null;
+  const createIntegration = useCreateIntegration();
+  const [creds, setCreds] = useState<Record<string, string>>({});
+  const [connectionName, setConnectionName] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const PROVIDER_FORMS: Record<string, { name: string; logo: string; fields: { key: string; label: string; type?: string; placeholder?: string }[] }> = useMemo(() => ({
+    supabase: {
+      name: 'Supabase', logo: '⚡',
+      fields: [
+        { key: 'url', label: 'Project URL', placeholder: 'https://xxx.supabase.co' },
+        { key: 'anon_key', label: 'Anon Public Key', type: 'password' },
+      ],
+    },
+    google_sheets: {
+      name: 'Google Sheets', logo: '🟩',
+      fields: [
+        { key: 'spreadsheet_id', label: 'ID da Planilha', placeholder: 'Cole o ID entre /d/ e /edit' },
+        { key: 'sheet_name', label: 'Nome da Aba', placeholder: 'Sheet1' },
+      ],
+    },
+    api: {
+      name: 'API REST', logo: '🔌',
+      fields: [
+        { key: 'base_url', label: 'URL Base', placeholder: 'https://api.exemplo.com' },
+        { key: 'api_key', label: 'API Key / Token', type: 'password' },
+      ],
+    },
+    ploomes: {
+      name: 'Ploomes CRM', logo: '🟦',
+      fields: [{ key: 'user_key', label: 'User-Key', type: 'password', placeholder: 'Sua chave do Ploomes' }],
+    },
+    coldmail: {
+      name: 'Cold Mail Hackers', logo: '✉️',
+      fields: [{ key: 'api_key', label: 'API Key (CMH)', type: 'password' }],
+    },
+    smartlead: {
+      name: 'Smartlead', logo: '📧',
+      fields: [{ key: 'api_key', label: 'API Key (Smartlead)', type: 'password' }],
+    },
+  }), []);
+
+  const providerForm = providerSlug ? PROVIDER_FORMS[providerSlug] : null;
+
+  const handleProviderConnect = async () => {
+    if (!orgId || !providerSlug || !providerForm) return;
+    const missing = providerForm.fields.find((f) => !creds[f.key]?.trim());
+    if (missing) {
+      toast({ variant: 'destructive', title: `Preencha: ${missing.label}` });
+      return;
+    }
+    setIsConnecting(true);
+    try {
+      await createIntegration.mutateAsync({
+        org_id: orgId,
+        name: connectionName.trim() || providerForm.name,
+        type: providerSlug,
+        config: creds,
+      });
+      toast({ title: 'Integração conectada com sucesso!' });
+      navigate(`/client/${orgId}/integrations`);
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Falha ao conectar',
+        description: err instanceof Error ? err.message : 'Verifique as credenciais.',
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
 
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload');
   const [isDragging, setIsDragging] = useState(false);
