@@ -23,6 +23,8 @@ interface InsightResult {
   priority: 'high' | 'medium' | 'low';
   title: string;
   content: string;
+  evidence?: string;
+  metric?: string;
 }
 
 const insightConfig = {
@@ -255,6 +257,19 @@ const Insights = () => {
                           <div className="text-sm text-muted-foreground prose prose-sm max-w-none">
                             <ReactMarkdown>{insight.content}</ReactMarkdown>
                           </div>
+                          {insight.evidence && (
+                            <div className="mt-2 pt-2 border-t border-border/50">
+                              <p className="text-xs text-muted-foreground/80">
+                                <span className="font-semibold text-foreground/70">📊 Evidência: </span>
+                                <span className="italic">{insight.evidence}</span>
+                                {insight.metric && (
+                                  <Badge variant="outline" className="ml-2 text-[10px] bg-primary/5 text-primary border-primary/20">
+                                    {insight.metric}
+                                  </Badge>
+                                )}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

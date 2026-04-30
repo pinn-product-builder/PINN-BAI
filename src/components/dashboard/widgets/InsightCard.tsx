@@ -17,6 +17,9 @@ interface AIInsight {
   type: 'recommendation' | 'alert' | 'trend';
   priority: 'high' | 'medium' | 'low';
   content: string;
+  evidence?: string;
+  metric?: string;
+  title?: string;
 }
 
 const typeConfig = {
@@ -157,12 +160,22 @@ const InsightCard = ({ title, description }: InsightCardProps) => {
                     <Icon className={cn('w-3.5 h-3.5', config.color)} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0 h-4 font-medium', priority.className)}>
                         {priority.label}
                       </Badge>
+                      {insight.metric && (
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-medium bg-primary/5 text-primary border-primary/20">
+                          {insight.metric}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-foreground/90 leading-relaxed">{insight.content}</p>
+                    {insight.evidence && (
+                      <p className="text-[10px] text-muted-foreground/70 italic mt-1.5 border-l-2 border-muted-foreground/20 pl-2">
+                        Fonte: {insight.evidence}
+                      </p>
+                    )}
                   </div>
                   <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0 mt-1" />
                 </div>
