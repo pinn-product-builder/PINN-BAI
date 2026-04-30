@@ -14,6 +14,24 @@ interface InsightCardProps {
   description: string;
 }
 
+interface AuditNumber {
+  value: string;
+  foundIn: 'context' | 'derived' | 'missing';
+}
+
+interface AuditTrailItem {
+  label: string;
+  formula: string;
+  inputs: Record<string, string | number>;
+  value: string;
+}
+
+interface InsightAudit {
+  numbers: AuditNumber[];
+  relatedTrail: AuditTrailItem[];
+  evidenceVerified: boolean;
+}
+
 interface AIInsight {
   type: 'recommendation' | 'alert' | 'trend';
   priority: 'high' | 'medium' | 'low';
@@ -21,6 +39,17 @@ interface AIInsight {
   evidence?: string;
   metric?: string;
   title?: string;
+  sourceSection?: string;
+  audit?: InsightAudit;
+}
+
+interface CalculationTrail {
+  key: string;
+  label: string;
+  formula: string;
+  inputs: Record<string, string | number>;
+  value: string;
+  available: boolean;
 }
 
 const typeConfig = {
