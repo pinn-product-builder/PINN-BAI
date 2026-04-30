@@ -240,7 +240,7 @@ export default function Integrations() {
                       size="sm"
                       variant={isConnected ? 'outline' : 'default'}
                       className="w-full h-8 text-xs"
-                      onClick={() => handleConnect(provider.slug)}
+                      onClick={() => handleConnect(provider.slug as never)}
                     >
                       <Plug className="w-3.5 h-3.5 mr-1.5" />
                       {isConnected ? 'Adicionar outra' : 'Conectar'}
