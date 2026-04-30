@@ -619,7 +619,86 @@ const ClientImport = () => {
                 )}
               </div>
 
-              {selectedFile && (
+              {selectedFile && selectedFile.name.endsWith('.csv') && (
+                <div className="mt-6 space-y-3">
+                  {csvValidating && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Validando CSV (cabeçalhos, tipos e amostra)...
+                    </div>
+                  )}
+                  {csvPreview && (
+                    <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                        <span><strong>{csvPreview.rowCount}</strong> linhas</span>
+                        <span><strong>{csvPreview.headers.length}</strong> colunas</span>
+                        <span className="text-emerald-600">
+                          {csvPreview.matchedExpected.length}/{EXPECTED_COLUMNS.length} colunas esperadas detectadas
+                        </span>
+                      </div>
+
+                      {csvPreview.issues.length > 0 && (
+                        <div className="text-xs space-y-1 text-destructive">
+                          {csvPreview.issues.map((i) => (
+                            <div key={i} className="flex items-center gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5" />{i}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {csvPreview.missingExpected.length > 0 && (
+                        <div className="text-xs text-amber-600">
+                          Colunas esperadas ausentes (opcional): {csvPreview.missingExpected.join(', ')}
+                        </div>
+                      )}
+
+                      {csvPreview.headers.length > 0 && (
+                        <div className="overflow-x-auto">
+                          <table className="text-xs w-full border-collapse">
+                            <thead>
+                              <tr className="border-b">
+                                {csvPreview.headers.map((h) => (
+                                  <th key={h} className="text-left p-1.5 font-semibold">
+                                    <div>{h || <em className="text-destructive">vazio</em>}</div>
+                                    <div className="text-[10px] text-muted-foreground font-normal">
+                                      {csvPreview.types[h] ?? 'string'}
+                                    </div>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {csvPreview.rows.slice(0, 5).map((row, ri) => (
+                                <tr key={ri} className="border-b border-border/30">
+                                  {csvPreview.headers.map((_, ci) => (
+                                    <td key={ci} className="p-1.5 text-muted-foreground truncate max-w-[180px]">
+                                      {row[ci] ?? ''}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                      onClick={handleAnalyze}
+                      disabled={csvValidating || (csvPreview?.issues.length ?? 0) > 0}
+                    >
+                      Continuar
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selectedFile && !selectedFile.name.endsWith('.csv') && (
                 <div className="mt-6 flex justify-end">
                   <Button
                     className="bg-accent hover:bg-accent/90 text-accent-foreground"
