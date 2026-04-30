@@ -474,15 +474,16 @@ ${dataContextText}`;
                 maxItems: 6,
                 items: {
                   type: "object",
-                  properties: {
+                properties: {
                     type: { type: "string", enum: ["alert", "recommendation", "trend"] },
                     priority: { type: "string", enum: ["high", "medium", "low"] },
                     title: { type: "string", description: "Máx 8 palavras, impactante." },
                     content: { type: "string", description: "Análise com número exato + causa + ação ('Para resolver: ...')." },
                     evidence: { type: "string", description: "Trecho literal do contexto que sustenta o insight." },
                     metric: { type: "string", description: "Nome da métrica-âncora (ex: ROAS, CPL, taxa de conversão)." },
+                    sourceSection: { type: "string", description: "Seção do contexto usada (ex: '1. Funil de Vendas', '7. Cruzamentos Pré-Calculados')." },
                   },
-                  required: ["type", "priority", "title", "content", "evidence", "metric"],
+                  required: ["type", "priority", "title", "content", "evidence", "metric", "sourceSection"],
                   additionalProperties: false,
                 },
               },
