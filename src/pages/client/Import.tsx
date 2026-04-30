@@ -1,5 +1,9 @@
-import { useState, useCallback } from 'react';
-import { Link, useNavigate, useParams, Outlet } from 'react-router-dom';
+import { useState, useCallback, useMemo } from 'react';
+import { Link, useNavigate, useParams, Outlet, useSearchParams } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useCreateIntegration } from '@/hooks/useIntegrations';
+import type { IntegrationType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -68,6 +72,79 @@ const ClientImport = () => {
   const { toast } = useToast();
   const { organization } = useOrganizationBranding();
   const { profile, signOut } = useAuth();
+  const [searchParams] = useSearchParams();
+  const providerSlug = searchParams.get('provider') as IntegrationType | null;
+  const createIntegration = useCreateIntegration();
+  const [creds, setCreds] = useState<Record<string, string>>({});
+  const [connectionName, setConnectionName] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const PROVIDER_FORMS: Record<string, { name: string; logo: string; fields: { key: string; label: string; type?: string; placeholder?: string }[] }> = useMemo(() => ({
+    supabase: {
+      name: 'Supabase', logo: '⚡',
+      fields: [
+        { key: 'url', label: 'Project URL', placeholder: 'https://xxx.supabase.co' },
+        { key: 'anon_key', label: 'Anon Public Key', type: 'password' },
+      ],
+    },
+    google_sheets: {
+      name: 'Google Sheets', logo: '🟩',
+      fields: [
+        { key: 'spreadsheet_id', label: 'ID da Planilha', placeholder: 'Cole o ID entre /d/ e /edit' },
+        { key: 'sheet_name', label: 'Nome da Aba', placeholder: 'Sheet1' },
+      ],
+    },
+    api: {
+      name: 'API REST', logo: '🔌',
+      fields: [
+        { key: 'base_url', label: 'URL Base', placeholder: 'https://api.exemplo.com' },
+        { key: 'api_key', label: 'API Key / Token', type: 'password' },
+      ],
+    },
+    ploomes: {
+      name: 'Ploomes CRM', logo: '🟦',
+      fields: [{ key: 'user_key', label: 'User-Key', type: 'password', placeholder: 'Sua chave do Ploomes' }],
+    },
+    coldmail: {
+      name: 'Cold Mail Hackers', logo: '✉️',
+      fields: [{ key: 'api_key', label: 'API Key (CMH)', type: 'password' }],
+    },
+    smartlead: {
+      name: 'Smartlead', logo: '📧',
+      fields: [{ key: 'api_key', label: 'API Key (Smartlead)', type: 'password' }],
+    },
+  }), []);
+
+  const providerForm = providerSlug ? PROVIDER_FORMS[providerSlug] : null;
+
+  const handleProviderConnect = async () => {
+    if (!orgId || !providerSlug || !providerForm) return;
+    const missing = providerForm.fields.find((f) => !creds[f.key]?.trim());
+    if (missing) {
+      toast({ variant: 'destructive', title: `Preencha: ${missing.label}` });
+      return;
+    }
+    setIsConnecting(true);
+    try {
+      await createIntegration.mutateAsync({
+        org_id: orgId,
+        name: connectionName.trim() || providerForm.name,
+        type: providerSlug,
+        config: creds as never,
+      });
+      toast({ title: 'Integração conectada com sucesso!' });
+      navigate(`/client/${orgId}/integrations`);
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Falha ao conectar',
+        description: err instanceof Error ? err.message : 'Verifique as credenciais.',
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
 
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload');
   const [isDragging, setIsDragging] = useState(false);
@@ -207,6 +284,70 @@ const ClientImport = () => {
       setIsImporting(false);
     }
   };
+
+  if (providerForm) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <Button
+          variant="ghost"
+          className="mb-4"
+          onClick={() => navigate(`/client/${orgId}/integrations`)}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Voltar à Central de Integrações
+        </Button>
+
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <span>{providerForm.logo}</span>
+              Conectar {providerForm.name}
+            </CardTitle>
+            <CardDescription>
+              Informe as credenciais para autorizar o Pinn a sincronizar seus dados.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Nome da conexão</Label>
+              <Input
+                value={connectionName}
+                onChange={(e) => setConnectionName(e.target.value)}
+                placeholder={`Ex.: ${providerForm.name} — Conta Principal`}
+              />
+            </div>
+
+            {providerForm.fields.map((field) => (
+              <div key={field.key} className="space-y-1.5">
+                <Label>
+                  {field.label} <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  type={field.type === 'password' ? 'password' : 'text'}
+                  placeholder={field.placeholder}
+                  value={creds[field.key] ?? ''}
+                  onChange={(e) => setCreds((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                />
+              </div>
+            ))}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/client/${orgId}/integrations`)}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleProviderConnect} disabled={isConnecting}>
+                {isConnecting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Conectar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

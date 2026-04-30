@@ -6,7 +6,7 @@ import type { Json } from '@/integrations/supabase/types';
 
 export type AppRole = 'platform_admin' | 'client_admin' | 'analyst' | 'viewer';
 export type OrgStatus = 'active' | 'suspended' | 'trial';
-export type IntegrationType = 'supabase' | 'google_sheets' | 'csv' | 'api';
+export type IntegrationType = 'supabase' | 'google_sheets' | 'csv' | 'api' | 'ploomes' | 'coldmail' | 'smartlead';
 export type IntegrationStatus = 'pending' | 'connected' | 'error' | 'syncing';
 export type LeadSource = 'google_ads' | 'meta_ads' | 'linkedin' | 'referral' | 'organic' | 'email' | 'other';
 export type LeadStatus = 'new' | 'qualified' | 'in_analysis' | 'proposal' | 'converted' | 'lost';

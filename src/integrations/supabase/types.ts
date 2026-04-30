@@ -797,7 +797,14 @@ export type Database = {
     Enums: {
       app_role: "platform_admin" | "client_admin" | "analyst" | "viewer"
       integration_status: "pending" | "connected" | "error" | "syncing"
-      integration_type: "supabase" | "google_sheets" | "csv" | "api"
+      integration_type:
+        | "supabase"
+        | "google_sheets"
+        | "csv"
+        | "api"
+        | "ploomes"
+        | "coldmail"
+        | "smartlead"
       lead_source:
         | "google_ads"
         | "linkedin"
@@ -951,7 +958,15 @@ export const Constants = {
     Enums: {
       app_role: ["platform_admin", "client_admin", "analyst", "viewer"],
       integration_status: ["pending", "connected", "error", "syncing"],
-      integration_type: ["supabase", "google_sheets", "csv", "api"],
+      integration_type: [
+        "supabase",
+        "google_sheets",
+        "csv",
+        "api",
+        "ploomes",
+        "coldmail",
+        "smartlead",
+      ],
       lead_source: [
         "google_ads",
         "linkedin",

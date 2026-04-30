@@ -1,52 +1,58 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useIntegrations, useDeleteIntegration } from '@/hooks/useIntegrations';
+import {
+  useIntegrations,
+  useDeleteIntegration,
+} from '@/hooks/useIntegrations';
 import { supabase } from '@/integrations/supabase/client';
+import type { Integration, IntegrationType } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import {
   Plug, PlugZap, Trash2, CheckCircle2, AlertCircle, Clock, Loader2,
-  RefreshCw, Database, Globe,
+  RefreshCw, Database, Globe, Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+type ProviderCategory = 'data' | 'crm' | 'messaging';
+
 type ProviderDef = {
-  slug: string;
+  slug: IntegrationType;
   name: string;
   description: string;
-  category: string;
+  category: ProviderCategory;
   logo: string;
   syncFn?: string;
 };
 
 const PROVIDERS: ProviderDef[] = [
-  { slug: 'supabase', name: 'Supabase', description: 'Conecte um banco Postgres externo via Supabase.', category: 'data', logo: '⚡' },
-  { slug: 'google_sheets', name: 'Google Sheets', description: 'Importe dados de planilhas do Google.', category: 'data', logo: '🟩' },
-  { slug: 'csv', name: 'Upload CSV', description: 'Faça upload de arquivos CSV manualmente.', category: 'data', logo: '📄' },
-  { slug: 'api', name: 'API REST', description: 'Conecte qualquer API REST com autenticação.', category: 'data', logo: '🔌', syncFn: 'sync-external-api' },
-  { slug: 'ploomes', name: 'Ploomes CRM', description: 'Sincronize deals e contatos do Ploomes.', category: 'crm', logo: '🟦', syncFn: 'sync-ploomes' },
-  { slug: 'coldmail', name: 'Cold Mail Hackers', description: 'Importe campanhas e respostas do CMH.', category: 'messaging', logo: '✉️', syncFn: 'sync-coldmail' },
-  { slug: 'smartlead', name: 'Smartlead', description: 'Sincronize cold email do Smartlead.', category: 'messaging', logo: '📧', syncFn: 'sync-smartlead' },
+  { slug: 'supabase',      name: 'Supabase',           description: 'Conecte um banco Postgres externo via Supabase.',         category: 'data',      logo: '⚡' },
+  { slug: 'google_sheets', name: 'Google Sheets',      description: 'Importe dados de planilhas do Google Sheets.',            category: 'data',      logo: '🟩' },
+  { slug: 'csv',           name: 'Upload CSV',         description: 'Faça upload manual de arquivos CSV.',                     category: 'data',      logo: '📄' },
+  { slug: 'api',           name: 'API REST',           description: 'Conecte qualquer API REST com autenticação por token.',   category: 'data',      logo: '🔌', syncFn: 'sync-external-api' },
+  { slug: 'ploomes',       name: 'Ploomes CRM',        description: 'Sincronize negócios e contatos do Ploomes.',              category: 'crm',       logo: '🟦', syncFn: 'sync-ploomes' },
+  { slug: 'coldmail',      name: 'Cold Mail Hackers',  description: 'Importe campanhas e respostas do CMH (LinkedIn).',        category: 'messaging', logo: '✉️', syncFn: 'sync-coldmail' },
+  { slug: 'smartlead',     name: 'Smartlead',          description: 'Sincronize cold email e métricas do Smartlead.',          category: 'messaging', logo: '📧', syncFn: 'sync-smartlead' },
 ];
 
-const CATEGORIES = [
-  { value: 'all', label: 'Todos' },
-  { value: 'crm', label: 'CRM' },
-  { value: 'data', label: 'Dados' },
+const CATEGORIES: { value: ProviderCategory | 'all'; label: string }[] = [
+  { value: 'all',       label: 'Todas' },
+  { value: 'data',      label: 'Dados' },
+  { value: 'crm',       label: 'CRM' },
   { value: 'messaging', label: 'Mensageria' },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string }> = {
-  connected: { label: 'Conectado', icon: CheckCircle2, color: 'text-emerald-500' },
-  active: { label: 'Conectado', icon: CheckCircle2, color: 'text-emerald-500' },
-  error: { label: 'Erro', icon: AlertCircle, color: 'text-destructive' },
-  pending: { label: 'Pendente', icon: Clock, color: 'text-amber-500' },
-  syncing: { label: 'Sincronizando', icon: Loader2, color: 'text-blue-500' },
-};
+const STATUS_CONFIG = {
+  connected: { label: 'Conectado',     icon: CheckCircle2, color: 'text-emerald-500' },
+  pending:   { label: 'Pendente',      icon: Clock,        color: 'text-amber-500'   },
+  error:     { label: 'Erro',          icon: AlertCircle,  color: 'text-destructive' },
+  syncing:   { label: 'Sincronizando', icon: Loader2,      color: 'text-blue-500'    },
+} as const;
 
 export default function Integrations() {
   const { orgId } = useParams<{ orgId: string }>();
@@ -54,21 +60,34 @@ export default function Integrations() {
   const { toast } = useToast();
   const { data: integrations = [], isLoading, refetch } = useIntegrations(orgId);
   const deleteIntegration = useDeleteIntegration();
-  const [activeCategory, setActiveCategory] = useState<string>('all');
+
+  const [activeCategory, setActiveCategory] = useState<ProviderCategory | 'all'>('all');
+  const [search, setSearch] = useState('');
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
-  const providerBySlug = Object.fromEntries(PROVIDERS.map((p) => [p.slug, p]));
-  const connectedSlugs = new Set<string>(integrations.map((i) => i.type as string));
+  const providerBySlug = useMemo(
+    () => Object.fromEntries(PROVIDERS.map((p) => [p.slug, p])) as Record<IntegrationType, ProviderDef>,
+    [],
+  );
+  const connectedSlugs = useMemo(
+    () => new Set<IntegrationType>(integrations.map((i) => i.type)),
+    [integrations],
+  );
 
-  const filteredProviders = activeCategory === 'all'
-    ? PROVIDERS
-    : PROVIDERS.filter((p) => p.category === activeCategory);
+  const filteredProviders = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return PROVIDERS.filter((p) => {
+      if (activeCategory !== 'all' && p.category !== activeCategory) return false;
+      if (!term) return true;
+      return p.name.toLowerCase().includes(term) || p.description.toLowerCase().includes(term);
+    });
+  }, [activeCategory, search]);
 
-  const handleConnect = (slug: string) => {
+  const handleConnect = (slug: IntegrationType) => {
     navigate(`/client/${orgId}/import?provider=${slug}`);
   };
 
-  const handleSync = async (integration: typeof integrations[0]) => {
+  const handleSync = async (integration: Integration) => {
     const provider = providerBySlug[integration.type];
     if (!provider?.syncFn) {
       toast({ title: 'Sincronização manual não disponível para este conector.' });
@@ -138,7 +157,10 @@ export default function Integrations() {
               const status = STATUS_CONFIG[conn.status] ?? STATUS_CONFIG.pending;
               const StatusIcon = status.icon;
               return (
-                <div key={conn.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-border transition-colors">
+                <div
+                  key={conn.id}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-border transition-colors"
+                >
                   <span className="text-xl">{provider?.logo ?? '🔌'}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{conn.name}</p>
@@ -159,6 +181,7 @@ export default function Integrations() {
                         className="h-7 w-7 p-0"
                         onClick={() => handleSync(conn)}
                         disabled={syncingId === conn.id}
+                        title="Sincronizar agora"
                       >
                         {syncingId === conn.id
                           ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -171,6 +194,7 @@ export default function Integrations() {
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                       onClick={() => handleDelete(conn.id, conn.name)}
                       disabled={deleteIntegration.isPending}
+                      title="Desconectar"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -183,9 +207,20 @@ export default function Integrations() {
       )}
 
       <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Globe className="w-4 h-4 text-primary" />
-          <h2 className="text-sm font-semibold">Marketplace de Integrações</h2>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold">Marketplace de Integrações</h2>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar integração..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 text-xs pl-8"
+            />
+          </div>
         </div>
 
         <div className="flex gap-2 flex-wrap">
@@ -209,23 +244,29 @@ export default function Integrations() {
         {filteredProviders.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Database className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="font-medium">Nenhuma integração nessa categoria.</p>
+            <p className="font-medium">Nenhuma integração encontrada.</p>
+            <p className="text-sm mt-1">Tente outro filtro ou termo de busca.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredProviders.map((provider) => {
               const isConnected = connectedSlugs.has(provider.slug);
               return (
-                <Card key={provider.slug} className={cn(
-                  'transition-all hover:shadow-md',
-                  isConnected && 'border-emerald-500/30 bg-emerald-500/5',
-                )}>
+                <Card
+                  key={provider.slug}
+                  className={cn(
+                    'transition-all hover:shadow-md',
+                    isConnected && 'border-emerald-500/30 bg-emerald-500/5',
+                  )}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">{provider.logo}</span>
                         <div>
-                          <CardTitle className="text-sm font-semibold leading-tight">{provider.name}</CardTitle>
+                          <CardTitle className="text-sm font-semibold leading-tight">
+                            {provider.name}
+                          </CardTitle>
                           <Badge variant="outline" className="mt-1 text-[10px] px-1.5 py-0 capitalize">
                             {provider.category}
                           </Badge>
@@ -235,12 +276,14 @@ export default function Integrations() {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0 space-y-3">
-                    <CardDescription className="text-xs leading-relaxed">{provider.description}</CardDescription>
+                    <CardDescription className="text-xs leading-relaxed">
+                      {provider.description}
+                    </CardDescription>
                     <Button
                       size="sm"
                       variant={isConnected ? 'outline' : 'default'}
                       className="w-full h-8 text-xs"
-                      onClick={() => handleConnect(provider.slug as never)}
+                      onClick={() => handleConnect(provider.slug)}
                     >
                       <Plug className="w-3.5 h-3.5 mr-1.5" />
                       {isConnected ? 'Adicionar outra' : 'Conectar'}
