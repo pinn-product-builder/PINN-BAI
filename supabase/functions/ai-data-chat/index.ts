@@ -246,8 +246,77 @@ async function buildDataContext(
   const marginPerLead = avgTicket > 0 && globalCPL > 0 ? avgTicket - globalCPL : 0;
   const paidShareOfLeads = totalLeads > 0 && totalPaidLeads > 0 ? (totalPaidLeads / totalLeads) * 100 : 0;
   const grossProfitFromAds = totalPurchaseValue - totalSpend;
+  const convRateNum = totalLeads > 0 ? (totalConverted / totalLeads) * 100 : 0;
 
-  return `
+  // ── Trilha de auditoria dos cálculos ───────────────────────────────────────
+  const trail: CalculationTrail[] = [
+    {
+      key: "conversion_rate",
+      label: "Taxa de conversão",
+      formula: "convertidos ÷ leads × 100",
+      inputs: { convertidos: totalConverted, leads: totalLeads },
+      value: totalLeads > 0 ? `${convRateNum.toFixed(1)}%` : "indisponível",
+      available: totalLeads > 0,
+    },
+    {
+      key: "avg_ticket",
+      label: "Ticket médio",
+      formula: "receita ÷ convertidos",
+      inputs: { receita: brl(totalRevenue), convertidos: totalConverted },
+      value: totalConverted > 0 ? brl(avgTicket) : "indisponível",
+      available: totalConverted > 0,
+    },
+    {
+      key: "global_roas",
+      label: "ROAS global",
+      formula: "receita_compras ÷ investimento",
+      inputs: { receita_compras: brl(totalPurchaseValue), investimento: brl(totalSpend) },
+      value: totalSpend > 0 ? `${globalROAS.toFixed(2)}x` : "indisponível",
+      available: totalSpend > 0,
+    },
+    {
+      key: "global_cpl",
+      label: "CPL global",
+      formula: "investimento ÷ leads_pagos",
+      inputs: { investimento: brl(totalSpend), leads_pagos: totalPaidLeads },
+      value: totalPaidLeads > 0 ? brl(globalCPL) : "indisponível",
+      available: totalPaidLeads > 0,
+    },
+    {
+      key: "cac_via_ads",
+      label: "CAC via Ads",
+      formula: "investimento_total ÷ convertidos",
+      inputs: { investimento_total: brl(totalSpend), convertidos: totalConverted },
+      value: cacPaid > 0 ? brl(cacPaid) : "indisponível",
+      available: cacPaid > 0,
+    },
+    {
+      key: "margin_per_lead",
+      label: "Margem por lead pago",
+      formula: "ticket_medio − CPL",
+      inputs: { ticket_medio: brl(avgTicket), CPL: brl(globalCPL) },
+      value: marginPerLead !== 0 ? brl(marginPerLead) : "indisponível",
+      available: marginPerLead !== 0,
+    },
+    {
+      key: "paid_share",
+      label: "Participação de Ads no funil",
+      formula: "leads_pagos ÷ leads_totais × 100",
+      inputs: { leads_pagos: totalPaidLeads, leads_totais: totalLeads },
+      value: paidShareOfLeads > 0 ? `${paidShareOfLeads.toFixed(1)}%` : "indisponível",
+      available: paidShareOfLeads > 0,
+    },
+    {
+      key: "gross_profit_ads",
+      label: "Lucro bruto dos Ads",
+      formula: "receita_compras − investimento",
+      inputs: { receita_compras: brl(totalPurchaseValue), investimento: brl(totalSpend) },
+      value: totalSpend > 0 ? brl(grossProfitFromAds) : "indisponível",
+      available: totalSpend > 0,
+    },
+  ];
+
+  const text = `
 ## Dados da Organização: "${org?.name ?? "Cliente"}" | Período: ${periodStr}
 
 ### 1. Funil de Vendas (CRM)
@@ -305,11 +374,11 @@ ${
 }
 
 ### 7. Cruzamentos Pré-Calculados (use estes números, não recalcule)
-${cacPaid > 0 ? `- CAC via Ads = ${brl(cacPaid)} (investimento ${brl(totalSpend)} ÷ ${totalConverted} convertidos)` : "- CAC via Ads: indisponível (faltam convertidos ou investimento)"}
-${marginPerLead !== 0 ? `- Margem por lead pago = ${brl(marginPerLead)} (ticket médio ${brl(avgTicket)} - CPL ${brl(globalCPL)})` : "- Margem por lead pago: indisponível"}
-${paidShareOfLeads > 0 ? `- Participação de Ads no funil = ${paidShareOfLeads.toFixed(1)}% (${totalPaidLeads} de ${totalLeads} leads)` : "- Participação de Ads no funil: indisponível"}
-${totalSpend > 0 ? `- Lucro bruto dos Ads = ${brl(grossProfitFromAds)} (receita compras ${brl(totalPurchaseValue)} - investimento ${brl(totalSpend)})` : ""}
+${trail.filter(t => t.available).map(t => `- ${t.label} = ${t.value} [fórmula: ${t.formula}; entradas: ${Object.entries(t.inputs).map(([k,v]) => `${k}=${v}`).join(", ")}]`).join("\n")}
+${trail.filter(t => !t.available).length > 0 ? `\nIndisponíveis (não use): ${trail.filter(t => !t.available).map(t => t.label).join(", ")}` : ""}
 `.trim();
+
+  return { text, trail };
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────────
