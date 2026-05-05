@@ -1216,8 +1216,7 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Secondary KPIs row — temporariamente oculto até validação das fontes */}
-      {secondaryMetrics.length > 0 ? null : null}
+      {/* Secondary KPIs row */}
       {secondaryMetrics.length > 0 && (
         <section>
           <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
@@ -1230,8 +1229,7 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Extra metrics if any — temporariamente oculto até validação das fontes */}
-      {extraMetrics.length > 0 ? null : null}
+      {/* Extra metrics if any */}
       {extraMetrics.length > 0 && (
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
