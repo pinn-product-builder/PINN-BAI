@@ -788,8 +788,16 @@ const WidgetRenderer = ({
       .filter((v): v is number => v !== null);
 
     if (values.length === 0) {
-      console.warn('[DashboardEngine] Sem valores numéricos no campo:', metricField, '→ usando row count');
-      return rawData.length;
+      if (aggregation === 'count_values') {
+        const nonEmptyCount = rawData.filter(row => {
+          const value = row[metricField];
+          return value !== null && value !== undefined && value !== '';
+        }).length;
+        console.warn('[DashboardEngine] Campo não numérico contado por presença:', metricField, '→', nonEmptyCount);
+        return nonEmptyCount;
+      }
+      console.warn('[DashboardEngine] Sem valores numéricos no campo:', metricField, '→ usando 0');
+      return 0;
     }
 
     // View KPI pré-agregada → retorna valor direto SEM re-agregar
