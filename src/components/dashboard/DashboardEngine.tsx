@@ -799,7 +799,8 @@ const WidgetRenderer = ({
     const tableName = (config.dataSource || config.sourceTable || '').toLowerCase();
     const isDailyView = /(_dia|_daily|_diario|_hora|_hourly|_min|_minute)\b/i.test(tableName);
     const hasKpiMarker = /kpi|_30d|_60d|_90d|_7d|_mtd|_ytd|summary|overview|_resumo|_total/i.test(tableName);
-    const isViewKpi = !isDailyView && (
+    const canUseDirectKpiValue = !['count', 'count_values'].includes(aggregation);
+    const isViewKpi = canUseDirectKpiValue && !isDailyView && (
       config.isAggregatedView === true ||
       hasKpiMarker ||
       (rawData.length === 1 && values.length === 1)
@@ -908,7 +909,7 @@ const WidgetRenderer = ({
 
   switch (widget.type) {
     case 'metric_card': {
-      let metricValue = calculateMetricValue();
+      const metricValue = calculateMetricValue();
       const format = resolveFormat(config, widget.title || '');
       
       return (
