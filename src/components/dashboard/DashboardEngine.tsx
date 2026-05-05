@@ -594,7 +594,7 @@ const WidgetRenderer = ({
     // Helper: rejeitar campos de data/timestamp como métrica
     const isDateColumn = (col: string): boolean => {
       const cl = col.toLowerCase();
-      return cl.includes('date') || cl.endsWith('_at') || cl === 'created' || cl === 'updated' || cl === 'timestamp' || cl === 'day' || cl === 'dia';
+      return cl.includes('date') || cl.endsWith('_at') || cl.includes('_at_') || cl.endsWith('_ts') || cl.endsWith('_iso') || cl.endsWith('_unix') || cl.endsWith('_epoch') || cl === 'created' || cl === 'updated' || cl === 'timestamp' || cl === 'day' || cl === 'dia';
     };
     
     // Helper: rejeitar campos de ID
@@ -606,15 +606,17 @@ const WidgetRenderer = ({
       return v !== undefined && v !== null && (typeof v === 'number' || !isNaN(parseFloat(String(v))));
     };
 
-    // 1. Campo exato presente nos dados (e não é data/ID)
-    if (cfg.metric && available.includes(cfg.metric) && !isDateColumn(cfg.metric) && !isIdColumn(cfg.metric)) {
+    const allowsIdCount = cfg.aggregation === 'count';
+
+    // 1. Campo exato presente nos dados. IDs são válidos apenas para contagem explícita.
+    if (cfg.metric && available.includes(cfg.metric) && !isDateColumn(cfg.metric) && (!isIdColumn(cfg.metric) || allowsIdCount)) {
       return cfg.metric;
     }
 
     // 2. Match case-insensitive (excluindo datas)
     if (cfg.metric) {
       const lower = cfg.metric.toLowerCase();
-      const found = available.find(k => k.toLowerCase() === lower && !isDateColumn(k) && !isIdColumn(k));
+      const found = available.find(k => k.toLowerCase() === lower && !isDateColumn(k) && (!isIdColumn(k) || allowsIdCount));
       if (found) return found;
     }
 
@@ -735,14 +737,17 @@ const WidgetRenderer = ({
       return undefined;
     }
 
-    const aggregation = config.aggregation || 'count';
+    const requestedAggregation = config.aggregation || 'count';
     const metricField = resolveMetricField(rawData, config, widget.title || '');
+    const fieldConfigured = Boolean(config.metric || config.metricField || config.targetMetric);
+    const aggregation = requestedAggregation === 'count' && fieldConfigured ? 'count_values' : requestedAggregation;
 
     console.log('[DashboardEngine] Resolução de campo:', {
       configMetric: config.metric,
       targetMetric: config.targetMetric,
       resolvedField: metricField,
       aggregation,
+      requestedAggregation,
       dataRows: rawData.length,
       availableFields: Object.keys(rawData[0] || {}),
     });
@@ -783,8 +788,16 @@ const WidgetRenderer = ({
       .filter((v): v is number => v !== null);
 
     if (values.length === 0) {
-      console.warn('[DashboardEngine] Sem valores numéricos no campo:', metricField, '→ usando row count');
-      return rawData.length;
+      if (aggregation === 'count_values') {
+        const nonEmptyCount = rawData.filter(row => {
+          const value = row[metricField];
+          return value !== null && value !== undefined && value !== '';
+        }).length;
+        console.warn('[DashboardEngine] Campo não numérico contado por presença:', metricField, '→', nonEmptyCount);
+        return nonEmptyCount;
+      }
+      console.warn('[DashboardEngine] Sem valores numéricos no campo:', metricField, '→ usando 0');
+      return 0;
     }
 
     // View KPI pré-agregada → retorna valor direto SEM re-agregar
@@ -794,7 +807,8 @@ const WidgetRenderer = ({
     const tableName = (config.dataSource || config.sourceTable || '').toLowerCase();
     const isDailyView = /(_dia|_daily|_diario|_hora|_hourly|_min|_minute)\b/i.test(tableName);
     const hasKpiMarker = /kpi|_30d|_60d|_90d|_7d|_mtd|_ytd|summary|overview|_resumo|_total/i.test(tableName);
-    const isViewKpi = !isDailyView && (
+    const canUseDirectKpiValue = !['count', 'count_values'].includes(aggregation);
+    const isViewKpi = canUseDirectKpiValue && !isDailyView && (
       config.isAggregatedView === true ||
       hasKpiMarker ||
       (rawData.length === 1 && values.length === 1)
@@ -821,6 +835,11 @@ const WidgetRenderer = ({
         result = Math.max(...values);
         break;
       case 'count':
+        result = rawData.length;
+        break;
+      case 'count_values':
+        result = values.length;
+        break;
       default:
         result = rawData.length;
     }
@@ -898,7 +917,7 @@ const WidgetRenderer = ({
 
   switch (widget.type) {
     case 'metric_card': {
-      let metricValue = calculateMetricValue();
+      const metricValue = calculateMetricValue();
       const format = resolveFormat(config, widget.title || '');
       
       return (
@@ -1205,8 +1224,8 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Secondary KPIs row — OCULTO: dados de "Últimos 30 dias" estavam incorretos */}
-      {false && secondaryMetrics.length > 0 && (
+      {/* Secondary KPIs row */}
+      {secondaryMetrics.length > 0 && (
         <section>
           <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
             {secondaryMetrics.map(widget => (
@@ -1218,8 +1237,8 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
         </section>
       )}
 
-      {/* Extra metrics if any — OCULTO: dados de "Últimos 30 dias" estavam incorretos */}
-      {false && extraMetrics.length > 0 && (
+      {/* Extra metrics if any */}
+      {extraMetrics.length > 0 && (
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {extraMetrics.map(widget => (

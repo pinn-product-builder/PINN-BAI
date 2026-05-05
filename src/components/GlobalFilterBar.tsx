@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 const PERIOD_OPTIONS: { value: QuickPeriod; label: string }[] = [
   { value: 'today', label: 'Hoje' },
   { value: 'week', label: 'Semana' },
-  { value: 'month', label: 'Mês' },
+  { value: 'month', label: '30 dias' },
   { value: 'quarter', label: 'Trimestre' },
   { value: 'year', label: 'Ano' },
   { value: 'custom', label: 'Personalizado' },
