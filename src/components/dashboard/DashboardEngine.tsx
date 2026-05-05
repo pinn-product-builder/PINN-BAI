@@ -594,7 +594,7 @@ const WidgetRenderer = ({
     // Helper: rejeitar campos de data/timestamp como métrica
     const isDateColumn = (col: string): boolean => {
       const cl = col.toLowerCase();
-      return cl.includes('date') || cl.endsWith('_at') || cl === 'created' || cl === 'updated' || cl === 'timestamp' || cl === 'day' || cl === 'dia';
+      return cl.includes('date') || cl.endsWith('_at') || cl.includes('_at_') || cl.endsWith('_ts') || cl.endsWith('_iso') || cl.endsWith('_unix') || cl.endsWith('_epoch') || cl === 'created' || cl === 'updated' || cl === 'timestamp' || cl === 'day' || cl === 'dia';
     };
     
     // Helper: rejeitar campos de ID
@@ -606,15 +606,17 @@ const WidgetRenderer = ({
       return v !== undefined && v !== null && (typeof v === 'number' || !isNaN(parseFloat(String(v))));
     };
 
-    // 1. Campo exato presente nos dados (e não é data/ID)
-    if (cfg.metric && available.includes(cfg.metric) && !isDateColumn(cfg.metric) && !isIdColumn(cfg.metric)) {
+    const allowsIdCount = cfg.aggregation === 'count';
+
+    // 1. Campo exato presente nos dados. IDs são válidos apenas para contagem explícita.
+    if (cfg.metric && available.includes(cfg.metric) && !isDateColumn(cfg.metric) && (!isIdColumn(cfg.metric) || allowsIdCount)) {
       return cfg.metric;
     }
 
     // 2. Match case-insensitive (excluindo datas)
     if (cfg.metric) {
       const lower = cfg.metric.toLowerCase();
-      const found = available.find(k => k.toLowerCase() === lower && !isDateColumn(k) && !isIdColumn(k));
+      const found = available.find(k => k.toLowerCase() === lower && !isDateColumn(k) && (!isIdColumn(k) || allowsIdCount));
       if (found) return found;
     }
 
