@@ -735,14 +735,17 @@ const WidgetRenderer = ({
       return undefined;
     }
 
-    const aggregation = config.aggregation || 'count';
+    const requestedAggregation = config.aggregation || 'count';
     const metricField = resolveMetricField(rawData, config, widget.title || '');
+    const fieldConfigured = Boolean(config.metric || config.metricField || config.targetMetric);
+    const aggregation = requestedAggregation === 'count' && fieldConfigured ? 'count_values' : requestedAggregation;
 
     console.log('[DashboardEngine] Resolução de campo:', {
       configMetric: config.metric,
       targetMetric: config.targetMetric,
       resolvedField: metricField,
       aggregation,
+      requestedAggregation,
       dataRows: rawData.length,
       availableFields: Object.keys(rawData[0] || {}),
     });
@@ -821,6 +824,11 @@ const WidgetRenderer = ({
         result = Math.max(...values);
         break;
       case 'count':
+        result = rawData.length;
+        break;
+      case 'count_values':
+        result = values.length;
+        break;
       default:
         result = rawData.length;
     }
