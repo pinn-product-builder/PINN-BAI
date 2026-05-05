@@ -787,21 +787,21 @@ const WidgetRenderer = ({
       return rawData.length;
     }
 
-    // View agregada (flag explícita OU 1 row com KPIs pré-calculados) → retorna valor direto
-    // Detectar automaticamente se a view é KPI: nome contém vw_*, kpi, _30d, _60d, summary
+    // View KPI pré-agregada → retorna valor direto SEM re-agregar
+    // IMPORTANTE: views diárias/horárias (_dia, _daily, _hora) NUNCA são KPI — precisam somar período.
+    // Só é KPI quando: flag explícita, OU nome indica janela fechada (kpi, _30d, _60d, _7d, summary, overview),
+    // OU resultado tem exatamente 1 linha (visivelmente agregado).
     const tableName = (config.dataSource || config.sourceTable || '').toLowerCase();
-    const isViewKpi = config.isAggregatedView ||
-      /^vw_|^view_/i.test(tableName) ||
-      /kpi|_30d|_60d|_7d|summary|overview/i.test(tableName);
+    const isDailyView = /(_dia|_daily|_diario|_hora|_hourly|_min|_minute)\b/i.test(tableName);
+    const hasKpiMarker = /kpi|_30d|_60d|_90d|_7d|_mtd|_ytd|summary|overview|_resumo|_total/i.test(tableName);
+    const isViewKpi = !isDailyView && (
+      config.isAggregatedView === true ||
+      hasKpiMarker ||
+      (rawData.length === 1 && values.length === 1)
+    );
 
     if (isViewKpi && values.length >= 1) {
-      // View KPI: retorna o primeiro valor sem re-agregar (evita double-sum)
-      console.log('[DashboardEngine] View KPI detectada, valor direto:', values[0], '| tabela:', tableName);
-      return values[0];
-    }
-
-    if (rawData.length === 1 && values.length === 1) {
-      console.log('[DashboardEngine] View agregada (1 row), retornando valor direto:', values[0]);
+      console.log('[DashboardEngine] View KPI pré-agregada, valor direto:', values[0], '| tabela:', tableName);
       return values[0];
     }
 
