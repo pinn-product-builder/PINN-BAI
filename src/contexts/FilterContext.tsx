@@ -11,12 +11,11 @@ import {
   endOfDay,
   startOfWeek,
   endOfWeek,
-  startOfMonth,
-  endOfMonth,
   startOfQuarter,
   endOfQuarter,
   startOfYear,
   endOfYear,
+  subDays,
   parse,
   isValid,
   format,
@@ -65,15 +64,15 @@ function computeDateRange(
         end: endOfWeek(now, { weekStartsOn: 1 }),
       };
     case 'month':
-      return { start: startOfMonth(now), end: endOfMonth(now) };
+      return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
     case 'quarter':
       return { start: startOfQuarter(now), end: endOfQuarter(now) };
     case 'year':
       return { start: startOfYear(now), end: endOfYear(now) };
     case 'custom':
       return {
-        start: customStart ?? startOfMonth(now),
-        end: customEnd ?? endOfMonth(now),
+        start: customStart ?? startOfDay(subDays(now, 29)),
+        end: customEnd ?? endOfDay(now),
       };
   }
 }
