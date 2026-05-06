@@ -390,7 +390,7 @@ const Dashboard = () => {
       {/* ── Widgets ── */}
       <div id="dashboard-content">
         {activeDash?.id ? (
-          <DashboardEngine dashboardId={activeDash.id} />
+          <DashboardEngine dashboardId={activeDash.id} isEditing={isEditingLayout} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => (
