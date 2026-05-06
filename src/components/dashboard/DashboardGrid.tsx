@@ -1,8 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
-// @ts-expect-error - react-grid-layout types não exportam Layouts/WidthProvider corretamente
-import RGL, { Responsive, WidthProvider } from 'react-grid-layout';
-type Layout = { i: string; x: number; y: number; w: number; h: number; minW?: number; minH?: number };
-type Layouts = Record<string, Layout[]>;
+import { Responsive, WidthProvider, type Layout, type Layouts } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
