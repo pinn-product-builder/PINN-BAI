@@ -23,6 +23,8 @@ import {
   MessageSquare,
   Phone,
   LayoutDashboard,
+  Move,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
