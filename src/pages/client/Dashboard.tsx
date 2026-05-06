@@ -23,6 +23,8 @@ import {
   MessageSquare,
   Phone,
   LayoutDashboard,
+  Move,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -171,6 +173,7 @@ const Dashboard = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDashId, setSelectedDashId] = useState<string | null>(null);
   const [showShare, setShowShare] = useState(false);
+  const [isEditingLayout, setIsEditingLayout] = useState(false);
   const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
 
   const { data: dashboards, isLoading: isLoadingDashes } = useQuery({
@@ -257,6 +260,21 @@ const Dashboard = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {activeDash && (
+            <button
+              type="button"
+              onClick={() => setIsEditingLayout((v) => !v)}
+              className={cn(
+                "inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border transition-all",
+                isEditingLayout
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border/50 bg-card/60 text-muted-foreground hover:text-foreground hover:border-border/80"
+              )}
+            >
+              {isEditingLayout ? <Check className="w-3.5 h-3.5" /> : <Move className="w-3.5 h-3.5" />}
+              {isEditingLayout ? 'Concluir' : 'Editar layout'}
+            </button>
+          )}
           {showRfmChurn && (
             <button
               type="button"
@@ -372,7 +390,7 @@ const Dashboard = () => {
       {/* ── Widgets ── */}
       <div id="dashboard-content">
         {activeDash?.id ? (
-          <DashboardEngine dashboardId={activeDash.id} />
+          <DashboardEngine dashboardId={activeDash.id} isEditing={isEditingLayout} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => (

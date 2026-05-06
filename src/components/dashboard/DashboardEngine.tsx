@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { DashboardGrid } from './DashboardGrid';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
@@ -1066,7 +1067,7 @@ const WidgetRenderer = ({
   }
 };
 
-const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
+const DashboardEngine = ({ dashboardId, isEditing = false }: { dashboardId: string; isEditing?: boolean }) => {
   // Log básico que sempre aparece
   console.log('[DashboardEngine] STARTED', dashboardId);
   
@@ -1187,147 +1188,88 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
     );
   }
 
-  // Layout premium inspirado no dashboard Afonsina de referência
+  // Layout com drag-and-drop (react-grid-layout). Salva em dashboards.layout (jsonb).
   const sortedWidgets = [...widgets].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
-  // Agrupamentos por tipo
-  const metricWidgets = sortedWidgets.filter(w => w.type === 'metric_card');
-  const timeSeriesCharts = sortedWidgets.filter(w => ['area_chart', 'line_chart'].includes(w.type));
-  const funnelWidgets = sortedWidgets.filter(w => w.type === 'funnel');
-  const barCharts = sortedWidgets.filter(w => w.type === 'bar_chart');
-  const pieCharts = sortedWidgets.filter(w => w.type === 'pie_chart');
-  const tableWidgets = sortedWidgets.filter(w => w.type === 'table');
-  const insightWidgets = sortedWidgets.filter(w => w.type === 'insight_card');
-  const rfmChurnWidgets = sortedWidgets.filter(w => ['rfm_matrix', 'churn_prediction'].includes(w.type));
-
-  // Combine tables + bar charts sorted by position for side-by-side pairing
-  const tablesAndBars = [...tableWidgets, ...barCharts].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-
-  const heroCount = Math.min(metricWidgets.length, 4);
-  const heroMetrics = metricWidgets.slice(0, heroCount);
-  const secondaryMetrics = metricWidgets.slice(heroCount, heroCount + 4);
-  const extraMetrics = metricWidgets.slice(heroCount + 4);
-
   return (
-    <div className="space-y-8 pb-24">
-      {/* Section: Indicadores Principais */}
-      {heroMetrics.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Últimos 30 Dias</h2>
-          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
-            {heroMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[130px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Secondary KPIs row */}
-      {secondaryMetrics.length > 0 && (
-        <section>
-          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
-            {secondaryMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[120px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Extra metrics if any */}
-      {extraMetrics.length > 0 && (
-        <section>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            {extraMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[120px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Evolução Diária (area/line) + first funnel — side by side */}
-      {(timeSeriesCharts.length > 0 || funnelWidgets.length > 0) && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {timeSeriesCharts.map(widget => (
-              <div 
-                key={widget.id} 
-                className="min-h-[380px]"
-              >
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-            {funnelWidgets.length > 0 && (
-              <div 
-                key={funnelWidgets[0].id} 
-                className="min-h-[380px]"
-              >
-                <WidgetRenderer widget={funnelWidgets[0]} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Additional funnels — paired side by side */}
-      {funnelWidgets.length > 1 && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {funnelWidgets.slice(1).map(widget => (
-              <div key={widget.id} className="min-h-[380px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Tables, Bar charts & Insights — paired side-by-side */}
-      {(tablesAndBars.length > 0 || insightWidgets.length > 0) && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {[...tablesAndBars, ...insightWidgets].map(widget => (
-              <div key={widget.id} className="min-h-[340px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* RFM e Churn */}
-      {rfmChurnWidgets.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Retenção e Relacionamento</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {rfmChurnWidgets.map(widget => (
-              <div key={widget.id} className="min-h-[320px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Pie charts if any */}
-      {pieCharts.length > 0 && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {pieCharts.map(widget => (
-              <div key={widget.id} className="min-h-[320px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+    <DashboardEngineGrid
+      dashboardId={dashboardId}
+      widgets={sortedWidgets}
+      orgId={orgId || ''}
+      isEditing={isEditing}
+      onDelete={handleDelete}
+    />
   );
 };
+
+// ─── Grid wrapper: lê/salva layout em dashboards.layout ────────────────────────
+function DashboardEngineGrid({
+  dashboardId,
+  widgets,
+  orgId,
+  isEditing,
+  onDelete,
+}: {
+  dashboardId: string;
+  widgets: DashboardWidget[];
+  orgId: string;
+  isEditing: boolean;
+  onDelete: (id: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [savedLayouts, setSavedLayouts] = useState<any | null>(null);
+  const [pendingLayouts, setPendingLayouts] = useState<any | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('dashboards')
+        .select('layout')
+        .eq('id', dashboardId)
+        .single();
+      if (cancelled) return;
+      const layout = (data?.layout as any) ?? null;
+      if (layout && typeof layout === 'object' && Object.keys(layout).length > 0) {
+        setSavedLayouts(layout);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dashboardId]);
+
+  // Auto-save (debounce) durante edição
+  useEffect(() => {
+    if (!isEditing || !pendingLayouts) return;
+    const t = setTimeout(async () => {
+      await supabase
+        .from('dashboards')
+        .update({ layout: pendingLayouts, updated_at: new Date().toISOString() })
+        .eq('id', dashboardId);
+      queryClient.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [pendingLayouts, isEditing, dashboardId, queryClient]);
+
+  return (
+    <div className="pb-24">
+      <DashboardGrid
+        widgets={widgets.map((w) => ({ id: w.id, type: w.type as string }))}
+        savedLayouts={savedLayouts}
+        isEditing={isEditing}
+        onLayoutChange={setPendingLayouts}
+        renderWidget={(gw) => {
+          const widget = widgets.find((w) => w.id === gw.id);
+          if (!widget) return null;
+          return (
+            <div className="h-full">
+              <WidgetRenderer widget={widget} orgId={orgId} onRemove={onDelete} />
+            </div>
+          );
+        }}
+      />
+    </div>
+  );
+}
+
 
 export default DashboardEngine;
