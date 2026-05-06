@@ -260,6 +260,21 @@ const Dashboard = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {activeDash && (
+            <button
+              type="button"
+              onClick={() => setIsEditingLayout((v) => !v)}
+              className={cn(
+                "inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border transition-all",
+                isEditingLayout
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border/50 bg-card/60 text-muted-foreground hover:text-foreground hover:border-border/80"
+              )}
+            >
+              {isEditingLayout ? <Check className="w-3.5 h-3.5" /> : <Move className="w-3.5 h-3.5" />}
+              {isEditingLayout ? 'Concluir' : 'Editar layout'}
+            </button>
+          )}
           {showRfmChurn && (
             <button
               type="button"
