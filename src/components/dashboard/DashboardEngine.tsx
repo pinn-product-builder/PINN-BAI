@@ -1067,7 +1067,7 @@ const WidgetRenderer = ({
   }
 };
 
-const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
+const DashboardEngine = ({ dashboardId, isEditing = false }: { dashboardId: string; isEditing?: boolean }) => {
   // Log básico que sempre aparece
   console.log('[DashboardEngine] STARTED', dashboardId);
   
