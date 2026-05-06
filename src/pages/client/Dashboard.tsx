@@ -173,6 +173,7 @@ const Dashboard = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDashId, setSelectedDashId] = useState<string | null>(null);
   const [showShare, setShowShare] = useState(false);
+  const [isEditingLayout, setIsEditingLayout] = useState(false);
   const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
 
   const { data: dashboards, isLoading: isLoadingDashes } = useQuery({
