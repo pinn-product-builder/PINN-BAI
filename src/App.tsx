@@ -47,6 +47,7 @@ import PaidTrafficConnect from "./pages/client/PaidTrafficConnect";
 import UnitEconomics from "./pages/client/UnitEconomics";
 import Goals from "./pages/client/Goals";
 import Gamification from "./pages/client/Gamification";
+import CrmAuditDashboard from "./pages/client/CrmAuditDashboard";
 import PublicDashboard from "./pages/PublicDashboard";
 import { isRfmChurnEnabledForAdmin, isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
 import { useParams } from "react-router-dom";
@@ -125,6 +126,7 @@ const App = () => (
                 <Route path="goals" element={<Goals />} />
                 <Route path="gamification" element={<Gamification />} />
                 <Route path="integrations" element={<Integrations />} />
+                <Route path="crm-audit" element={<CrmAuditDashboard />} />
                 <Route path="users" element={<ClientUsers />} />
                 <Route path="settings" element={<ClientSettings />} />
               </Route>

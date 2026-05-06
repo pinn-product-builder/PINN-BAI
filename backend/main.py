@@ -27,6 +27,7 @@ from core.sync.service import SyncService  # noqa: E402
 from core.health.service import CustomerHealthService  # noqa: E402
 from core.kpi.threshold_service import ThresholdService  # noqa: E402
 from core.kpi.achievement_service import AchievementService  # noqa: E402
+from crm_auditor.router import router as bai_crm_auditor_router  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +49,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(bai_crm_auditor_router)
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────

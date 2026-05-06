@@ -28,6 +28,7 @@ import {
   EmojiEvents as TrophyIcon,
   WorkspacePremium as AchievementIcon,
   ArrowBack as ArrowBackIcon,
+  FactCheck as CrmAuditIcon,
 } from "@mui/icons-material";
 import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,6 +50,7 @@ const baseNavItems = [
   { path: "goals",           label: "Metas & Alertas",  icon: TrophyIcon },
   { path: "gamification",    label: "Conquistas",       icon: AchievementIcon },
   { path: "integrations",    label: "Integrações",      icon: HubIcon },
+  { path: "crm-audit",       label: "Auditoria CRM",    icon: CrmAuditIcon },
   { path: "settings",        label: "White Label",      icon: SettingsIcon },
 ];
 

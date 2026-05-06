@@ -78,6 +78,7 @@ Outras tecnologias de dados, infraestrutura e orquestração (por exemplo, pipel
 
 ```
 PINN-BAI/
+├── backend/          # API FastAPI (CRM, ads, health, BAI CRM Auditor)
 ├── src/              # Aplicação React (UI, hooks, integrações)
 ├── public/           # Assets estáticos
 ├── scripts/          # Scripts auxiliares (automação, checks)
@@ -89,6 +90,7 @@ PINN-BAI/
 └── package.json
 ```
 
+- **`backend/`** – Serviços Python (`main.py`, integrações Kommo/ads, módulo `crm_auditor/`).
 - **`src/`** – Páginas, contextos, hooks, componentes, integrações com APIs/Supabase.
 - **`public/`** – Ícones, manifestos, imagens.
 - **`scripts/`** – Automação do projeto (ex.: templates).
@@ -96,6 +98,30 @@ PINN-BAI/
 - **`docs/`** – Análises, diagnósticos, guias de migração e SQL auxiliar ([índice](docs/README.md)).
 
 Configuração de build e qualidade: `vite.config.ts`, `vitest.config.ts`, `tsconfig*.json`, `eslint.config.js`, `postcss.config.js`, `tailwind.config.ts`.
+
+---
+
+## BAI CRM Auditor (backend)
+
+Módulo **`backend/crm_auditor/`**: sincronização normalizada do Kommo (via Composio no futuro), métricas operacionais, views SQL e relatório executivo com LLM a partir de **JSON consolidado** (nunca dados crus).
+
+1. Aplique a migration `supabase/migrations/20260506120000_bai_crm_auditor.sql` no projeto Supabase.
+2. Configure `backend/.env` (veja `backend/.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, opcionalmente `OPENAI_API_KEY`, `COMPOSIO_API_KEY` e `COMPOSIO_MOCK_SYNC=true` para desenvolvimento.
+3. Na pasta `backend/`:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+4. Fluxo mínimo: `POST /tenants` → `POST /crm/connections` → `POST /crm/kommo/sync` → `GET /crm/metrics/overview?tenant_id=...` → `POST /crm/analysis/generate?tenant_id=...`.
+
+5. **Dados reais do Kommo — opções** (defina `COMPOSIO_MOCK_SYNC=false` e reinicie o uvicorn):
+   - **Via Composio (recomendado para produção):** `COMPOSIO_API_KEY` no `.env`; em `POST /crm/connections` envie `composio_connected_account_id` (connected account Kommo após OAuth na Composio) e, opcionalmente, `composio_user_id` (se omitido, usa o `tenant_id`). O sync chama as tools `KOMMO_LIST_*` (ver `crm_auditor/modules/kommo/composio_tool_map.py`).
+   - **HTTP direto ao Kommo:** em `credentials`, `access_token` + `subdomain`. Smoke: `PYTHONPATH=. python3 scripts/smoke_kommo_http.py` na pasta `backend/`.
+
+**Nota:** o sync legado do PINN (`/crm/sync/...`, tabelas `crm_deals` / `org_id`) permanece intacto. O auditor usa `public.tenants` e tabelas `crm_*` dedicadas (ver comentários na migration sobre nomes equivalentes ao spec).
 
 ---
 
