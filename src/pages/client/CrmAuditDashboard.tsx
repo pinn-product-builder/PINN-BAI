@@ -705,135 +705,141 @@ export default function CrmAuditDashboard() {
 
             {/* ── Tab 1: Operação ── */}
             {tab === 1 && (
-              <Section title="Panorama do pipeline" subtitle="Volume, valores e indicadores de atrito detectados neste snapshot Kommo.">
-                <Grid container spacing={1.5}>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Total leads" value={fmtNum(ov.total_leads_all_status)} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Abertas" value={fmtNum(ov.total_active_leads)} highlight /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Ganhas" value={fmtNum(ov.total_won_leads)} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Perdidas" value={fmtNum(ov.total_lost_leads)} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Valor em aberto" value={fmtMoney(ov.total_open_pipeline_value)} highlight /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Valor ganho" value={fmtMoney(fin.won_pipeline_value as number)} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Ticket médio (abertas)" value={fmtMoney(fin.avg_ticket_open as number)} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Taxa de ganho" value={winRate ? `${winRate}%` : "—"} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Taxa de perda" value={lossRate ? `${lossRate}%` : "—"} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Sem valor (abertas)" value={fmtNum(ov.open_leads_without_value)} warn={(ov.open_leads_without_value ?? 0) > 0} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Sem responsável" value={fmtNum(ov.open_leads_without_owner)} warn={(ov.open_leads_without_owner ?? 0) > 0} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Sem origem" value={fmtNum(ov.open_leads_without_source)} warn={(ov.open_leads_without_source ?? 0) > 0} /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Sem próxima ação" value={fmtNum(samples.counts?.no_next_action_leads)} warn /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Tarefas vencidas" value={fmtNum(samples.counts?.overdue_tasks)} warn /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Leads parados" value={fmtNum(samples.counts?.stuck_leads)} warn /></Grid>
-                  <Grid item xs={6} sm={4} md={3}><MetricCard label="Concentração top 3" value={fmtPct(fin.open_value_concentration_top3_pct as number, 2)} /></Grid>
-                </Grid>
+              <Section title="Panorama do pipeline" subtitle="Volume, valores e indicadores de atrito detectados neste snapshot Kommo." accent>
+                <GroupLabel>Volume de oportunidades</GroupLabel>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.75, mb: 3 }}>
+                  <MetricCard label="Total leads" value={fmtNum(ov.total_leads_all_status)} />
+                  <MetricCard label="Abertas" value={fmtNum(ov.total_active_leads)} highlight />
+                  <MetricCard label="Ganhas" value={fmtNum(ov.total_won_leads)} />
+                  <MetricCard label="Perdidas" value={fmtNum(ov.total_lost_leads)} />
+                </Box>
 
-                <Divider sx={{ my: 3 }} />
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>Inventário do sync</Typography>
-                <Grid container spacing={1.5}>
+                <GroupLabel>Indicadores financeiros</GroupLabel>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.75, mb: 3 }}>
+                  <MetricCard label="Valor em aberto" value={fmtMoney(ov.total_open_pipeline_value)} highlight />
+                  <MetricCard label="Valor ganho" value={fmtMoney(fin.won_pipeline_value as number)} />
+                  <MetricCard label="Ticket médio (abertas)" value={fmtMoney(fin.avg_ticket_open as number)} />
+                  <MetricCard label="Concentração top 3" value={fmtPct(fin.open_value_concentration_top3_pct as number, 2)} />
+                  <MetricCard label="Taxa de ganho" value={winRate ? `${winRate}%` : "—"} />
+                  <MetricCard label="Taxa de perda" value={lossRate ? `${lossRate}%` : "—"} />
+                </Box>
+
+                <GroupLabel>Atrito e higiene</GroupLabel>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.75, mb: 3 }}>
+                  <MetricCard label="Sem valor (abertas)" value={fmtNum(ov.open_leads_without_value)} warn={(ov.open_leads_without_value ?? 0) > 0} />
+                  <MetricCard label="Sem responsável" value={fmtNum(ov.open_leads_without_owner)} warn={(ov.open_leads_without_owner ?? 0) > 0} />
+                  <MetricCard label="Sem origem" value={fmtNum(ov.open_leads_without_source)} warn={(ov.open_leads_without_source ?? 0) > 0} />
+                  <MetricCard label="Sem próxima ação" value={fmtNum(samples.counts?.no_next_action_leads)} warn />
+                  <MetricCard label="Tarefas vencidas" value={fmtNum(samples.counts?.overdue_tasks)} warn />
+                  <MetricCard label="Leads parados" value={fmtNum(samples.counts?.stuck_leads)} warn />
+                </Box>
+
+                <Divider sx={{ my: 3, borderColor: "divider" }} />
+                <GroupLabel>Inventário do sync</GroupLabel>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.75 }}>
                   {Object.entries((data?.sync_stats ?? {}) as Record<string, number>).map(([k, v]) => (
-                    <Grid item xs={6} sm={4} md={3} key={k}>
-                      <MetricCard label={k.replace(/_/g, " ")} value={fmtNum(v)} />
-                    </Grid>
+                    <MetricCard key={k} label={k.replace(/_/g, " ")} value={fmtNum(v)} />
                   ))}
-                </Grid>
+                </Box>
               </Section>
             )}
 
             {/* ── Tab 2: Gráficos ── */}
             {tab === 2 && (
-              <Section title="Painéis analíticos" subtitle="Visualizações interativas sobre o snapshot atual.">
-                <Grid container spacing={2.5}>
-                  {/* Composição */}
-                  <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ borderRadius: "10px", p: 2 }}>
-                      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>Composição das oportunidades</Typography>
-                      <Typography variant="caption" color="text.secondary">Abertas, ganhas e perdidas neste snapshot.</Typography>
-                      <ResponsiveContainer width="100%" height={260} style={{ marginTop: 12 }}>
-                        <PieChart>
-                          <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={96} paddingAngle={2}>
-                            {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                          </Pie>
-                          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => fmtNum(v)} />
-                          <Legend wrapperStyle={{ fontSize: 12 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </Card>
-                  </Grid>
+              <Section title="Painéis analíticos" subtitle="Visualizações interativas sobre o snapshot atual." accent>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2.5, mb: 2.5 }}>
+                  <ChartCard title="Composição das oportunidades" subtitle="Abertas, ganhas e perdidas neste snapshot." accent height={280}>
+                    <PieChart>
+                      <defs>
+                        {pieData.map((entry, i) => (
+                          <linearGradient key={i} id={`pieGrad-${i}`} x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stopColor={entry.fill} stopOpacity={1} />
+                            <stop offset="100%" stopColor={entry.fill} stopOpacity={0.7} />
+                          </linearGradient>
+                        ))}
+                      </defs>
+                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={64} outerRadius={102} paddingAngle={3} stroke="none">
+                        {pieData.map((_, i) => <Cell key={i} fill={`url(#pieGrad-${i})`} />)}
+                      </Pie>
+                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => fmtNum(v)} />
+                      <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} iconType="circle" />
+                    </PieChart>
+                  </ChartCard>
 
-                  {/* Scores */}
-                  <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ borderRadius: "10px", p: 2 }}>
-                      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>Scores de saúde (0–100)</Typography>
-                      <Typography variant="caption" color="text.secondary">Higiene de dados vs disciplina operacional.</Typography>
-                      <ResponsiveContainer width="100%" height={260} style={{ marginTop: 12 }}>
-                        <BarChart data={scoreBarData} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" vertical={false} />
-                          <XAxis dataKey="nome" tick={{ fontSize: 11, fill: "#6B7280" }} />
-                          <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#6B7280" }} />
-                          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => `${v}/100`} />
-                          <Bar dataKey="valor" name="Pontuação" radius={[8, 8, 0, 0]}>
-                            {scoreBarData.map((_, i) => <Cell key={i} fill={i === 0 ? ORANGE : "#FB923C"} />)}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </Card>
-                  </Grid>
+                  <ChartCard title="Scores de saúde (0–100)" subtitle="Higiene de dados vs disciplina operacional." accent height={280}>
+                    <BarChart data={scoreBarData} margin={{ top: 12, right: 16, left: 0, bottom: 8 }}>
+                      <defs>
+                        <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={ORANGE} stopOpacity={1} />
+                          <stop offset="100%" stopColor="#FB923C" stopOpacity={0.75} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" vertical={false} />
+                      <XAxis dataKey="nome" tick={{ fontSize: 11, fill: "#6B7280" }} axisLine={{ stroke: "rgba(0,0,0,0.08)" }} tickLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#6B7280" }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "rgba(249,115,22,0.06)" }} formatter={(v: number) => `${v}/100`} />
+                      <Bar dataKey="valor" name="Pontuação" radius={[10, 10, 0, 0]} fill="url(#scoreGrad)" maxBarSize={64} />
+                    </BarChart>
+                  </ChartCard>
+                </Box>
 
-                  {/* Estágios */}
-                  <Grid item xs={12}>
-                    <Card variant="outlined" sx={{ borderRadius: "10px", p: 2 }}>
-                      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>Volume por estágio</Typography>
-                      <Typography variant="caption" color="text.secondary">Distribuição de oportunidades abertas por estágio.</Typography>
-                      <ResponsiveContainer width="100%" height={320} style={{ marginTop: 12 }}>
-                        <BarChart data={stagesChartData} margin={{ top: 12, right: 12, left: 4, bottom: 60 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" vertical={false} />
-                          <XAxis dataKey="nome" tick={{ fontSize: 10, fill: "#6B7280" }} interval={0} angle={-28} textAnchor="end" height={72} />
-                          <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} />
-                          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => fmtNum(v)} />
-                          <Bar dataKey="abertas" name="Abertas" fill={ORANGE} radius={[6, 6, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </Card>
-                  </Grid>
+                <Box sx={{ mb: 2.5 }}>
+                  <ChartCard title="Volume por estágio" subtitle="Distribuição de oportunidades abertas por estágio." accent height={340}>
+                    <BarChart data={stagesChartData} margin={{ top: 12, right: 16, left: 4, bottom: 60 }}>
+                      <defs>
+                        <linearGradient id="stagesGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={ORANGE} stopOpacity={1} />
+                          <stop offset="100%" stopColor="#FB923C" stopOpacity={0.7} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" vertical={false} />
+                      <XAxis dataKey="nome" tick={{ fontSize: 10, fill: "#6B7280" }} interval={0} angle={-28} textAnchor="end" height={72} axisLine={{ stroke: "rgba(0,0,0,0.08)" }} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "rgba(249,115,22,0.06)" }} formatter={(v: number) => fmtNum(v)} />
+                      <Bar dataKey="abertas" name="Abertas" fill="url(#stagesGrad)" radius={[8, 8, 0, 0]} maxBarSize={48} />
+                    </BarChart>
+                  </ChartCard>
+                </Box>
 
-                  {/* Equipe (valor) */}
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2.5 }}>
                   {ownersChartData.length > 0 && (
-                    <Grid item xs={12} md={6}>
-                      <Card variant="outlined" sx={{ borderRadius: "10px", p: 2 }}>
-                        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>Equipe · valor em aberto</Typography>
-                        <ResponsiveContainer width="100%" height={300} style={{ marginTop: 12 }}>
-                          <BarChart layout="vertical" data={ownersChartData} margin={{ top: 8, right: 20, left: 8, bottom: 8 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#6B7280" }} tickFormatter={v => v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}k` : String(v)} />
-                            <YAxis type="category" dataKey="nome" width={120} tick={{ fontSize: 10, fill: "#6B7280" }} />
-                            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => fmtMoney(v)} />
-                            <Bar dataKey="valor" name="Valor em aberto" fill={CHART_COLORS.green} radius={[0, 6, 6, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </Card>
-                    </Grid>
+                    <ChartCard title="Equipe · valor em aberto" subtitle="Volume financeiro sob responsabilidade de cada usuário." height={320}>
+                      <BarChart layout="vertical" data={ownersChartData} margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
+                        <defs>
+                          <linearGradient id="ownersGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#16A34A" stopOpacity={0.85} />
+                            <stop offset="100%" stopColor="#22C55E" stopOpacity={1} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 10, fill: "#6B7280" }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}k` : String(v)} />
+                        <YAxis type="category" dataKey="nome" width={130} tick={{ fontSize: 10, fill: "#6B7280" }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "rgba(34,197,94,0.06)" }} formatter={(v: number) => fmtMoney(v)} />
+                        <Bar dataKey="valor" name="Valor em aberto" fill="url(#ownersGrad)" radius={[0, 8, 8, 0]} maxBarSize={28} />
+                      </BarChart>
+                    </ChartCard>
                   )}
 
-                  {/* Motivos de perda */}
                   {lostChartData.length > 0 && (
-                    <Grid item xs={12} md={6}>
-                      <Card variant="outlined" sx={{ borderRadius: "10px", p: 2 }}>
-                        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>Motivos de perda</Typography>
-                        <ResponsiveContainer width="100%" height={300} style={{ marginTop: 12 }}>
-                          <BarChart layout="vertical" data={lostChartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#6B7280" }} />
-                            <YAxis type="category" dataKey="nome" width={160} tick={{ fontSize: 10, fill: "#6B7280" }} />
-                            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => fmtNum(v)} />
-                            <Bar dataKey="qtd" name="Quantidade" fill={CHART_COLORS.red} radius={[0, 6, 6, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </Card>
-                    </Grid>
+                    <ChartCard title="Motivos de perda" subtitle="Categorias mais frequentes que encerram oportunidades." height={320}>
+                      <BarChart layout="vertical" data={lostChartData} margin={{ top: 8, right: 20, left: 8, bottom: 8 }}>
+                        <defs>
+                          <linearGradient id="lostGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#DC2626" stopOpacity={0.85} />
+                            <stop offset="100%" stopColor="#EF4444" stopOpacity={1} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 10, fill: "#6B7280" }} axisLine={false} tickLine={false} />
+                        <YAxis type="category" dataKey="nome" width={170} tick={{ fontSize: 10, fill: "#6B7280" }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "rgba(239,68,68,0.06)" }} formatter={(v: number) => fmtNum(v)} />
+                        <Bar dataKey="qtd" name="Quantidade" fill="url(#lostGrad)" radius={[0, 8, 8, 0]} maxBarSize={28} />
+                      </BarChart>
+                    </ChartCard>
                   )}
-                </Grid>
+                </Box>
               </Section>
             )}
-
-            {/* ── Tab 3: Funil ── */}
             {tab === 3 && (
               <Section title="Distribuição e perdas por estágio" subtitle="Concentração de abertas e volume de perdas por estágio neste snapshot.">
                 {stageDist.length > 0 ? (
