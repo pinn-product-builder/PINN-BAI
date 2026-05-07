@@ -120,6 +120,786 @@ export type Database = {
           },
         ]
       }
+      crm_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          entity_external_id: string | null
+          entity_type: string | null
+          id: string
+          message: string
+          metadata: Json
+          resolved: boolean
+          severity: string
+          tenant_id: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          entity_external_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message: string
+          metadata?: Json
+          resolved?: boolean
+          severity?: string
+          tenant_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          entity_external_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message?: string
+          metadata?: Json
+          resolved?: boolean
+          severity?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_analysis_reports: {
+        Row: {
+          created_at: string
+          id: string
+          input_digest: string | null
+          model_used: string | null
+          operation_score: number | null
+          report: Json
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          input_digest?: string | null
+          model_used?: string | null
+          operation_score?: number | null
+          report?: Json
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          input_digest?: string | null
+          model_used?: string | null
+          operation_score?: number | null
+          report?: Json
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_analysis_reports_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_auditor_activities: {
+        Row: {
+          activity_type: string
+          entity_external_id: string
+          entity_type: string
+          external_id: string
+          happened_at: string
+          id: string
+          raw: Json
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          activity_type?: string
+          entity_external_id: string
+          entity_type?: string
+          external_id: string
+          happened_at: string
+          id?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          activity_type?: string
+          entity_external_id?: string
+          entity_type?: string
+          external_id?: string
+          happened_at?: string
+          id?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_auditor_activities_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_auditor_connections: {
+        Row: {
+          auth_via: string
+          composio_connected_account_id: string | null
+          created_at: string
+          credentials: Json
+          display_name: string
+          id: string
+          last_sync_at: string | null
+          provider: string
+          sync_error: string | null
+          sync_status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          auth_via?: string
+          composio_connected_account_id?: string | null
+          created_at?: string
+          credentials?: Json
+          display_name?: string
+          id?: string
+          last_sync_at?: string | null
+          provider?: string
+          sync_error?: string | null
+          sync_status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          auth_via?: string
+          composio_connected_account_id?: string | null
+          created_at?: string
+          credentials?: Json
+          display_name?: string
+          id?: string
+          last_sync_at?: string | null
+          provider?: string
+          sync_error?: string | null
+          sync_status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_auditor_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_auditor_conversations: {
+        Row: {
+          contact_external_id: string | null
+          external_id: string
+          id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          raw: Json
+          status: string | null
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          contact_external_id?: string | null
+          external_id: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          raw?: Json
+          status?: string | null
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          contact_external_id?: string | null
+          external_id?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          raw?: Json
+          status?: string | null
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_auditor_conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_auditor_events: {
+        Row: {
+          entity_external_id: string | null
+          entity_type: string | null
+          event_type: string | null
+          external_id: string
+          id: string
+          occurred_at: string | null
+          raw: Json
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          entity_external_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
+          external_id: string
+          id?: string
+          occurred_at?: string | null
+          raw?: Json
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          entity_external_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
+          external_id?: string
+          id?: string
+          occurred_at?: string | null
+          raw?: Json
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_auditor_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_auditor_notes: {
+        Row: {
+          content_preview: string | null
+          entity_external_id: string | null
+          external_id: string
+          id: string
+          note_at: string | null
+          note_type: string | null
+          raw: Json
+          scope_entity_type: string
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          content_preview?: string | null
+          entity_external_id?: string | null
+          external_id: string
+          id?: string
+          note_at?: string | null
+          note_type?: string | null
+          raw?: Json
+          scope_entity_type: string
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          content_preview?: string | null
+          entity_external_id?: string | null
+          external_id?: string
+          id?: string
+          note_at?: string | null
+          note_type?: string | null
+          raw?: Json
+          scope_entity_type?: string
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_auditor_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_companies: {
+        Row: {
+          external_id: string
+          id: string
+          name: string
+          raw: Json
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          external_id: string
+          id?: string
+          name?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          external_id?: string
+          id?: string
+          name?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_companies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_custom_fields: {
+        Row: {
+          entity_type: string
+          external_id: string
+          field_type: string | null
+          id: string
+          name: string
+          raw: Json
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          entity_type: string
+          external_id: string
+          field_type?: string | null
+          id?: string
+          name?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          entity_type?: string
+          external_id?: string
+          field_type?: string | null
+          id?: string
+          name?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_custom_fields_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_leads: {
+        Row: {
+          closed_at: string | null
+          company_external_id: string | null
+          contact_external_id: string | null
+          created_at: string | null
+          currency: string | null
+          external_id: string
+          external_updated_at: string | null
+          id: string
+          lead_status: string
+          lost_reason: string | null
+          name: string
+          owner_external_id: string | null
+          pipeline_external_id: string | null
+          raw: Json
+          source: string | null
+          stage_external_id: string | null
+          synced_at: string
+          tenant_id: string
+          value: number
+        }
+        Insert: {
+          closed_at?: string | null
+          company_external_id?: string | null
+          contact_external_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          external_id: string
+          external_updated_at?: string | null
+          id?: string
+          lead_status?: string
+          lost_reason?: string | null
+          name?: string
+          owner_external_id?: string | null
+          pipeline_external_id?: string | null
+          raw?: Json
+          source?: string | null
+          stage_external_id?: string | null
+          synced_at?: string
+          tenant_id: string
+          value?: number
+        }
+        Update: {
+          closed_at?: string | null
+          company_external_id?: string | null
+          contact_external_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          external_id?: string
+          external_updated_at?: string | null
+          id?: string
+          lead_status?: string
+          lost_reason?: string | null
+          name?: string
+          owner_external_id?: string | null
+          pipeline_external_id?: string | null
+          raw?: Json
+          source?: string | null
+          stage_external_id?: string | null
+          synced_at?: string
+          tenant_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_norm_contacts: {
+        Row: {
+          company_external_id: string | null
+          email: string | null
+          external_id: string
+          id: string
+          name: string
+          phone: string | null
+          raw: Json
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          company_external_id?: string | null
+          email?: string | null
+          external_id: string
+          id?: string
+          name?: string
+          phone?: string | null
+          raw?: Json
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          company_external_id?: string | null
+          email?: string | null
+          external_id?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          raw?: Json
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_norm_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pipelines: {
+        Row: {
+          external_id: string
+          id: string
+          is_active: boolean
+          name: string
+          raw: Json
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          external_id: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          external_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pipelines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json
+          snapshot_kind: string
+          sync_run_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          snapshot_kind?: string
+          sync_run_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          snapshot_kind?: string
+          sync_run_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_snapshots_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "crm_sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_stages: {
+        Row: {
+          external_id: string
+          id: string
+          name: string
+          pipeline_external_id: string
+          raw: Json
+          sort_order: number | null
+          stage_type: string | null
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          external_id: string
+          id?: string
+          name?: string
+          pipeline_external_id: string
+          raw?: Json
+          sort_order?: number | null
+          stage_type?: string | null
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          external_id?: string
+          id?: string
+          name?: string
+          pipeline_external_id?: string
+          raw?: Json
+          sort_order?: number | null
+          stage_type?: string | null
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_stages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_sync_runs: {
+        Row: {
+          connection_id: string | null
+          created_at: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          started_at: string
+          stats: Json
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          connection_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          stats?: Json
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          connection_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          stats?: Json
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_sync_runs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_auditor_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_sync_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_tasks: {
+        Row: {
+          assignee_external_id: string | null
+          completed_at: string | null
+          contact_external_id: string | null
+          due_at: string | null
+          external_id: string
+          id: string
+          is_completed: boolean
+          lead_external_id: string | null
+          raw: Json
+          synced_at: string
+          tenant_id: string
+          title: string
+        }
+        Insert: {
+          assignee_external_id?: string | null
+          completed_at?: string | null
+          contact_external_id?: string | null
+          due_at?: string | null
+          external_id: string
+          id?: string
+          is_completed?: boolean
+          lead_external_id?: string | null
+          raw?: Json
+          synced_at?: string
+          tenant_id: string
+          title?: string
+        }
+        Update: {
+          assignee_external_id?: string | null
+          completed_at?: string | null
+          contact_external_id?: string | null
+          due_at?: string | null
+          external_id?: string
+          id?: string
+          is_completed?: boolean
+          lead_external_id?: string | null
+          raw?: Json
+          synced_at?: string
+          tenant_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_users: {
+        Row: {
+          email: string | null
+          external_id: string
+          id: string
+          is_active: boolean
+          name: string
+          raw: Json
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          email?: string | null
+          external_id: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          email?: string | null
+          external_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          raw?: Json
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_users_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_activity_timeline: {
         Row: {
           created_at: string
@@ -1575,6 +2355,33 @@ export type Database = {
           },
         ]
       }
+      tenants: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json
+          name: string
+          slug: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          name?: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_achievements: {
         Row: {
           achievement_id: string
@@ -1706,6 +2513,23 @@ export type Database = {
           },
         ]
       }
+      vw_crm_data_quality: {
+        Row: {
+          contacts_no_email: number | null
+          contacts_no_phone: number | null
+          contacts_total: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_norm_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_dashboard_daily_60d_v3: {
         Row: {
           day: string | null
@@ -1749,6 +2573,39 @@ export type Database = {
           },
         ]
       }
+      vw_duplicate_contacts: {
+        Row: {
+          cnt: number | null
+          email_norm: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_norm_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_forecast_quality: {
+        Row: {
+          open_total: number | null
+          open_without_value: number | null
+          pct_open_missing_value: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_funnel_current_v3: {
         Row: {
           org_id: string | null
@@ -1762,6 +2619,263 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_funnel_velocity: {
+        Row: {
+          avg_days_in_stage_proxy: number | null
+          median_days_in_stage_proxy: number | null
+          pipeline_external_id: string | null
+          stage_external_id: string | null
+          stage_name: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_leads_stuck_by_stage: {
+        Row: {
+          closed_at: string | null
+          company_external_id: string | null
+          contact_external_id: string | null
+          created_at: string | null
+          currency: string | null
+          days_since_update: number | null
+          external_id: string | null
+          external_updated_at: string | null
+          id: string | null
+          lead_status: string | null
+          lost_reason: string | null
+          name: string | null
+          owner_external_id: string | null
+          pipeline_external_id: string | null
+          raw: Json | null
+          source: string | null
+          stage_external_id: string | null
+          stage_name: string | null
+          synced_at: string | null
+          tenant_id: string | null
+          value: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_lost_reasons: {
+        Row: {
+          cnt: number | null
+          lost_reason: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_no_next_action: {
+        Row: {
+          closed_at: string | null
+          company_external_id: string | null
+          contact_external_id: string | null
+          created_at: string | null
+          currency: string | null
+          external_id: string | null
+          external_updated_at: string | null
+          id: string | null
+          lead_status: string | null
+          lost_reason: string | null
+          name: string | null
+          owner_external_id: string | null
+          pipeline_external_id: string | null
+          raw: Json | null
+          source: string | null
+          stage_external_id: string | null
+          synced_at: string | null
+          tenant_id: string | null
+          value: number | null
+        }
+        Insert: {
+          closed_at?: string | null
+          company_external_id?: string | null
+          contact_external_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          external_id?: string | null
+          external_updated_at?: string | null
+          id?: string | null
+          lead_status?: string | null
+          lost_reason?: string | null
+          name?: string | null
+          owner_external_id?: string | null
+          pipeline_external_id?: string | null
+          raw?: Json | null
+          source?: string | null
+          stage_external_id?: string | null
+          synced_at?: string | null
+          tenant_id?: string | null
+          value?: number | null
+        }
+        Update: {
+          closed_at?: string | null
+          company_external_id?: string | null
+          contact_external_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          external_id?: string | null
+          external_updated_at?: string | null
+          id?: string | null
+          lead_status?: string | null
+          lost_reason?: string | null
+          name?: string | null
+          owner_external_id?: string | null
+          pipeline_external_id?: string | null
+          raw?: Json | null
+          source?: string | null
+          stage_external_id?: string | null
+          synced_at?: string | null
+          tenant_id?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_overdue_tasks: {
+        Row: {
+          assignee_external_id: string | null
+          completed_at: string | null
+          contact_external_id: string | null
+          due_at: string | null
+          external_id: string | null
+          id: string | null
+          is_completed: boolean | null
+          lead_external_id: string | null
+          raw: Json | null
+          synced_at: string | null
+          tenant_id: string | null
+          title: string | null
+        }
+        Insert: {
+          assignee_external_id?: string | null
+          completed_at?: string | null
+          contact_external_id?: string | null
+          due_at?: string | null
+          external_id?: string | null
+          id?: string | null
+          is_completed?: boolean | null
+          lead_external_id?: string | null
+          raw?: Json | null
+          synced_at?: string | null
+          tenant_id?: string | null
+          title?: string | null
+        }
+        Update: {
+          assignee_external_id?: string | null
+          completed_at?: string | null
+          contact_external_id?: string | null
+          due_at?: string | null
+          external_id?: string | null
+          id?: string | null
+          is_completed?: boolean | null
+          lead_external_id?: string | null
+          raw?: Json | null
+          synced_at?: string | null
+          tenant_id?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_owner_performance: {
+        Row: {
+          lost_leads: number | null
+          open_leads: number | null
+          open_value: number | null
+          owner_external_id: string | null
+          owner_name: string | null
+          tenant_id: string | null
+          won_leads: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_pipeline_health: {
+        Row: {
+          lost_leads: number | null
+          open_leads: number | null
+          open_pipeline_value: number | null
+          pipeline_external_id: string | null
+          pipeline_name: string | null
+          stage_external_id: string | null
+          stage_name: string | null
+          tenant_id: string | null
+          won_leads: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_stage_conversion: {
+        Row: {
+          lead_count: number | null
+          pct_of_open_pipeline: number | null
+          pipeline_external_id: string | null
+          stage_external_id: string | null
+          stage_name: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
