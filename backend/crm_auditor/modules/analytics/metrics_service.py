@@ -246,6 +246,27 @@ class MetricsService:
         penalty = min(40, overdue_tasks * 2 + stuck_leads * 3 + no_action * 2)
         return int(max(0, min(100, data_quality_score - penalty)))
 
+    async def _get_loss_reason_names(self, tenant_id: str) -> dict[str, str]:
+        """Resolve IDs de motivos de perda → nomes, via crm_snapshots."""
+        try:
+            snap = await (
+                self.db.table("crm_snapshots")
+                .select("payload")
+                .eq("tenant_id", tenant_id)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            rows = snap.data or []
+            if not rows:
+                return {}
+            payload = rows[0].get("payload") or {}
+            catalog = payload.get("extended_catalog") or {}
+            reasons = catalog.get("loss_reasons") or []
+            return {str(r["id"]): str(r["name"]) for r in reasons if "id" in r and "name" in r}
+        except Exception:
+            return {}
+
     async def get_consolidated_context(self, tenant_id: str) -> dict[str, Any]:
         overview = await self.get_overview_metrics(tenant_id)
         breakdown = await self.get_data_quality_breakdown(tenant_id)
@@ -254,6 +275,13 @@ class MetricsService:
         no_action = await self.get_no_next_action_leads(tenant_id)
         overdue = await self.get_overdue_tasks(tenant_id)
         op_score = self.compute_operation_score(dq, len(overdue), len(stuck), len(no_action))
+        # Resolve loss reason names for analysis
+        loss_name_map = await self._get_loss_reason_names(tenant_id)
+        raw_lost_reasons = await self.get_lost_reasons(tenant_id, 10)
+        resolved_lost_reasons = [
+            {**r, "lost_reason": loss_name_map.get(str(r.get("lost_reason", "")), r.get("lost_reason"))}
+            for r in raw_lost_reasons
+        ]
         return {
             "tenant_id": tenant_id,
             "generated_at": datetime.now(tz=timezone.utc).isoformat(),
@@ -264,10 +292,11 @@ class MetricsService:
             "stuck_leads_sample": stuck[:15],
             "no_next_action_count": len(no_action),
             "overdue_tasks_count": len(overdue),
-            "lost_reasons_top": await self.get_lost_reasons(tenant_id, 10),
+            "lost_reasons_top": resolved_lost_reasons,
             "stage_distribution": await self.get_stage_distribution(tenant_id),
             "funnel_velocity": await self.get_funnel_velocity(tenant_id),
             "data_quality": breakdown,
+            "stuck_threshold_days": int(self.settings.stuck_lead_days),
             "scores": {
                 "crm_data_quality_0_100": dq,
                 "operation_score_0_100": op_score,
