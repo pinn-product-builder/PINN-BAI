@@ -525,7 +525,7 @@ export default function CrmAuditDashboard() {
               Auditoria comercial · BAI
             </Typography>
             <Typography variant="h5" fontWeight={800} letterSpacing="-0.03em" sx={{ mt: 0.25, fontFamily: "Poppins, sans-serif" }}>
-              CRM Auditor — Kommo
+              Auditor — CRM
             </Typography>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
               <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: loading ? CHART_COLORS.amber : CHART_COLORS.green, boxShadow: loading ? `0 0 10px ${CHART_COLORS.amber}88` : `0 0 8px ${CHART_COLORS.green}88` }} />
