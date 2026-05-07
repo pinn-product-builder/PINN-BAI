@@ -135,28 +135,97 @@ function Section({ title, subtitle, accent, children, id }: {
 }
 
 // ─── Metric card ─────────────────────────────────────────────────────────────
-function MetricCard({ label, value, warn, highlight }: {
-  label: string; value: string; warn?: boolean; highlight?: boolean;
+function MetricCard({ label, value, warn, highlight, hint }: {
+  label: string; value: string; warn?: boolean; highlight?: boolean; hint?: string;
 }) {
   return (
     <Box sx={{
-      p: 1.75,
-      borderRadius: "10px",
+      position: "relative",
+      p: 2,
+      borderRadius: "12px",
       border: "1px solid",
       borderColor: highlight ? ORANGE_BORDER : warn ? "rgba(239,68,68,0.28)" : "divider",
-      bgcolor: highlight ? ORANGE_SOFT : warn ? "rgba(239,68,68,0.05)" : "action.hover",
-      minHeight: 76,
+      background: highlight
+        ? `linear-gradient(135deg, ${ORANGE_SOFT}, rgba(251,146,60,0.04))`
+        : warn
+          ? "linear-gradient(135deg, rgba(239,68,68,0.07), rgba(239,68,68,0.015))"
+          : "linear-gradient(135deg, rgba(0,0,0,0.025), rgba(0,0,0,0.005))",
+      minHeight: 92,
       display: "flex",
       flexDirection: "column",
       justifyContent: "space-between",
+      transition: "transform 0.18s ease, box-shadow 0.18s ease",
+      overflow: "hidden",
+      "&:hover": { transform: "translateY(-2px)", boxShadow: highlight ? `0 8px 24px rgba(249,115,22,0.14)` : "0 6px 16px rgba(0,0,0,0.06)" },
+      "&::before": highlight ? {
+        content: '""', position: "absolute", top: 0, left: 0, right: 0, height: 2,
+        background: `linear-gradient(90deg, ${ORANGE}, #FB923C)`,
+      } : warn ? {
+        content: '""', position: "absolute", top: 0, left: 0, right: 0, height: 2,
+        background: "linear-gradient(90deg, #EF4444, #F87171)",
+      } : undefined,
     }}>
-      <Typography variant="caption" sx={{ fontSize: "0.63rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "text.secondary" }}>
+      <Typography variant="caption" sx={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary" }}>
         {label}
       </Typography>
-      <Typography variant="h6" fontWeight={800} letterSpacing="-0.03em" sx={{ mt: 0.75, lineHeight: 1.1, color: highlight ? ORANGE : warn ? "error.main" : "text.primary" }}>
+      <Typography variant="h6" fontWeight={800} letterSpacing="-0.03em" sx={{ mt: 0.75, lineHeight: 1.1, color: highlight ? ORANGE : warn ? "error.main" : "text.primary", fontVariantNumeric: "tabular-nums" }}>
         {value}
       </Typography>
+      {hint && (
+        <Typography variant="caption" sx={{ fontSize: "0.65rem", color: "text.secondary", mt: 0.25 }}>{hint}</Typography>
+      )}
     </Box>
+  );
+}
+
+// ─── Chart card wrapper ──────────────────────────────────────────────────────
+function ChartCard({ title, subtitle, accent, height = 280, children }: {
+  title: string; subtitle?: string; accent?: boolean; height?: number; children: React.ReactNode;
+}) {
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        borderRadius: "14px",
+        borderColor: "divider",
+        height: "100%",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0))",
+        transition: "box-shadow 0.2s ease",
+        "&:hover": { boxShadow: "0 10px 30px rgba(0,0,0,0.06)" },
+      }}
+    >
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ mb: 1.5 }}>
+          <Box sx={{
+            width: 28, height: 3, borderRadius: 999, mb: 1,
+            background: accent ? `linear-gradient(90deg, ${ORANGE}, #FB923C)` : "linear-gradient(90deg, #9CA3AF, #D1D5DB)",
+          }} />
+          <Typography variant="subtitle2" fontWeight={700} letterSpacing="-0.01em">{title}</Typography>
+          {subtitle && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25, lineHeight: 1.4 }}>
+              {subtitle}
+            </Typography>
+          )}
+        </Box>
+        <Box sx={{ height, mt: 1 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            {children as React.ReactElement}
+          </ResponsiveContainer>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Group label ─────────────────────────────────────────────────────────────
+function GroupLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 1.75, mt: 0.5 }}>
+      <Box sx={{ width: 4, height: 18, borderRadius: 999, background: `linear-gradient(180deg, ${ORANGE}, #FB923C)` }} />
+      <Typography variant="caption" sx={{ fontSize: "0.7rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "text.secondary" }}>
+        {children}
+      </Typography>
+    </Stack>
   );
 }
 
