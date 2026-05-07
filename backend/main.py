@@ -42,10 +42,12 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+_cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+_cors_origins = _cors_origins_raw.split(",") if _cors_origins_raw != "*" else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173").split(","),
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_cors_origins != ["*"],  # credentials incompatível com wildcard
     allow_methods=["*"],
     allow_headers=["*"],
 )
