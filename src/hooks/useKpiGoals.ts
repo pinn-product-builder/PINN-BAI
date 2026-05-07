@@ -150,7 +150,7 @@ export const useDeleteAlertRule = () => {
 
 // ── Active Triggers (breaches) ─────────────────────────────────────────────────
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
+const BACKEND = import.meta.env.VITE_BACKEND_URL ?? (import.meta.env.PROD ? 'https://bai.srv879715.hstgr.cloud' : 'http://localhost:8010');
 
 export interface KpiTrigger {
   id: string;

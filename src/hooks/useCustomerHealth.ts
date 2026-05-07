@@ -5,7 +5,7 @@ import type { CustomerAlert, CustomerHealthScore, HealthBand } from '@/lib/types
 // Tabelas customer_health_scores e customer_alerts não estão tipadas em types.ts
 const supabase = supabaseClient as any;
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
+const BACKEND = import.meta.env.VITE_BACKEND_URL ?? (import.meta.env.PROD ? 'https://bai.srv879715.hstgr.cloud' : 'http://localhost:8010');
 
 // ── Health scores ──────────────────────────────────────────────────────────────
 

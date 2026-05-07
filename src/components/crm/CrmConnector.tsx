@@ -82,7 +82,7 @@ const CRM_CATALOGUE: CrmDefinition[] = [
 
 // ── API helpers ────────────────────────────────────────────────────────────────
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
+const BACKEND = import.meta.env.VITE_BACKEND_URL ?? (import.meta.env.PROD ? 'https://bai.srv879715.hstgr.cloud' : 'http://localhost:8010');
 
 async function fetchConnections(orgId: string): Promise<CrmConnection[]> {
   const res = await fetch(`${BACKEND}/crm/connections/${orgId}`);

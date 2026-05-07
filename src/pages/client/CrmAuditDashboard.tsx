@@ -32,7 +32,7 @@ import { resolveEvidenceTables } from "@/bai/evidenceFallback";
 import { buildExecutiveBrief, splitActionHorizons, fmtMoney, fmtNum, fmtPct, tierFromScore, tierLabelPt } from "@/bai/helpers";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const BACKEND = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8000";
+const BACKEND = import.meta.env.VITE_BACKEND_URL ?? (import.meta.env.PROD ? "https://bai.srv879715.hstgr.cloud" : "http://localhost:8010");
 
 const ORANGE = "#F97316";
 const ORANGE_SOFT = "rgba(249,115,22,0.10)";
