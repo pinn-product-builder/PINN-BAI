@@ -5,7 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "npm run dev --prefix server",
     "build": "vite build",
+    "build:prod": "vite build --mode production",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose --env-file .env up -d --build",
+    "docker:down": "docker compose down",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",

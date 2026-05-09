@@ -16,6 +16,7 @@ import {
   Description as TemplateIcon,
   Speed as GaugeIcon,
   Bolt as BoltIcon,
+  LinkedIn as LinkedInIcon,
   TrackChanges as TargetIcon,
   People as PeopleIcon,
   ShowChart as ActivityIcon,
@@ -34,6 +35,7 @@ const baseNavItems = [
   { path: "/admin/templates", label: "Templates", icon: TemplateIcon },
   { path: "/admin/custom-metrics", label: "Métricas", icon: GaugeIcon },
   { path: "/admin/pinn-sdr", label: "Pinn SDR", icon: BoltIcon },
+  { path: "/admin/linkedin-sdr", label: "LinkedIn SDR", icon: LinkedInIcon },
   { path: "/admin/rfm-churn", label: "RFM + Churn", icon: TargetIcon },
   { path: "/admin/users", label: "Usuários", icon: PeopleIcon },
   

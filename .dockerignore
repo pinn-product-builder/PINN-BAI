@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.env
+.env.*
+*.md
+.vscode
+.cursor
+server/node_modules
+server/dist
+coverage
+*.log
+/supabase
+/docs
+agent-transcripts

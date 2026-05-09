@@ -20,6 +20,7 @@ import {
   Logout as LogoutIcon,
   TrackChanges as TargetIcon,
   AutoAwesome as SparklesIcon,
+  FactCheck as AuditorIcon,
 } from "@mui/icons-material";
 import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +34,7 @@ const baseNavItems = [
   { path: "dashboard", label: "Dashboard", icon: DashboardIcon },
   { path: "import", label: "Dados", icon: UploadIcon },
   { path: "insights", label: "Inteligência IA", icon: LightbulbIcon },
+  { path: "crm-auditor", label: "Auditor CRM", icon: AuditorIcon },
   { path: "rfm-churn", label: "RFM + Churn", icon: TargetIcon },
   { path: "settings", label: "White Label", icon: SettingsIcon },
 ];

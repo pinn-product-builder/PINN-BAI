@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MariSDRTab } from './MariSDRTab';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,13 +11,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   RefreshCw, Users, Mail, MessageSquare, Target, TrendingUp,
   Linkedin, BarChart3, Activity, Loader2, Zap, Briefcase, Phone,
-  CheckCircle, Clock, DollarSign, ListChecks, Bot
+  CheckCircle, Clock, DollarSign, ListChecks, Bot, UserCircle2
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   LineChart, Line
 } from 'recharts';
+import { useLinkedInMari, LinkedInProfileData } from '@/hooks/useLinkedInMari';
+import { isMariSupabaseConfigured } from '@/integrations/supabase/mariClient';
 import { toast } from 'sonner';
 
 const usePinnOrgId = () => {
@@ -100,7 +103,253 @@ const MetricCard = ({
   </Card>
 );
 
-// ==================== LinkedIn Tab ====================
+// ==================== LinkedIn Mari Tab (dados via Mari SDR) ====================
+
+const STATUS_LABEL: Record<string, string> = {
+  open:              'Ativa',
+  meeting_scheduled: 'Reunião Agendada',
+  closed:            'Encerrada',
+};
+const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  open:              'secondary',
+  meeting_scheduled: 'default',
+  closed:            'outline',
+};
+
+const LinkedInProfilePanel = ({ data, profileLabel }: { data: LinkedInProfileData; profileLabel: string }) => {
+  const k = data.kpis;
+  const n = (v: number | null | undefined) => v ?? 0;
+  const pct = (v: number | null | undefined) => v != null ? `${v}%` : '—';
+
+  const funnelData = data.funnel.map(r => ({
+    name:  r.funnel_stage,
+    value: r.lead_count,
+  }));
+
+  if (k == null) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-12 text-center">
+          <UserCircle2 className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+          <p className="text-muted-foreground text-sm">
+            KPIs de <strong>{profileLabel}</strong> indisponíveis (view ou permissão no Supabase da Mari).
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Rode a migração <code className="text-[10px]">013_linkedin_pinn_sdr_views.sql</code> no projeto da Mari.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs — convites, conversas, respostas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
+        <MetricCard title="Convites enviados" value={n(k.invites_sent)} icon={Users} color="text-primary" />
+        <MetricCard title="Convites aceitos" value={n(k.invites_accepted)} icon={CheckCircle} color="text-chart-2" />
+        <MetricCard title="Conversas iniciadas" value={n(k.convs_active)} icon={MessageSquare} color="text-chart-3" subtitle="Sessões LinkedIn (Mari)" />
+        <MetricCard title="Leads com resposta" value={n(k.sessions_with_reply)} icon={Activity} color="text-chart-4" subtitle="Pelo menos 1 msg inbound" />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard title="Mensagens enviadas" value={n(k.msgs_sent)} icon={Zap} color="text-primary" small />
+        <MetricCard title="Mensagens recebidas" value={n(k.msgs_received)} icon={MessageSquare} color="text-chart-2" small subtitle="Volume de respostas" />
+        <MetricCard title="Taxa de aceitação" value={pct(k.acceptance_rate)} icon={TrendingUp} color="text-chart-3" small />
+        <MetricCard title="Taxa de resposta" value={pct(k.reply_rate)} icon={TrendingUp} color="text-chart-4" small subtitle="% conversas c/ inbound" />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard title="Reuniões confirmadas" value={n(k.meetings_scheduled)} icon={Clock} color="text-primary" small />
+        <MetricCard title="Taxa conversão" value={pct(k.conversion_rate)} icon={Target} color="text-chart-2" small subtitle="Reuniões / convites" />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Atividade Diária */}
+        {data.daily.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Atividade Diária (60d)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={240}>
+                <AreaChart data={data.daily.filter(d => d.invites_sent > 0 || d.msgs_sent > 0)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={v => new Date(v).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
+                    labelFormatter={v => new Date(v).toLocaleDateString('pt-BR')} />
+                  <Legend />
+                  <Area type="monotone" dataKey="invites_sent"     name="Convites"     stroke="hsl(var(--primary))"  fill="hsl(var(--primary)/0.1)"  strokeWidth={2} />
+                  <Area type="monotone" dataKey="invites_accepted" name="Aceitos"      stroke="hsl(var(--chart-2))"  fill="hsl(var(--chart-2)/0.08)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="msgs_sent"        name="Msgs Env."    stroke="hsl(var(--chart-3))"  fill="hsl(var(--chart-3)/0.08)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="msgs_received"    name="Msgs Receb."  stroke="hsl(var(--chart-4))"  fill="hsl(var(--chart-4)/0.08)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Funil */}
+        {funnelData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Funil de Conversão</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={funnelData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis dataKey="name" type="category" width={145} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                  <Bar dataKey="value" name="Leads" radius={[0, 4, 4, 0]}>
+                    {funnelData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Tabela de conversas */}
+      {data.conversations.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Conversas <span className="font-normal text-xs ml-1">({data.conversations.length})</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Lead</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Empresa</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Cargo</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Score</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Última msg</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Reunião</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.conversations.map((c, i) => (
+                    <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <td className="py-2.5 px-3 font-medium text-foreground max-w-[140px] truncate">
+                        {c.lead_name || <span className="text-muted-foreground italic">sem nome</span>}
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground max-w-[120px] truncate">{c.company || '—'}</td>
+                      <td className="py-2.5 px-3 text-muted-foreground text-xs max-w-[120px] truncate">{c.role || '—'}</td>
+                      <td className="py-2.5 px-3">
+                        <Badge variant={STATUS_VARIANT[c.status] ?? 'secondary'} className="text-xs">
+                          {STATUS_LABEL[c.status] ?? c.status}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className={`font-semibold text-xs ${
+                          (c.lead_score ?? 0) >= 68 ? 'text-orange-500' :
+                          (c.lead_score ?? 0) >= 40 ? 'text-chart-2' : 'text-muted-foreground'
+                        }`}>
+                          {c.lead_score ?? '—'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-muted-foreground text-xs whitespace-nowrap">
+                        {c.ultima_mensagem || '—'}
+                      </td>
+                      <td className="py-2.5 px-3 text-xs">
+                        {c.reuniao_agendada
+                          ? <Badge variant="default" className="text-xs bg-green-600/10 text-green-600 border-green-600/20">{c.reuniao_agendada}</Badge>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+const LinkedInMariTab = () => {
+  if (!isMariSupabaseConfigured) {
+    return (
+      <Card className="border-dashed border-amber-500/30">
+        <CardContent className="py-10 text-center space-y-2">
+          <Linkedin className="w-10 h-10 mx-auto text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">
+            Defina <code className="text-xs bg-muted px-1 rounded">VITE_MARI_SUPABASE_URL</code> e{' '}
+            <code className="text-xs bg-muted px-1 rounded">VITE_MARI_SUPABASE_KEY</code> no <strong>.env</strong> do PINN-BAI
+            para exibir convites, aceites, conversas e respostas por conta (Renan / Jaqueline).
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { data, isLoading, isError, refetch, isFetching } = useLinkedInMari();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card className="border-dashed border-destructive/40">
+        <CardContent className="py-10 text-center space-y-3">
+          <p className="text-muted-foreground text-sm">Erro ao carregar dados LinkedIn da Mari.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>Tentar novamente</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Dados em tempo real via Mari SDR · atualiza a cada 5 min
+        </p>
+        <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isFetching} className="gap-1.5 h-7 text-xs">
+          <RefreshCw className={`w-3 h-3 ${isFetching ? 'animate-spin' : ''}`} />
+          Atualizar
+        </Button>
+      </div>
+
+      <Tabs defaultValue="renan" className="w-full">
+        <TabsList>
+          <TabsTrigger value="renan" className="gap-2">
+            <UserCircle2 className="w-4 h-4" /> Renan
+          </TabsTrigger>
+          <TabsTrigger value="jaqueline" className="gap-2">
+            <UserCircle2 className="w-4 h-4" /> Jaqueline
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="renan" className="mt-4">
+          {data && <LinkedInProfilePanel data={data.renan} profileLabel="Renan" />}
+        </TabsContent>
+        <TabsContent value="jaqueline" className="mt-4">
+          {data && <LinkedInProfilePanel data={data.jaqueline} profileLabel="Jaqueline" />}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+// ==================== LinkedIn Tab (legado — mantido mas não usado) ====================
 const LinkedInTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: boolean; onSync: () => void }) => {
   const stats = snapshots?.stats?.data?.stats;
   const campaigns = snapshots?.campaigns?.data?.campaigns || [];
@@ -727,6 +976,7 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
 
 
 const PinnSDRDashboard = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: orgId, isLoading: orgLoading } = usePinnOrgId();
   const { data: cmhSnapshots, isLoading: cmhLoading } = useSnapshots(orgId, 'cmh_sync_snapshots');
@@ -847,9 +1097,18 @@ const PinnSDRDashboard = () => {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/admin/linkedin-sdr')}
+            className="gap-2"
+            size="sm"
+          >
+            <Linkedin className="w-4 h-4" />
+            LinkedIn SDR Manager
+          </Button>
           <Button variant="outline" onClick={() => syncCmh.mutate()} disabled={syncing} className="gap-2" size="sm">
             {syncingCmh ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            LinkedIn
+            Sincronizar CMH
           </Button>
           <Button variant="outline" onClick={() => syncPloomes.mutate()} disabled={syncing} className="gap-2" size="sm">
             {syncingPloomes ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
@@ -883,7 +1142,7 @@ const PinnSDRDashboard = () => {
         </TabsContent>
 
         <TabsContent value="linkedin" className="mt-4">
-          <LinkedInTab snapshots={cmhSnapshots} syncing={syncingCmh} onSync={() => syncCmh.mutate()} />
+          <LinkedInMariTab />
         </TabsContent>
 
         <TabsContent value="coldmail" className="mt-4">

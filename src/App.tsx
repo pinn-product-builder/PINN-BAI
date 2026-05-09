@@ -25,6 +25,7 @@ import OrganizationDetail from "./pages/admin/OrganizationDetail";
 import CustomMetrics from "./pages/admin/CustomMetrics";
 import AdminRfmChurn from "./pages/admin/RfmChurn";
 import PinnSDR from "./pages/admin/PinnSDR";
+import LinkedInSDR from "./pages/admin/LinkedInSDR";
 
 // Onboarding Wizard
 import OnboardingWizard from "./components/onboarding/OnboardingWizard";
@@ -39,6 +40,7 @@ import Insights from "./pages/client/Insights";
 import ClientUsers from "./pages/client/Users";
 import ClientSettings from "./pages/client/Settings";
 import ClientRfmChurn from "./pages/client/RfmChurn";
+import CrmAuditorPage from "./modules/crm-auditor/CrmAuditorPage";
 import { isRfmChurnEnabledForAdmin, isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
 import { useParams } from "react-router-dom";
 
@@ -87,6 +89,7 @@ const App = () => (
                   <Route path="rfm-churn" element={<AdminRfmChurn />} />
                 )}
                 <Route path="pinn-sdr" element={<PinnSDR />} />
+                <Route path="linkedin-sdr" element={<LinkedInSDR />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="activity" element={<Activity />} />
                 <Route path="settings" element={<AdminSettings />} />
@@ -108,6 +111,7 @@ const App = () => (
                 <Route path="datasets" element={<Datasets />} />
                 <Route path="insights" element={<Insights />} />
                 <Route path="rfm-churn" element={<ClientRfmChurnGate />} />
+                <Route path="crm-auditor" element={<CrmAuditorPage />} />
                 <Route path="users" element={<ClientUsers />} />
                 <Route path="settings" element={<ClientSettings />} />
               </Route>

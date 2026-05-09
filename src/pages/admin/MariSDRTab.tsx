@@ -1,4 +1,5 @@
 import { useMariSDR, MariSession } from '@/hooks/useMariSDR';
+import { isMariSupabaseConfigured } from '@/integrations/supabase/mariClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -118,6 +119,22 @@ export const MariSDRTab = () => {
           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 mt-2">
             <RefreshCw className="w-4 h-4" /> Tentar novamente
           </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isMariSupabaseConfigured) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-12 text-center space-y-3">
+          <Bot className="w-10 h-10 mx-auto text-muted-foreground/40" />
+          <p className="text-muted-foreground text-sm">Mari SDR não está configurado neste ambiente.</p>
+          <p className="text-xs text-muted-foreground">
+            Defina <code className="bg-muted px-1 rounded">VITE_MARI_SUPABASE_URL</code> e{' '}
+            <code className="bg-muted px-1 rounded">VITE_MARI_SUPABASE_KEY</code> no <code>.env</code> e reinicie o{' '}
+            <code className="bg-muted px-1 rounded">npm run dev</code>.
+          </p>
         </CardContent>
       </Card>
     );
