@@ -21,6 +21,7 @@ import {
 import { useLinkedInMari, LinkedInProfileData } from '@/hooks/useLinkedInMari';
 import { isMariSupabaseConfigured } from '@/integrations/supabase/mariClient';
 import { toast } from 'sonner';
+import { LinkedInPinnSDRTab } from './sdr-overview/LinkedInPinnSDRTab';
 
 const usePinnOrgId = () => {
   return useQuery({
@@ -1142,7 +1143,7 @@ const PinnSDRDashboard = () => {
         </TabsContent>
 
         <TabsContent value="linkedin" className="mt-4">
-          <LinkedInMariTab />
+          <LinkedInPinnSDRTab />
         </TabsContent>
 
         <TabsContent value="coldmail" className="mt-4">

@@ -796,11 +796,53 @@ function ActivityFeed({ messages }: { messages: RecentMessageRow[] }) {
 // Componente principal: OverviewTab
 // ──────────────────────────────────────────────────────────────────────────────
 
-export function OverviewTab() {
-  const { data: campaigns = [], isLoading: campaignsLoading } = useLinkedInCampaigns();
-  const { data: leads = [], isLoading: leadsLoading } = useAllCampaignLeads();
-  const { data: sessions = [], isLoading: sessionsLoading } = useLinkedInConversations();
-  const { data: messages = [] } = useRecentMessages(40);
+export interface OverviewTabProps {
+  /**
+   * Quando definido, filtra todas as métricas (campanhas, leads, sessões, mensagens)
+   * para apenas esta campanha específica. Quando undefined, mostra a visão geral
+   * de todas as campanhas e perfis.
+   */
+  campaignId?: string;
+  /**
+   * Quando true, esconde o ProfileBreakdown (não faz sentido mostrar comparativo
+   * Renan/Jaqueline/Pedro quando estamos olhando uma campanha de UM perfil só).
+   */
+  hideProfileBreakdown?: boolean;
+}
+
+export function OverviewTab({ campaignId, hideProfileBreakdown }: OverviewTabProps = {}) {
+  const { data: campaignsAll = [], isLoading: campaignsLoading } = useLinkedInCampaigns();
+  const { data: leadsAll = [], isLoading: leadsLoading } = useAllCampaignLeads();
+  const { data: sessionsAll = [], isLoading: sessionsLoading } = useLinkedInConversations();
+  const { data: messagesAll = [] } = useRecentMessages(80);
+
+  // Filtra escopo conforme campaignId
+  const { campaigns, leads, sessions, messages, scopedAccountId } = useMemo(() => {
+    if (!campaignId) {
+      return {
+        campaigns: campaignsAll,
+        leads: leadsAll,
+        sessions: sessionsAll,
+        messages: messagesAll,
+        scopedAccountId: null as string | null,
+      };
+    }
+
+    const camp = campaignsAll.find((c) => c.id === campaignId);
+    const accountId = camp?.linkedin_account_id ?? null;
+
+    const sessionIds = new Set(
+      sessionsAll.filter((s) => s.campaign_id === campaignId).map((s) => s.session_id)
+    );
+
+    return {
+      campaigns: camp ? [camp] : [],
+      leads: leadsAll.filter((l) => l.campaign_id === campaignId),
+      sessions: sessionsAll.filter((s) => s.campaign_id === campaignId),
+      messages: messagesAll.filter((m) => sessionIds.has(m.session_id)),
+      scopedAccountId: accountId,
+    };
+  }, [campaignId, campaignsAll, leadsAll, sessionsAll, messagesAll]);
 
   const isLoading = campaignsLoading || leadsLoading || sessionsLoading;
 
@@ -822,9 +864,25 @@ export function OverviewTab() {
     );
   }
 
+  if (campaignId && campaigns.length === 0) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            Campanha não encontrada ou removida.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const profileLabel = scopedAccountId
+    ? INSTANCE_PROFILE_MAP[scopedAccountId] ?? scopedAccountId
+    : null;
+
   return (
     <div className="space-y-4">
-      <ActiveCampaignsBanner campaigns={campaigns} />
+      {!campaignId && <ActiveCampaignsBanner campaigns={campaigns} />}
       <KpiGrid campaigns={campaigns} leads={leads} sessions={sessions} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -833,16 +891,22 @@ export function OverviewTab() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-2">
-          <ProfileBreakdown campaigns={campaigns} leads={leads} sessions={sessions} />
+        {!hideProfileBreakdown && (
+          <div className="xl:col-span-2">
+            <ProfileBreakdown campaigns={campaigns} leads={leads} sessions={sessions} />
+          </div>
+        )}
+        <div className={hideProfileBreakdown ? 'xl:col-span-3' : ''}>
+          <ActivityFeed messages={messages} />
         </div>
-        <ActivityFeed messages={messages} />
       </div>
 
       <div className="flex items-center justify-center py-3">
         <Badge variant="outline" className="text-[10px] gap-1.5">
           <CheckCircle2 className="w-3 h-3 text-green-600" />
-          Auto-refresh: 60s · {sessions.length} conversas · {leads.length} leads em campanhas
+          {campaignId
+            ? `Campanha ${profileLabel ?? ''} · ${sessions.length} conversas · ${leads.length} leads`
+            : `Auto-refresh: 60s · ${sessions.length} conversas · ${leads.length} leads em campanhas`}
         </Badge>
       </div>
     </div>
