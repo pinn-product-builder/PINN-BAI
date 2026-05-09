@@ -31,7 +31,9 @@ import { Label } from '@/components/ui/label';
 import {
   Target, Users, Send, CheckCircle, Play, Pause, Eye, Search,
   UserCircle2, Settings2, Save, Linkedin, SlidersHorizontal, Trash2,
+  LayoutDashboard,
 } from 'lucide-react';
+import { OverviewTab } from './sdr-overview/OverviewTab';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -989,6 +991,7 @@ function ConversasTab() {
             <SelectItem value="all">Todos os perfis</SelectItem>
             <SelectItem value="renan">Renan</SelectItem>
             <SelectItem value="jaqueline">Jaqueline</SelectItem>
+            <SelectItem value="pedro">Pedro</SelectItem>
           </SelectContent>
         </Select>
 
@@ -1540,8 +1543,12 @@ const LinkedInSDR = () => {
         )}
       </div>
 
-      <Tabs defaultValue="campanhas" className="w-full">
+      <Tabs defaultValue="overview" className="w-full">
         <TabsList>
+          <TabsTrigger value="overview" className="gap-2">
+            <LayoutDashboard className="w-4 h-4" />
+            Visão Geral
+          </TabsTrigger>
           <TabsTrigger value="campanhas" className="gap-2">
             <Target className="w-4 h-4" />
             Campanhas
@@ -1559,6 +1566,10 @@ const LinkedInSDR = () => {
             Config Mari
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="mt-6">
+          <OverviewTab />
+        </TabsContent>
 
         <TabsContent value="campanhas" className="mt-6">
           <CampanhasTab />

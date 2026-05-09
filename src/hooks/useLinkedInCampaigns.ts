@@ -90,15 +90,17 @@ export interface CreateCampaignInput {
   }>;
 }
 
-// Instâncias LinkedIn da Mari (Renan e Jaqueline)
+// Instâncias LinkedIn da Mari (Renan, Jaqueline, Pedro)
 export const LINKEDIN_INSTANCES = [
-  '_39Lo_qvT66qhg8Xf3tSeQ',
-  'Z2xzKnaEQNexnOwS8gMlcQ',
+  '_39Lo_qvT66qhg8Xf3tSeQ',  // Renan
+  'Z2xzKnaEQNexnOwS8gMlcQ',  // Jaqueline
+  'C0g6urYsTBq0xG7GR8mzgQ',  // Pedro
 ] as const;
 
 export const INSTANCE_PROFILE_MAP: Record<string, string> = {
   '_39Lo_qvT66qhg8Xf3tSeQ': 'Renan',
   'Z2xzKnaEQNexnOwS8gMlcQ': 'Jaqueline',
+  'C0g6urYsTBq0xG7GR8mzgQ': 'Pedro',
 };
 
 /** Opções do seletor de perfil: sempre inclui Renan/Jaqueline + extras vindos do banco. */
@@ -291,5 +293,69 @@ export const useSessionMessages = (sessionId: string | null) => {
     },
     enabled: !!sessionId,
     staleTime: 30 * 1000,
+  });
+};
+
+// ─── Dashboard Overview: leads agregados de todas as campanhas LinkedIn ───────
+export interface AllLeadsRow {
+  id: string;
+  campaign_id: string;
+  status: 'pending' | 'invite_sent' | 'invite_accepted' | 'sent' | 'failed' | 'skipped';
+  invited_at: string | null;
+  accepted_at: string | null;
+  sent_at: string | null;
+  lead_name: string | null;
+  company: string | null;
+}
+
+export const useAllCampaignLeads = () => {
+  return useQuery<AllLeadsRow[]>({
+    queryKey: ['linkedin-all-leads'],
+    queryFn: async () => {
+      if (!mariSupabase) return [];
+      // Lê apenas leads de campanhas LinkedIn (filtro indireto via channel da campanha
+      // não está em sdr_campaign_leads, então buscamos todos e filtramos client-side
+      // após cruzar com campaigns)
+      const { data, error } = await (mariSupabase as any)
+        .from('sdr_campaign_leads')
+        .select('id, campaign_id, status, invited_at, accepted_at, sent_at, lead_name, company')
+        .order('id', { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return (data ?? []) as AllLeadsRow[];
+    },
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+};
+
+// Mensagens recentes para o feed de atividade do overview (últimas N)
+export interface RecentMessageRow {
+  id: string;
+  session_id: string;
+  direction: 'inbound' | 'outbound';
+  text: string | null;
+  intent: string | null;
+  created_at: string;
+  instance: string | null;
+}
+
+export const useRecentMessages = (limit: number = 30) => {
+  return useQuery<RecentMessageRow[]>({
+    queryKey: ['linkedin-recent-messages', limit],
+    queryFn: async () => {
+      if (!mariSupabase) return [];
+      const { data, error } = await (mariSupabase as any)
+        .from('sdr_messages')
+        .select('id, session_id, direction, text, intent, created_at, instance')
+        .eq('channel', 'linkedin')
+        .in('instance', LINKEDIN_INSTANCES)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []) as RecentMessageRow[];
+    },
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
   });
 };
