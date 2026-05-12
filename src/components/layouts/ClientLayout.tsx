@@ -21,6 +21,7 @@ import {
   TrackChanges as TargetIcon,
   AutoAwesome as SparklesIcon,
   FactCheck as AuditorIcon,
+  Insights as InsightsIcon,
 } from "@mui/icons-material";
 import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,7 +32,7 @@ import { isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
 const DRAWER_WIDTH = 220;
 
 const baseNavItems = [
-  { path: "dashboard", label: "Dashboard", icon: DashboardIcon },
+  { path: "arguto", label: "Arguto · BAI", icon: InsightsIcon },
   { path: "import", label: "Dados", icon: UploadIcon },
   { path: "insights", label: "Inteligência IA", icon: LightbulbIcon },
   { path: "crm-auditor", label: "Auditor CRM", icon: AuditorIcon },
@@ -200,9 +201,9 @@ const ClientLayout = () => {
             aria-label="Abrir IA"
             onClick={() => setIsChatOpen(true)}
             sx={{
-              background: "linear-gradient(135deg, #F97316, #EA580C)",
-              boxShadow: "0 4px 16px rgba(249,115,22,0.35)",
-              "&:hover": { background: "linear-gradient(135deg, #FB923C, #F97316)" },
+              background: "#FF6B35",
+              boxShadow: "0 8px 24px rgba(255,107,53,0.22)",
+              "&:hover": { background: "#E55A2B" },
             }}
           >
             <SparklesIcon />

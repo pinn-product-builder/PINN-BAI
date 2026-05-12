@@ -5,8 +5,29 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Sparkles, X, Bot, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { isDemoOrg } from '@/lib/featureFlags';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
+
+const ARGUTO_GREETING = `Olá! Sou o **BAI Copilot** — sua inteligência dedicada da Arguto.
+
+Já analisei os dados visíveis nesta tela. Pergunte qualquer coisa sobre:
+
+- "Quais clientes estão em risco alto de churn agora?"
+- "Quanto a Arguto deixa de faturar com visitas de baixo retorno?"
+- "Quais os top 5 clientes pra visitar nas próximas 24h?"
+- "Como o score ICP é calculado pro cliente X?"
+- "Compare a conversão atual com o cenário com BAI ativo"
+
+Como posso ajudar?`;
+
+const DEFAULT_GREETING = `Olá! Sou o **BAI Copilot**, sua inteligência dedicada. Posso responder perguntas sobre seus dados reais, como:
+
+- "Qual a taxa de conversão atual?"
+- "Quais são os leads mais valiosos?"
+- "Compare os canais de aquisição"
+
+Como posso ajudar?`;
 
 interface Message {
   id: string;
@@ -19,14 +40,25 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-data-chat
 
 const AIChat = ({ onClose }: { onClose: () => void }) => {
   const { profile } = useAuth();
+  const isArgutoDemo = isDemoOrg(profile?.org_id);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: 'Olá! Sou o **Pinn AI**, sua inteligência dedicada. Posso responder perguntas sobre seus dados reais, como:\n\n- "Qual a taxa de conversão atual?"\n- "Quais são os leads mais valiosos?"\n- "Compare os canais de aquisição"\n\nComo posso ajudar?',
+      content: isArgutoDemo ? ARGUTO_GREETING : DEFAULT_GREETING,
       timestamp: new Date()
     }
   ]);
+
+  // Re-emite a saudação correta quando o profile carrega atrasado (auth async).
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length !== 1 || prev[0].role !== 'assistant') return prev;
+      const target = isArgutoDemo ? ARGUTO_GREETING : DEFAULT_GREETING;
+      if (prev[0].content === target) return prev;
+      return [{ ...prev[0], content: target }];
+    });
+  }, [isArgutoDemo]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -172,7 +204,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             <Sparkles size={18} />
           </div>
           <div>
-            <CardTitle className="text-sm font-bold">Pinn AI Assistant</CardTitle>
+            <CardTitle className="text-sm font-bold">BAI Copilot</CardTitle>
             <p className="text-[10px] text-muted-foreground">
               {profile?.org_id ? 'Conectado aos seus dados' : 'Modo demonstração'}
             </p>
@@ -202,7 +234,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
                 >
                   {msg.role === 'assistant' && (
                     <div className="flex items-center gap-2 mb-2 text-xs font-bold text-accent">
-                      <Bot size={12} /> Pinn AI
+                      <Bot size={12} /> BAI Copilot
                     </div>
                   )}
                   <div className="prose prose-sm max-w-none leading-relaxed">

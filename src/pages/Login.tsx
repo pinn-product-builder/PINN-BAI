@@ -19,7 +19,7 @@ const Login = () => {
     if (authLoading || !user) return;
     if (!profile || roles.length === 0) return;
     if (isPlatformAdmin) navigate('/admin/hq', { replace: true });
-    else if (profile.org_id) navigate(`/client/${profile.org_id}/dashboard`, { replace: true });
+    else if (profile.org_id) navigate(`/client/${profile.org_id}/arguto`, { replace: true });
   }, [authLoading, user, profile, roles, isPlatformAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,20 +43,17 @@ const Login = () => {
   }
 
   return (
-    <div
-      className="min-h-screen flex bg-background text-foreground overflow-hidden"
-      style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}
-    >
+    <div className="min-h-screen flex bg-background text-foreground overflow-hidden">
       {/* ── Left panel — branding (always dark) ── */}
       <div className="hidden lg:flex flex-col justify-between w-[52%] p-14 relative overflow-hidden bg-[#0a0a0a]">
         {/* Subtle warm grid */}
         <div className="absolute inset-0 opacity-[0.06]" style={{
-          backgroundImage: 'linear-gradient(#FF6900 1px, transparent 1px), linear-gradient(90deg, #FF6900 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(#FF6B35 1px, transparent 1px), linear-gradient(90deg, #FF6B35 1px, transparent 1px)',
           backgroundSize: '48px 48px'
         }} />
         {/* Orange glow */}
         <div className="absolute top-1/2 -translate-y-1/2 -left-24 w-[400px] h-[400px] rounded-full opacity-20"
-          style={{ background: 'radial-gradient(circle, #FF6900 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(circle, #FF6B35 0%, transparent 70%)' }} />
 
         {/* Logo */}
         <div className="relative z-10">
@@ -65,14 +62,14 @@ const Login = () => {
 
         {/* Hero text */}
         <div className="relative z-10 space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#FF6900]/40 bg-[#FF6900]/15 text-[#FF6900] text-[11px] font-semibold uppercase tracking-widest">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#FF6B35]/40 bg-[#FF6B35]/15 text-[#FF6B35] text-[11px] font-semibold uppercase tracking-widest">
             <Zap className="w-3 h-3 fill-current" />
             Business AI Intelligence
           </div>
           <h1 className="text-5xl xl:text-[3.5rem] font-bold leading-[1.05] tracking-tight text-white">
             Dados que
             <br />
-            <span style={{ color: '#FF6900' }}>geram receita.</span>
+            <span style={{ color: '#FF6B35' }}>geram receita.</span>
           </h1>
           <p className="text-white/50 text-base leading-relaxed max-w-md font-light">
             Dashboards inteligentes que transformam dados brutos em decisões comerciais de alto impacto.
@@ -90,7 +87,7 @@ const Login = () => {
         <div className="relative z-10 flex gap-8">
           {[['98%', 'Uptime'], ['< 2s', 'Load'], ['100%', 'White-label']].map(([val, label]) => (
             <div key={label}>
-              <p className="text-xl font-bold" style={{ color: '#FF6900' }}>{val}</p>
+              <p className="text-xl font-bold" style={{ color: '#FF6B35' }}>{val}</p>
               <p className="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">{label}</p>
             </div>
           ))}
@@ -109,8 +106,7 @@ const Login = () => {
           </div>
 
           <div className="space-y-1.5">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground"
-              style={{ fontFamily: "'Poppins', system-ui, sans-serif" }}>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">
               Acessar painel
             </h2>
             <p className="text-muted-foreground text-sm">
@@ -165,10 +161,9 @@ const Login = () => {
               disabled={isLoading}
               className="w-full h-10 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 mt-2"
               style={{
-                background: 'linear-gradient(135deg, #FF6900, #FCB900)',
+                background: '#FF6B35',
                 color: '#fff',
-                fontFamily: "'Poppins', system-ui, sans-serif",
-                boxShadow: '0 2px 16px rgba(255,105,0,0.28)'
+                boxShadow: '0 8px 24px rgba(255,107,53,0.22)'
               }}
             >
               {isLoading

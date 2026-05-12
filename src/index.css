@@ -1,78 +1,123 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
+/* ============================================================================
+   PINN-BAI — Design System v1.0 · Pinn Identity (oficial)
+   Source: Pinn Design System v1.0 (Maio/2026) — colors_and_type.css canônico
+   Família: produto irmão de Hermes (mesma identidade visual)
+   Modo: light-only (decisão UX — clientes existentes)
+   ============================================================================ */
+
+/* JetBrains Mono Variable — self-hosted via fontsource (mono accent: stats, métricas) */
+@import "@fontsource-variable/jetbrains-mono/index.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================================
-   Pinn BAI Design System — modo claro único (PINN Growth / Hermes)
-   Orange primário; alinhado ao tema MUI `createPinnThemeLight`.
-   ============================================================ */
+/* ── Inter Variable — brand-supplied, local (zero dep externa) ─────────────── */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-VariableFont_opsz_wght.ttf") format("truetype-variations");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-Italic-VariableFont_opsz_wght.ttf") format("truetype-variations");
+}
 
 @layer base {
-  /* ─────────────────────────────────────────────
-     :root = LIGHT (default)
-     Fundo branco-quente, sidebar cinza muito claro,
-     orange como único accent de destaque.
-  ───────────────────────────────────────────── */
   :root {
-    --background:        0 0% 97%;          /* #F7F7F7 — quase branco com calor */
-    --foreground:        220 15% 15%;       /* cinza escuro quente */
+    /* ════════════════════════════════════════════════════════════════════════
+       PINN BRAND TOKENS — diretos do DS oficial (hex)
+       ════════════════════════════════════════════════════════════════════════ */
 
-    --card:              0 0% 100%;         /* branco puro nos cards */
-    --card-foreground:   220 15% 15%;
+    /* Orange (alma da marca) */
+    --pinn-orange:        #FF6B35;
+    --pinn-orange-dark:   #E55A2B;
+    --pinn-orange-light:  #FFF3ED;
+    --pinn-orange-700:    #B8431F;
+    --pinn-orange-50:     #FFF8F4;
+
+    /* Neutrals (premium B2B; nunca #000) */
+    --pinn-ink:           #1A1A1A;
+    --pinn-ink-2:         #2C2C2C;
+    --pinn-graphite:      #555555;
+    --pinn-mute:          #999999;
+    --pinn-rule:          #E6E4E0;
+    --pinn-surface:       #F6F4EF;
+    --pinn-paper:         #FAF8F4;
+    --pinn-white:         #FFFFFF;
+
+    /* Functional */
+    --pinn-success:       #2E7D32;
+    --pinn-error:         #C62828;
+    --pinn-warning:       #F57C00;
+    --pinn-info:          #2563EB;
+
+    /* ════════════════════════════════════════════════════════════════════════
+       SHADCN HSL TOKENS — mapeados aos hex DS acima
+       ════════════════════════════════════════════════════════════════════════ */
+
+    --background:        36 30% 97%;          /* #FAF8F4 paper warm */
+    --foreground:        0 0% 10%;            /* #1A1A1A ink */
+
+    --card:              0 0% 100%;           /* #FFFFFF branco puro */
+    --card-foreground:   0 0% 10%;
 
     --popover:           0 0% 100%;
-    --popover-foreground: 220 15% 15%;
+    --popover-foreground: 0 0% 10%;
 
-    /* Primary — PINN Growth (alinhado ao MUI Hermes #F97316) */
-    --primary:           25 95% 53%;
+    /* Primary — Pinn Orange #FF6B35 */
+    --primary:           16 100% 60%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary — cinza suave */
-    --secondary:         220 10% 94%;
-    --secondary-foreground: 220 15% 30%;
+    /* Secondary — surface warm */
+    --secondary:         36 22% 94%;          /* ≈ #F0EDE6 */
+    --secondary-foreground: 0 0% 17%;
 
-    /* Muted */
-    --muted:             220 10% 95%;
-    --muted-foreground:  220 8% 52%;
+    /* Muted — paper-tone secondary */
+    --muted:             36 18% 93%;
+    --muted-foreground:  0 0% 33%;            /* #555 graphite */
 
-    /* Accent — Pinn Solar Amber */
-    --accent:            43 100% 49%;       /* #FCB900 */
-    --accent-foreground: 220 15% 10%;
+    /* Accent — orange-light wash (substitui Solar Amber legado) */
+    --accent:            18 100% 96%;         /* #FFF3ED */
+    --accent-foreground: 16 100% 35%;         /* #B8431F */
 
-    /* Semânticas */
-    --success:           142 60% 38%;
+    /* Semânticas (alinhadas ao DS) */
+    --success:           122 44% 33%;         /* #2E7D32 */
     --success-foreground: 0 0% 100%;
-    --warning:           38 92% 48%;
-    --warning-foreground: 220 15% 10%;
-    --destructive:       0 72% 52%;
+    --warning:           29 100% 48%;         /* #F57C00 */
+    --warning-foreground: 0 0% 10%;
+    --destructive:       0 65% 47%;           /* #C62828 */
     --destructive-foreground: 0 0% 100%;
-    --info:              210 75% 50%;
+    --info:              221 83% 53%;         /* #2563EB */
     --info-foreground:   0 0% 100%;
 
     /* Bordas */
-    --border:            220 10% 88%;       /* cinza muito suave */
-    --input:             220 10% 88%;
-    --ring:              24 100% 50%;
-    --radius: 0.5rem;
+    --border:            36 18% 89%;          /* #E6E4E0 rule */
+    --input:             36 18% 89%;
+    --ring:              16 100% 60%;         /* #FF6B35 focus */
+    --radius: 0.5rem;                          /* 8px DS */
 
-    /* ── Sidebar — cinza acinzentado claro ── */
-    --sidebar-background:         220 14% 96%;   /* #F2F3F5 */
-    --sidebar-foreground:         220 15% 25%;
-    --sidebar-primary:            24 100% 50%;   /* orange — ativo */
+    /* ── Sidebar — paper-warm, não cinza-azul ── */
+    --sidebar-background:         36 25% 96%;   /* ≈ #F4F1EA */
+    --sidebar-foreground:         0 0% 17%;
+    --sidebar-primary:            16 100% 60%;  /* orange — ativo */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent:             220 10% 91%;   /* hover state */
-    --sidebar-accent-foreground:  220 15% 20%;
-    --sidebar-border:             220 10% 88%;
-    --sidebar-ring:               24 100% 50%;
+    --sidebar-accent:             36 18% 91%;
+    --sidebar-accent-foreground:  0 0% 10%;
+    --sidebar-border:             36 18% 89%;
+    --sidebar-ring:               16 100% 60%;
 
-    /* ── Charts — alinhados ao tema PINN / MUI (modo claro) ── */
-    --chart-1:  25 95% 53%;   /* #F97316 */
-    --chart-2:  43 100% 49%;   /* #FCB900 */
-    --chart-3:  142 60% 38%;   /* verde */
-    --chart-4:  210 75% 50%;   /* azul */
-    --chart-5:  270 65% 58%;   /* roxo */
+    /* ── Charts — paleta DS oficial ── */
+    --chart-1:  16 100% 60%;    /* #FF6B35 orange */
+    --chart-2:  122 44% 33%;    /* #2E7D32 success */
+    --chart-3:  221 83% 53%;    /* #2563EB info */
+    --chart-4:  29 100% 48%;    /* #F57C00 warning */
+    --chart-5:  0 0% 33%;       /* #555555 graphite */
   }
 }
 
@@ -81,17 +126,16 @@
   * { @apply border-border; }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Manrope', system-ui, sans-serif;
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Poppins', system-ui, sans-serif;
+    font-family: "Inter", system-ui, sans-serif;
     @apply font-semibold tracking-tight;
   }
-
-  /* Light-mode card shadow refinement */
-  :root .shadow-2xl {
-    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+  /* Numerals tabulares para métricas */
+  .tabular-nums, [data-tabular] {
+    font-feature-settings: 'tnum' 1, 'cv11' 1;
   }
 }
 
@@ -111,22 +155,16 @@
     background-color: hsl(var(--muted-foreground) / 0.4);
   }
 
-  /* Gradiente de texto orange → amber */
-  .text-pinn-gradient {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Card com borda e sombra suave Pinn (light) */
+  /* Card com borda hairline e sombra executive-soft (DS oficial) */
   .pinn-card {
-    @apply bg-card border border-border rounded-xl shadow-sm;
+    @apply bg-card border border-border rounded-lg;
+    box-shadow: 0 1px 2px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04);
   }
 
-  /* Glass card — modo claro */
+  /* Glass card — paper translúcido */
   .glass-card {
-    @apply bg-card/80 border border-border backdrop-blur-xl shadow-sm;
+    @apply bg-card/80 border border-border backdrop-blur-xl;
+    box-shadow: 0 1px 2px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04);
   }
 
   /* Light mode table enhancements */
@@ -134,20 +172,21 @@
     background-color: hsl(var(--muted) / 0.6);
   }
 
-  /* Light mode: softer elevated look for cards */
-  :root .pinn-card,
-  :root .glass-card {
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+  /* Eyebrow — uppercase tracking-wide DS canon */
+  .pinn-eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wider text-muted-foreground;
+    letter-spacing: 0.08em;
   }
 }
 
-/* ── Recharts overrides ── */
+/* ── Recharts overrides — alinhados aos novos tokens ── */
 .recharts-default-tooltip {
   background-color: hsl(var(--card)) !important;
   border-color:     hsl(var(--border)) !important;
   border-radius:    var(--radius) !important;
   color:            hsl(var(--foreground)) !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important;
+  box-shadow: 0 4px 16px rgba(26,26,26,0.08) !important;
+  font-family: "Inter", system-ui, sans-serif !important;
 }
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical   line {
@@ -157,4 +196,5 @@
 .recharts-text {
   fill: hsl(var(--muted-foreground)) !important;
   font-size: 11px !important;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace !important;
 }

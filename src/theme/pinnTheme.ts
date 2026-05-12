@@ -29,7 +29,66 @@ declare module "@mui/material/styles" {
   }
 }
 
-const PINN_ORANGE = "#F97316";
+/* ────────────────────────────────────────────────────────────────────────────
+   Pinn DS oficial (v1.0 · Maio/2026) — single source of truth
+   ──────────────────────────────────────────────────────────────────────────── */
+const PINN_ORANGE       = "#FF6B35";
+const PINN_ORANGE_DARK  = "#E55A2B";
+const PINN_ORANGE_LIGHT = "#FFF3ED";
+const PINN_INK          = "#1A1A1A";
+const PINN_INK_2        = "#2C2C2C";
+const PINN_GRAPHITE     = "#555555";
+const PINN_MUTE         = "#999999";
+const PINN_RULE         = "#E6E4E0";
+const PINN_SURFACE      = "#F6F4EF";
+const PINN_PAPER        = "#FAF8F4";
+const PINN_WHITE        = "#FFFFFF";
+const PINN_SUCCESS      = "#2E7D32";
+const PINN_ERROR        = "#C62828";
+const PINN_WARNING      = "#F57C00";
+const PINN_INFO         = "#2563EB";
+
+/** Sombras DS — executive-soft, baseadas em rgba(26,26,26, 0.04→0.16) */
+const buildPinnShadows = (isDark: boolean) => {
+  if (isDark) {
+    /* Modo dark mantido como hoje (não-alvo deste rebrand — backlog) */
+    const d = (n: number) => `0 ${n}px ${n * 2}px rgba(0,0,0,0.4)`;
+    return [
+      "none",
+      ...Array.from({ length: 24 }, (_, i) => d(i + 1)),
+    ] as unknown as ReturnType<typeof createTheme>["shadows"];
+  }
+  /* Light: progressivo executive — hairline + soft drop */
+  const hairline = "0 0 0 1px rgba(26,26,26,0.04)";
+  const lvl = (drop: string) => `${drop}, ${hairline}`;
+  return [
+    "none",
+    lvl("0 1px 2px rgba(26,26,26,0.06)"),
+    lvl("0 2px 6px rgba(26,26,26,0.06)"),
+    lvl("0 4px 12px rgba(26,26,26,0.07)"),
+    lvl("0 6px 16px rgba(26,26,26,0.07)"),
+    lvl("0 8px 20px rgba(26,26,26,0.08)"),
+    lvl("0 12px 28px rgba(26,26,26,0.08)"),
+    lvl("0 16px 36px rgba(26,26,26,0.09)"),
+    lvl("0 20px 44px rgba(26,26,26,0.09)"),
+    lvl("0 24px 52px rgba(26,26,26,0.10)"),
+    lvl("0 28px 60px rgba(26,26,26,0.10)"),
+    lvl("0 32px 68px rgba(26,26,26,0.11)"),
+    lvl("0 36px 76px rgba(26,26,26,0.11)"),
+    lvl("0 40px 84px rgba(26,26,26,0.12)"),
+    lvl("0 44px 92px rgba(26,26,26,0.12)"),
+    lvl("0 48px 100px rgba(26,26,26,0.12)"),
+    lvl("0 52px 108px rgba(26,26,26,0.13)"),
+    lvl("0 56px 116px rgba(26,26,26,0.13)"),
+    lvl("0 60px 124px rgba(26,26,26,0.13)"),
+    lvl("0 64px 132px rgba(26,26,26,0.14)"),
+    lvl("0 68px 140px rgba(26,26,26,0.14)"),
+    lvl("0 72px 148px rgba(26,26,26,0.14)"),
+    lvl("0 76px 156px rgba(26,26,26,0.15)"),
+    lvl("0 80px 164px rgba(26,26,26,0.15)"),
+    lvl("0 84px 172px rgba(26,26,26,0.16)"),
+  ] as unknown as ReturnType<typeof createTheme>["shadows"];
+};
 
 export function createPinnTheme(mode: "light" | "dark") {
   const isDark = mode === "dark";
@@ -39,89 +98,63 @@ export function createPinnTheme(mode: "light" | "dark") {
       mode,
       primary: {
         main:         PINN_ORANGE,
-        light:        "#FB923C",
-        dark:         "#C2410C",
+        light:        "#FF8A60",
+        dark:         PINN_ORANGE_DARK,
         contrastText: "#ffffff",
       },
       secondary: {
-        main:         isDark ? "#2A2A2A" : "#E8E8E8",
-        light:        isDark ? "#3A3A3A" : "#F0F0F0",
-        dark:         isDark ? "#1A1A1A" : "#D0D0D0",
-        contrastText: isDark ? "#F0F0F0" : "#0A0A0A",
+        main:         isDark ? "#2A2A2A" : PINN_SURFACE,
+        light:        isDark ? "#3A3A3A" : "#F0EDE6",
+        dark:         isDark ? "#1A1A1A" : "#D9D5CB",
+        contrastText: isDark ? "#F0F0F0" : PINN_INK,
       },
       background: {
-        default: isDark ? "#0F0F0F" : "#F7F7F7",
-        paper:   isDark ? "#181818" : "#FFFFFF",
+        default: isDark ? "#0F0F0F" : PINN_PAPER,
+        paper:   isDark ? "#181818" : PINN_WHITE,
       },
       text: {
-        primary:   isDark ? "#F0F0F0" : "#0A0A0A",
-        secondary: isDark ? "#9A9A9A" : "#555555",
-        disabled:  isDark ? "#555555" : "#AAAAAA",
+        primary:   isDark ? "#F0F0F0" : PINN_INK,
+        secondary: isDark ? "#9A9A9A" : PINN_GRAPHITE,
+        disabled:  isDark ? "#555555" : PINN_MUTE,
       },
-      divider: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
-      success: { main: "#22C55E", contrastText: "#fff" },
-      warning: { main: "#F59E0B", contrastText: "#fff" },
-      error:   { main: "#EF4444", contrastText: "#fff" },
-      info:    { main: "#3B82F6", contrastText: "#fff" },
+      divider: isDark ? "rgba(255,255,255,0.07)" : PINN_RULE,
+      success: { main: PINN_SUCCESS, contrastText: "#fff" },
+      warning: { main: PINN_WARNING, contrastText: "#fff" },
+      error:   { main: PINN_ERROR,   contrastText: "#fff" },
+      info:    { main: PINN_INFO,    contrastText: "#fff" },
       pinn: {
         orange:       PINN_ORANGE,
-        orangeLight:  "#FEF0E6",
-        orangeDark:   "#C2410C",
-        black:        isDark ? "#111111" : "#0A0A0A",
-        surface1:     isDark ? "#181818" : "#FFFFFF",
-        surface2:     isDark ? "#202020" : "#F5F5F5",
-        surface3:     isDark ? "#282828" : "#EEEEEE",
-        border:       isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
-        borderStrong: isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.14)",
+        orangeLight:  PINN_ORANGE_LIGHT,
+        orangeDark:   PINN_ORANGE_DARK,
+        black:        isDark ? "#111111" : PINN_INK,
+        surface1:     isDark ? "#181818" : PINN_WHITE,
+        surface2:     isDark ? "#202020" : PINN_PAPER,
+        surface3:     isDark ? "#282828" : PINN_SURFACE,
+        border:       isDark ? "rgba(255,255,255,0.07)" : PINN_RULE,
+        borderStrong: isDark ? "rgba(255,255,255,0.14)" : "#D9D5CB",
       },
     },
 
     typography: {
-      fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-      h1: { fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1 },
-      h2: { fontWeight: 700, letterSpacing: "-0.025em", lineHeight: 1.15 },
-      h3: { fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.2 },
-      h4: { fontWeight: 600, letterSpacing: "-0.015em", lineHeight: 1.25 },
-      h5: { fontWeight: 600, letterSpacing: "-0.01em" },
+      fontFamily: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      h1: { fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.05 },
+      h2: { fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.1 },
+      h3: { fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.15 },
+      h4: { fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.2 },
+      h5: { fontWeight: 600, letterSpacing: "-0.005em" },
       h6: { fontWeight: 600, letterSpacing: "-0.005em" },
       subtitle1: { fontWeight: 500, letterSpacing: "-0.005em" },
       subtitle2: { fontWeight: 500, fontSize: "0.8125rem" },
       body1: { letterSpacing: "-0.005em", lineHeight: 1.6 },
       body2: { fontSize: "0.8125rem", letterSpacing: "-0.003em", lineHeight: 1.55 },
       caption: { fontSize: "0.6875rem", letterSpacing: "0.01em" },
-      overline: { fontSize: "0.625rem", fontWeight: 600, letterSpacing: "0.1em" },
+      overline: { fontSize: "0.625rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" },
       button: { fontWeight: 600, letterSpacing: "-0.01em", textTransform: "none" },
     },
 
     shape: { borderRadius: 8 },
 
-    shadows: [
-      "none",
-      isDark ? "0 1px 2px rgba(0,0,0,0.4)"   : "0 1px 3px rgba(0,0,0,0.08)",
-      isDark ? "0 2px 4px rgba(0,0,0,0.4)"   : "0 2px 6px rgba(0,0,0,0.08)",
-      isDark ? "0 4px 8px rgba(0,0,0,0.4)"   : "0 4px 12px rgba(0,0,0,0.08)",
-      isDark ? "0 6px 12px rgba(0,0,0,0.4)"  : "0 6px 16px rgba(0,0,0,0.08)",
-      isDark ? "0 8px 16px rgba(0,0,0,0.4)"  : "0 8px 20px rgba(0,0,0,0.09)",
-      isDark ? "0 12px 24px rgba(0,0,0,0.4)" : "0 12px 28px rgba(0,0,0,0.1)",
-      isDark ? "0 16px 32px rgba(0,0,0,0.4)" : "0 16px 36px rgba(0,0,0,0.1)",
-      isDark ? "0 20px 40px rgba(0,0,0,0.4)" : "0 20px 44px rgba(0,0,0,0.1)",
-      isDark ? "0 24px 48px rgba(0,0,0,0.4)" : "0 24px 52px rgba(0,0,0,0.11)",
-      isDark ? "0 28px 56px rgba(0,0,0,0.4)" : "0 28px 60px rgba(0,0,0,0.11)",
-      isDark ? "0 32px 64px rgba(0,0,0,0.4)" : "0 32px 68px rgba(0,0,0,0.11)",
-      isDark ? "0 36px 72px rgba(0,0,0,0.4)" : "0 36px 76px rgba(0,0,0,0.12)",
-      isDark ? "0 40px 80px rgba(0,0,0,0.4)" : "0 40px 84px rgba(0,0,0,0.12)",
-      isDark ? "0 44px 88px rgba(0,0,0,0.4)" : "0 44px 92px rgba(0,0,0,0.12)",
-      isDark ? "0 48px 96px rgba(0,0,0,0.4)" : "0 48px 100px rgba(0,0,0,0.13)",
-      isDark ? "0 52px 104px rgba(0,0,0,0.4)": "0 52px 108px rgba(0,0,0,0.13)",
-      isDark ? "0 56px 112px rgba(0,0,0,0.4)": "0 56px 116px rgba(0,0,0,0.13)",
-      isDark ? "0 60px 120px rgba(0,0,0,0.4)": "0 60px 124px rgba(0,0,0,0.14)",
-      isDark ? "0 64px 128px rgba(0,0,0,0.4)": "0 64px 132px rgba(0,0,0,0.14)",
-      isDark ? "0 68px 136px rgba(0,0,0,0.4)": "0 68px 140px rgba(0,0,0,0.14)",
-      isDark ? "0 72px 144px rgba(0,0,0,0.4)": "0 72px 148px rgba(0,0,0,0.15)",
-      isDark ? "0 76px 152px rgba(0,0,0,0.4)": "0 76px 156px rgba(0,0,0,0.15)",
-      isDark ? "0 80px 160px rgba(0,0,0,0.4)": "0 80px 164px rgba(0,0,0,0.15)",
-      isDark ? "0 84px 168px rgba(0,0,0,0.4)": "0 84px 172px rgba(0,0,0,0.16)",
-    ],
+    shadows: buildPinnShadows(isDark),
 
     components: {
       MuiCssBaseline: {
@@ -129,8 +162,8 @@ export function createPinnTheme(mode: "light" | "dark") {
           "*": { boxSizing: "border-box" },
           "html, body, #root": { height: "100%", margin: 0, padding: 0 },
           body: {
-            backgroundColor: isDark ? "#0F0F0F" : "#F7F7F7",
-            color: isDark ? "#F0F0F0" : "#0A0A0A",
+            backgroundColor: isDark ? "#0F0F0F" : PINN_PAPER,
+            color: isDark ? "#F0F0F0" : PINN_INK,
             fontFamily: '"Inter", system-ui, sans-serif',
             WebkitFontSmoothing: "antialiased",
             MozOsxFontSmoothing: "grayscale",
@@ -138,11 +171,11 @@ export function createPinnTheme(mode: "light" | "dark") {
           "::-webkit-scrollbar": { width: "5px", height: "5px" },
           "::-webkit-scrollbar-track": { background: "transparent" },
           "::-webkit-scrollbar-thumb": {
-            background: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.15)",
+            background: isDark ? "rgba(255,255,255,0.12)" : "rgba(26,26,26,0.15)",
             borderRadius: "4px",
           },
           "::-webkit-scrollbar-thumb:hover": {
-            background: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.25)",
+            background: isDark ? "rgba(255,255,255,0.2)" : "rgba(26,26,26,0.25)",
           },
         },
       },
@@ -155,24 +188,26 @@ export function createPinnTheme(mode: "light" | "dark") {
             fontWeight: 600,
             fontSize: "0.8125rem",
             padding: "7px 16px",
-            transition: "all 0.15s ease",
+            transition: "all 200ms cubic-bezier(.2,.7,.2,1)",
             ...(ownerState.variant === "contained" && ownerState.color === "primary" && {
-              background: `linear-gradient(135deg, ${PINN_ORANGE}, #EA580C)`,
-              "&:hover": { background: `linear-gradient(135deg, #FB923C, ${PINN_ORANGE})`, transform: "translateY(-1px)" },
+              background: PINN_ORANGE,
+              color: "#fff",
+              "&:hover": { background: PINN_ORANGE_DARK },
+              "&:active": { transform: "scale(0.98)" },
             }),
             ...(ownerState.variant === "outlined" && {
-              borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.15)",
-              color: isDark ? "#D0D0D0" : "#333333",
+              borderColor: isDark ? "rgba(255,255,255,0.12)" : PINN_RULE,
+              color: isDark ? "#D0D0D0" : PINN_INK_2,
               "&:hover": {
-                borderColor: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.3)",
-                background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+                borderColor: isDark ? "rgba(255,255,255,0.25)" : PINN_INK,
+                background: isDark ? "rgba(255,255,255,0.04)" : PINN_ORANGE_LIGHT,
               },
             }),
             ...(ownerState.variant === "text" && {
-              color: isDark ? "#B0B0B0" : "#555555",
+              color: isDark ? "#B0B0B0" : PINN_GRAPHITE,
               "&:hover": {
-                background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
-                color: isDark ? "#F0F0F0" : "#0A0A0A",
+                background: isDark ? "rgba(255,255,255,0.05)" : "rgba(26,26,26,0.04)",
+                color: isDark ? "#F0F0F0" : PINN_INK,
               },
             }),
           }),
@@ -185,8 +220,8 @@ export function createPinnTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: {
             borderRadius: 8,
-            transition: "all 0.15s ease",
-            "&:hover": { background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" },
+            transition: "all 150ms cubic-bezier(.2,.7,.2,1)",
+            "&:hover": { background: isDark ? "rgba(255,255,255,0.06)" : "rgba(26,26,26,0.05)" },
           },
         },
       },
@@ -195,12 +230,18 @@ export function createPinnTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: {
             backgroundImage: "none",
-            backgroundColor: isDark ? "#181818" : "#FFFFFF",
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+            backgroundColor: isDark ? "#181818" : PINN_WHITE,
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : PINN_RULE}`,
           },
-          elevation1: { boxShadow: isDark ? "0 1px 3px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)" : "0 1px 4px rgba(0,0,0,0.07)" },
-          elevation2: { boxShadow: isDark ? "0 2px 6px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)" : "0 2px 8px rgba(0,0,0,0.08)" },
-          elevation3: { boxShadow: isDark ? "0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.07)" : "0 4px 16px rgba(0,0,0,0.09)" },
+          elevation1: { boxShadow: isDark
+            ? "0 1px 3px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)"
+            : "0 1px 2px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04)" },
+          elevation2: { boxShadow: isDark
+            ? "0 2px 6px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)"
+            : "0 4px 16px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04)" },
+          elevation3: { boxShadow: isDark
+            ? "0 4px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.07)"
+            : "0 12px 32px rgba(26,26,26,0.08), 0 0 0 1px rgba(26,26,26,0.04)" },
         },
       },
 
@@ -208,13 +249,15 @@ export function createPinnTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: {
             backgroundImage: "none",
-            backgroundColor: isDark ? "#181818" : "#FFFFFF",
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+            backgroundColor: isDark ? "#181818" : PINN_WHITE,
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : PINN_RULE}`,
             borderRadius: 12,
-            transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+            transition: "border-color 200ms cubic-bezier(.2,.7,.2,1), box-shadow 200ms cubic-bezier(.2,.7,.2,1), transform 200ms cubic-bezier(.2,.7,.2,1)",
             "&:hover": {
-              borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)",
-              boxShadow: isDark ? "0 4px 16px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.07)",
+              borderColor: isDark ? "rgba(255,255,255,0.12)" : "#D9D5CB",
+              boxShadow: isDark
+                ? "0 4px 16px rgba(0,0,0,0.4)"
+                : "0 4px 16px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04)",
             },
           },
         },
@@ -227,8 +270,8 @@ export function createPinnTheme(mode: "light" | "dark") {
       MuiDrawer: {
         styleOverrides: {
           paper: {
-            backgroundColor: isDark ? "#111111" : "#FAFAFA",
-            borderRight: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+            backgroundColor: isDark ? "#111111" : PINN_SURFACE,
+            borderRight: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : PINN_RULE}`,
             backgroundImage: "none",
           },
         },
@@ -237,10 +280,11 @@ export function createPinnTheme(mode: "light" | "dark") {
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundColor: isDark ? "#111111" : "#FAFAFA",
+            backgroundColor: isDark ? "#111111" : PINN_PAPER,
             backgroundImage: "none",
-            borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+            borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : PINN_RULE}`,
             boxShadow: "none",
+            color: isDark ? "#F0F0F0" : PINN_INK,
           },
         },
       },
@@ -250,14 +294,14 @@ export function createPinnTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: {
             "& .MuiOutlinedInput-root": {
-              backgroundColor: isDark ? "#1E1E1E" : "#F5F5F5",
+              backgroundColor: isDark ? "#1E1E1E" : PINN_WHITE,
               borderRadius: 8,
               fontSize: "0.875rem",
-              "& fieldset": { borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)" },
-              "&:hover fieldset": { borderColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.22)" },
+              "& fieldset": { borderColor: isDark ? "rgba(255,255,255,0.1)" : PINN_RULE },
+              "&:hover fieldset": { borderColor: isDark ? "rgba(255,255,255,0.2)" : "#D9D5CB" },
               "&.Mui-focused fieldset": { borderColor: PINN_ORANGE, borderWidth: 1.5 },
             },
-            "& .MuiInputLabel-root": { fontSize: "0.875rem", color: isDark ? "#888" : "#777" },
+            "& .MuiInputLabel-root": { fontSize: "0.875rem", color: isDark ? "#888" : PINN_GRAPHITE },
             "& .MuiInputLabel-root.Mui-focused": { color: PINN_ORANGE },
           },
         },
@@ -267,11 +311,11 @@ export function createPinnTheme(mode: "light" | "dark") {
         defaultProps: { size: "small" },
         styleOverrides: {
           root: {
-            backgroundColor: isDark ? "#1E1E1E" : "#F5F5F5",
+            backgroundColor: isDark ? "#1E1E1E" : PINN_WHITE,
             borderRadius: 8,
             fontSize: "0.875rem",
-            "& .MuiOutlinedInput-notchedOutline": { borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)" },
-            "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.22)" },
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: isDark ? "rgba(255,255,255,0.1)" : PINN_RULE },
+            "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: isDark ? "rgba(255,255,255,0.2)" : "#D9D5CB" },
             "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: PINN_ORANGE, borderWidth: 1.5 },
           },
         },
@@ -281,13 +325,13 @@ export function createPinnTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: { borderRadius: 6, fontWeight: 500, fontSize: "0.75rem" },
           filled: {
-            backgroundColor: "rgba(249,115,22,0.15)",
-            color: "#FB923C",
-            "&:hover": { backgroundColor: "rgba(249,115,22,0.22)" },
+            backgroundColor: "rgba(255,107,53,0.12)",
+            color: PINN_ORANGE_DARK,
+            "&:hover": { backgroundColor: "rgba(255,107,53,0.18)" },
           },
           outlined: {
-            borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)",
-            color: isDark ? "#C0C0C0" : "#444444",
+            borderColor: isDark ? "rgba(255,255,255,0.12)" : PINN_RULE,
+            color: isDark ? "#C0C0C0" : PINN_GRAPHITE,
           },
         },
       },
@@ -295,18 +339,19 @@ export function createPinnTheme(mode: "light" | "dark") {
       MuiTooltip: {
         styleOverrides: {
           tooltip: {
-            backgroundColor: isDark ? "#282828" : "#1A1A1A",
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"}`,
+            backgroundColor: PINN_INK,
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(26,26,26,0.1)"}`,
             borderRadius: 6,
             fontSize: "0.75rem",
             padding: "6px 10px",
+            color: "#fff",
           },
-          arrow: { color: isDark ? "#282828" : "#1A1A1A" },
+          arrow: { color: PINN_INK },
         },
       },
 
       MuiDivider: {
-        styleOverrides: { root: { borderColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" } },
+        styleOverrides: { root: { borderColor: isDark ? "rgba(255,255,255,0.07)" : PINN_RULE } },
       },
 
       MuiListItemButton: {
@@ -315,12 +360,12 @@ export function createPinnTheme(mode: "light" | "dark") {
             borderRadius: 8,
             margin: "1px 8px",
             padding: "8px 12px",
-            transition: "all 0.15s ease",
-            "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" },
+            transition: "all 150ms cubic-bezier(.2,.7,.2,1)",
+            "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(26,26,26,0.04)" },
             "&.Mui-selected": {
-              backgroundColor: "rgba(249,115,22,0.12)",
+              backgroundColor: "rgba(255,107,53,0.12)",
               color: PINN_ORANGE,
-              "&:hover": { backgroundColor: "rgba(249,115,22,0.18)" },
+              "&:hover": { backgroundColor: "rgba(255,107,53,0.18)" },
               "& .MuiListItemIcon-root": { color: PINN_ORANGE },
             },
           },
@@ -328,7 +373,7 @@ export function createPinnTheme(mode: "light" | "dark") {
       },
 
       MuiListItemIcon: {
-        styleOverrides: { root: { minWidth: 36, color: isDark ? "#707070" : "#999999" } },
+        styleOverrides: { root: { minWidth: 36, color: isDark ? "#707070" : PINN_MUTE } },
       },
 
       MuiListItemText: {
@@ -340,7 +385,7 @@ export function createPinnTheme(mode: "light" | "dark") {
 
       MuiTabs: {
         styleOverrides: {
-          root: { minHeight: 40, borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}` },
+          root: { minHeight: 40, borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : PINN_RULE}` },
           indicator: { backgroundColor: PINN_ORANGE, height: 2, borderRadius: "2px 2px 0 0" },
         },
       },
@@ -352,9 +397,9 @@ export function createPinnTheme(mode: "light" | "dark") {
             textTransform: "none",
             fontWeight: 500,
             fontSize: "0.875rem",
-            color: isDark ? "#888" : "#777",
+            color: isDark ? "#888" : PINN_GRAPHITE,
             padding: "8px 16px",
-            "&.Mui-selected": { color: isDark ? "#F0F0F0" : "#0A0A0A", fontWeight: 600 },
+            "&.Mui-selected": { color: isDark ? "#F0F0F0" : PINN_INK, fontWeight: 600 },
           },
         },
       },
@@ -363,13 +408,13 @@ export function createPinnTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: {
             "& .MuiTableCell-root": {
-              backgroundColor: isDark ? "#141414" : "#F0F0F0",
-              color: isDark ? "#888" : "#666",
+              backgroundColor: isDark ? "#141414" : PINN_SURFACE,
+              color: isDark ? "#888" : PINN_GRAPHITE,
               fontSize: "0.6875rem",
               fontWeight: 600,
               textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
+              letterSpacing: "0.08em",
+              borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : PINN_RULE}`,
               padding: "10px 16px",
             },
           },
@@ -380,11 +425,11 @@ export function createPinnTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: {
             "& .MuiTableRow-root": {
-              transition: "background 0.15s ease",
-              "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.02)" },
+              transition: "background 150ms cubic-bezier(.2,.7,.2,1)",
+              "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.025)" : "rgba(26,26,26,0.02)" },
             },
             "& .MuiTableCell-root": {
-              borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
+              borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(230,228,224,0.6)"}`,
               padding: "12px 16px",
               fontSize: "0.8125rem",
             },
@@ -396,24 +441,24 @@ export function createPinnTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: { borderRadius: 8, fontSize: "0.875rem" },
           standardInfo: {
-            backgroundColor: isDark ? "rgba(59,130,246,0.1)" : "rgba(59,130,246,0.08)",
-            border: "1px solid rgba(59,130,246,0.2)",
-            color: isDark ? "#93C5FD" : "#2563EB",
+            backgroundColor: isDark ? "rgba(37,99,235,0.1)" : "rgba(37,99,235,0.08)",
+            border: "1px solid rgba(37,99,235,0.2)",
+            color: isDark ? "#93C5FD" : PINN_INFO,
           },
           standardSuccess: {
-            backgroundColor: isDark ? "rgba(34,197,94,0.1)" : "rgba(34,197,94,0.08)",
-            border: "1px solid rgba(34,197,94,0.2)",
-            color: isDark ? "#86EFAC" : "#16A34A",
+            backgroundColor: isDark ? "rgba(46,125,50,0.1)" : "rgba(46,125,50,0.08)",
+            border: "1px solid rgba(46,125,50,0.2)",
+            color: isDark ? "#86EFAC" : PINN_SUCCESS,
           },
           standardWarning: {
-            backgroundColor: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.08)",
-            border: "1px solid rgba(245,158,11,0.2)",
-            color: isDark ? "#FCD34D" : "#D97706",
+            backgroundColor: isDark ? "rgba(245,124,0,0.1)" : "rgba(245,124,0,0.08)",
+            border: "1px solid rgba(245,124,0,0.2)",
+            color: isDark ? "#FCD34D" : PINN_WARNING,
           },
           standardError: {
-            backgroundColor: isDark ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.08)",
-            border: "1px solid rgba(239,68,68,0.2)",
-            color: isDark ? "#FCA5A5" : "#DC2626",
+            backgroundColor: isDark ? "rgba(198,40,40,0.1)" : "rgba(198,40,40,0.08)",
+            border: "1px solid rgba(198,40,40,0.2)",
+            color: isDark ? "#FCA5A5" : PINN_ERROR,
           },
         },
       },
@@ -422,9 +467,9 @@ export function createPinnTheme(mode: "light" | "dark") {
         styleOverrides: {
           root: {
             borderRadius: 4, height: 4,
-            backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
+            backgroundColor: isDark ? "rgba(255,255,255,0.07)" : "rgba(26,26,26,0.07)",
           },
-          bar: { borderRadius: 4, background: `linear-gradient(90deg, ${PINN_ORANGE}, #FB923C)` },
+          bar: { borderRadius: 4, backgroundColor: PINN_ORANGE },
         },
       },
 
@@ -433,7 +478,7 @@ export function createPinnTheme(mode: "light" | "dark") {
       MuiSkeleton: {
         styleOverrides: {
           root: {
-            backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+            backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(26,26,26,0.06)",
             borderRadius: 6,
           },
         },
@@ -448,10 +493,12 @@ export function createPinnTheme(mode: "light" | "dark") {
       MuiMenu: {
         styleOverrides: {
           paper: {
-            backgroundColor: isDark ? "#202020" : "#FFFFFF",
-            border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`,
+            backgroundColor: isDark ? "#202020" : PINN_WHITE,
+            border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : PINN_RULE}`,
             borderRadius: 10,
-            boxShadow: isDark ? "0 8px 32px rgba(0,0,0,0.6)" : "0 8px 32px rgba(0,0,0,0.1)",
+            boxShadow: isDark
+              ? "0 8px 32px rgba(0,0,0,0.6)"
+              : "0 12px 32px rgba(26,26,26,0.08), 0 0 0 1px rgba(26,26,26,0.04)",
             backgroundImage: "none",
           },
         },
@@ -464,8 +511,8 @@ export function createPinnTheme(mode: "light" | "dark") {
             borderRadius: 6,
             margin: "2px 6px",
             padding: "7px 10px",
-            "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" },
-            "&.Mui-selected": { backgroundColor: "rgba(249,115,22,0.12)", color: PINN_ORANGE },
+            "&:hover": { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(26,26,26,0.04)" },
+            "&.Mui-selected": { backgroundColor: "rgba(255,107,53,0.12)", color: PINN_ORANGE },
           },
         },
       },
@@ -489,7 +536,7 @@ export function createPinnTheme(mode: "light" | "dark") {
   });
 }
 
-/** Tema PINN Growth — modo claro (único). Opcional: cor primária da organização (hex). Sync com PROJETO-HERMES `pinnTheme.ts`. */
+/** Tema PINN — modo claro (default Pinn DS oficial). Aceita override de cor primária por organização (hex). Sync com PROJETO-HERMES `pinnTheme.ts`. */
 export function createPinnThemeLight(overridePrimaryHex?: string | null) {
   const base = createPinnTheme("light");
   if (!overridePrimaryHex || !/^#[0-9A-Fa-f]{3,8}$/.test(overridePrimaryHex.trim())) {

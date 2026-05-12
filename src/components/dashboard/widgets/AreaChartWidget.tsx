@@ -43,17 +43,18 @@ const SERIES_COLOR_MAP: Record<string, string> = {
   atendimento_feito:  '#22C55E', // verde
   reuniao_confirmada: '#F59E0B', // âmbar/laranja
   reuniao_realizada:  '#3B82F6', // azul
-  venda:              '#F97316', // primary PINN Growth (Hermes)
+  venda:              '#FF6B35', // Pinn DS oficial — orange (alma da marca)
   desqualificado:     '#EF4444', // vermelho
   hermes_entrada:     '#10B981', // esmeralda
   // aliases
   hermes_encaminhado: '#8B5CF6',
 };
 
-// Paleta estendida para séries não mapeadas (garante distinção mesmo com muitas séries)
+// Paleta estendida para séries não mapeadas — derivada do DS oficial Pinn v1.0
+// Ordem: orange → success → info → warning → error → graphite + variações safe
 const EXTENDED_COLORS = [
-  '#FF6900', '#F59E0B', '#22C55E', '#3B82F6', '#8B5CF6',
-  '#EC4899', '#10B981', '#EF4444', '#06B6D4', '#F97316',
+  '#FF6B35', '#2E7D32', '#2563EB', '#F57C00', '#C62828',
+  '#555555', '#E55A2B', '#0EA5A4', '#7C3AED', '#06B6D4',
 ];
 
 const getSeriesColorFn =

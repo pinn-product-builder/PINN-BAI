@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { isDemoOrg } from '@/lib/featureFlags';
 
 type LeadRow = {
   id: string;
@@ -92,16 +93,23 @@ export const useRfmChurnAnalysis = (orgId?: string) => {
     queryFn: async () => {
       if (!orgId) return [];
 
-      // 1) Tenta recalcular RFM. Se falhar (ex.: integração incompleta), segue com dados persistidos.
-      const { error: rfmInvokeError } = await supabase.functions.invoke('calculate-rfm', { body: { orgId } });
-      if (rfmInvokeError) {
-        console.warn('[useRfmChurnAnalysis] calculate-rfm falhou, usando cache persistido:', rfmInvokeError.message);
-      }
+      // Orgs em modo demo (ex.: Arguto) usam scores pré-populados.
+      // Pular invokes evita console.warn ruidoso em reunião comercial e
+      // economiza ~2 round-trips desnecessários por refresh.
+      const skipInvokes = isDemoOrg(orgId);
 
-      // 2) Tenta recalcular churn, sem bloquear a tela em caso de falha.
-      const { error: churnInvokeError } = await supabase.functions.invoke('predict-churn', { body: { orgId } });
-      if (churnInvokeError) {
-        console.warn('[useRfmChurnAnalysis] predict-churn falhou, usando cache persistido:', churnInvokeError.message);
+      if (!skipInvokes) {
+        // 1) Tenta recalcular RFM. Se falhar (ex.: integração incompleta), segue com dados persistidos.
+        const { error: rfmInvokeError } = await supabase.functions.invoke('calculate-rfm', { body: { orgId } });
+        if (rfmInvokeError) {
+          console.warn('[useRfmChurnAnalysis] calculate-rfm falhou, usando cache persistido:', rfmInvokeError.message);
+        }
+
+        // 2) Tenta recalcular churn, sem bloquear a tela em caso de falha.
+        const { error: churnInvokeError } = await supabase.functions.invoke('predict-churn', { body: { orgId } });
+        if (churnInvokeError) {
+          console.warn('[useRfmChurnAnalysis] predict-churn falhou, usando cache persistido:', churnInvokeError.message);
+        }
       }
 
       // 3) Busca os scores persistidos para renderização

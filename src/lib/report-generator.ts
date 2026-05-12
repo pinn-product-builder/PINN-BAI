@@ -48,7 +48,7 @@ export class ReportGenerator {
             pdf.setFillColor(5, 5, 5); // #050505
             pdf.rect(0, 0, pdfWidth, 40, 'F');
 
-            pdf.setTextColor(255, 105, 0); // Pinn Orange #FF6900
+            pdf.setTextColor(255, 107, 53); // Pinn Orange #FF6B35 (DS oficial)
             pdf.setFontSize(22);
             pdf.setFont('helvetica', 'bold');
             pdf.text('PINN', 15, 20);

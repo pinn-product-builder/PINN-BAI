@@ -40,6 +40,7 @@ import Insights from "./pages/client/Insights";
 import ClientUsers from "./pages/client/Users";
 import ClientSettings from "./pages/client/Settings";
 import ClientRfmChurn from "./pages/client/RfmChurn";
+import Arguto from "./pages/client/Arguto";
 import CrmAuditorPage from "./modules/crm-auditor/CrmAuditorPage";
 import { isRfmChurnEnabledForAdmin, isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
 import { useParams } from "react-router-dom";
@@ -49,7 +50,7 @@ const queryClient = new QueryClient();
 const ClientRfmChurnGate = () => {
   const { orgId } = useParams();
   if (!isRfmChurnEnabledForOrg(orgId)) {
-    return <Navigate to={`/client/${orgId}/dashboard`} replace />;
+    return <Navigate to={`/client/${orgId}/arguto`} replace />;
   }
   return <ClientRfmChurn />;
 };
@@ -104,7 +105,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route index element={<Navigate to="arguto" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="crm" element={<CRMKanban />} />
                 <Route path="import" element={<Import />} />
@@ -112,6 +113,7 @@ const App = () => (
                 <Route path="insights" element={<Insights />} />
                 <Route path="rfm-churn" element={<ClientRfmChurnGate />} />
                 <Route path="crm-auditor" element={<CrmAuditorPage />} />
+                <Route path="arguto" element={<Arguto />} />
                 <Route path="users" element={<ClientUsers />} />
                 <Route path="settings" element={<ClientSettings />} />
               </Route>

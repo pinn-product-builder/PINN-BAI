@@ -14,14 +14,14 @@ import { Loader2, Save, Palette, Type, Image, Eye, Upload, Check, X } from 'luci
 import { cn } from '@/lib/utils';
 
 const PRESET_COLORS = [
-  { label: 'Azul', value: '#3B82F6' },
-  { label: 'Roxo', value: '#8B5CF6' },
-  { label: 'Verde', value: '#10B981' },
-  { label: 'Laranja', value: '#F97316' },
-  { label: 'Vermelho', value: '#EF4444' },
-  { label: 'Rosa', value: '#EC4899' },
-  { label: 'Ciano', value: '#06B6D4' },
-  { label: 'Âmbar', value: '#F59E0B' },
+  { label: 'Pinn Orange', value: '#FF6B35' },
+  { label: 'Azul',        value: '#2563EB' },
+  { label: 'Verde',       value: '#2E7D32' },
+  { label: 'Vermelho',    value: '#C62828' },
+  { label: 'Âmbar',       value: '#F57C00' },
+  { label: 'Roxo',        value: '#7C3AED' },
+  { label: 'Ciano',       value: '#0EA5A4' },
+  { label: 'Rosa',        value: '#DB2777' },
 ];
 
 const ClientSettings = () => {

@@ -178,10 +178,7 @@ const MetricCard = ({
 
         {/* Value */}
         <div className="mt-2">
-          <p
-            className="text-[1.7rem] font-bold leading-none tracking-tight text-foreground"
-            style={{ fontFamily: "'Poppins', system-ui, sans-serif" }}
-          >
+          <p className="text-[1.7rem] font-bold leading-none tracking-tight text-foreground tabular-nums">
             {formatValue(value)}
           </p>
           <p className="text-[10px] text-muted-foreground/50 mt-1 font-medium uppercase tracking-wider">

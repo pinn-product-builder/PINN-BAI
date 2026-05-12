@@ -101,7 +101,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 pb-32" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
+    <div className="p-6 lg:p-8 space-y-6 pb-32">
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2">
@@ -109,7 +109,6 @@ const Dashboard = () => {
           <Select value={activeDash?.id || ''} onValueChange={(id) => setSelectedDashId(id)}>
             <SelectTrigger
               className="w-auto h-9 gap-2 border-border/40 bg-transparent text-foreground font-semibold text-base pl-0 pr-3 hover:bg-card/60 transition-colors focus:ring-0"
-              style={{ fontFamily: "'Poppins', system-ui, sans-serif" }}
             >
               <div className="flex items-center gap-2">
                 {activeDash && DASH_ICONS[activeDash.name]}
@@ -157,9 +156,9 @@ const Dashboard = () => {
             disabled={isVoiceActive}
             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50"
             style={{
-              borderColor: 'rgba(255,105,0,0.3)',
-              color: '#FF6900',
-              background: 'rgba(255,105,0,0.06)',
+              borderColor: 'rgba(255,107,53,0.3)',
+              color: '#FF6B35',
+              background: 'rgba(255,107,53,0.06)',
             }}
           >
             {isVoiceActive ? (
