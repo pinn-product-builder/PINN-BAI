@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ShareDashboardDialog } from '@/components/dashboard/ShareDashboardDialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,7 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import DashboardEngine from '@/components/dashboard/DashboardEngine';
 import { ReportGenerator } from '@/lib/report-generator';
 import { useDashboardNarrative } from '@/hooks/useDashboardNarrative';
-import { isRfmChurnEnabledForOrg } from '@/lib/featureFlags';
+import { isRfmChurnEnabledForOrg, isDemoOrg } from '@/lib/featureFlags';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { useKpiComparison, type IsoRange } from '@/hooks/useKpiComparison';
 
@@ -167,6 +167,13 @@ function KpiRow({ orgId }: { orgId: string }) {
 
 const Dashboard = () => {
   const { orgId } = useParams();
+
+  // Orgs em modo demo (ex.: Arguto) recebem a tela /arguto dedicada como
+  // landing — evita session restaurada cair em /dashboard zerado.
+  if (isDemoOrg(orgId)) {
+    return <Navigate to={`/client/${orgId}/arguto`} replace />;
+  }
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isVoiceActive, setIsVoiceActive] = useState(false);
