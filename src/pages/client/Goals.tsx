@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { isDemoOrg } from '@/lib/featureFlags';
 import {
   useKpiGoals, useCreateGoal, useDeleteGoal,
   useKpiAlertRules, useCreateAlertRule, useToggleAlertRule, useDeleteAlertRule,
@@ -305,6 +306,7 @@ function CreateAlertDialog({ orgId, onClose }: { orgId: string; onClose: () => v
 export default function Goals() {
   const { orgId } = useParams<{ orgId: string }>();
   const { toast } = useToast();
+  const isDemo = isDemoOrg(orgId);
   const { data: goals = [], isLoading: loadingGoals } = useKpiGoals(orgId);
   const { data: rules = [], isLoading: loadingRules } = useKpiAlertRules(orgId);
   const { data: triggers = [] } = useKpiTriggers(orgId);
@@ -343,18 +345,20 @@ export default function Goals() {
             Defina objetivos por KPI e receba alertas automáticos quando métricas saírem do esperado.
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" className="gap-2" onClick={handleCheck} disabled={checkThresholds.isPending}>
-            {checkThresholds.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Verificar Agora
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowCreateAlert(true)}>
-            <Bell className="w-4 h-4" /> Nova Regra
-          </Button>
-          <Button size="sm" className="gap-2" onClick={() => setShowCreateGoal(true)}>
-            <Plus className="w-4 h-4" /> Nova Meta
-          </Button>
-        </div>
+        {!isDemo && (
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleCheck} disabled={checkThresholds.isPending}>
+              {checkThresholds.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Verificar Agora
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowCreateAlert(true)}>
+              <Bell className="w-4 h-4" /> Nova Regra
+            </Button>
+            <Button size="sm" className="gap-2" onClick={() => setShowCreateGoal(true)}>
+              <Plus className="w-4 h-4" /> Nova Meta
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Active threshold breaches */}
