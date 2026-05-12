@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase as supabaseClient } from '@/integrations/supabase/client';
+import { isDemoOrg } from '@/lib/featureFlags';
+import { DEMO_UNIT_ECONOMICS } from '@/data/arguto-extra-demo';
 const supabase = supabaseClient as any;
 
 export interface ChannelEconomics {
@@ -38,6 +40,7 @@ export const useUnitEconomics = (
     queryKey: ['unit-economics', orgId, dateRange.start, dateRange.end],
     queryFn: async (): Promise<UnitEconomicsSummary | null> => {
       if (!orgId) return null;
+      if (isDemoOrg(orgId)) return DEMO_UNIT_ECONOMICS;
 
       const start = dateRange.start.substring(0, 10);
       const end = dateRange.end.substring(0, 10);

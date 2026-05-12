@@ -21,6 +21,8 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { EditableCardGrid, type CardWidget } from '@/components/dashboard/EditableCardGrid';
 import { cn } from '@/lib/utils';
+import { isDemoOrg } from '@/lib/featureFlags';
+import { DEMO_INSIGHTS } from '@/data/arguto-extra-demo';
 
 interface InsightResult {
   type: 'recommendation' | 'alert' | 'trend';
@@ -67,6 +69,9 @@ const Insights = () => {
   const { data: insights, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['ai-insights', orgId, dateRangeISO.start, dateRangeISO.end],
     queryFn: async (): Promise<InsightResult[]> => {
+      // Modo demo (Arguto): retorna insights pré-curados sem chamar a edge function.
+      if (isDemoOrg(orgId)) return DEMO_INSIGHTS as unknown as InsightResult[];
+
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-data-chat`, {
         method: 'POST',
         headers: {

@@ -30,6 +30,8 @@ import {
 import { resolveExecutiveScoreboard } from "@/bai/executiveScores";
 import { resolveEvidenceTables } from "@/bai/evidenceFallback";
 import { buildExecutiveBrief, splitActionHorizons, fmtMoney, fmtNum, fmtPct, tierFromScore, tierLabelPt } from "@/bai/helpers";
+import { isDemoOrg } from "@/lib/featureFlags";
+import { DEMO_CRM_AUDIT_DASHBOARD } from "@/data/arguto-extra-demo";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const BACKEND = import.meta.env.VITE_BACKEND_URL ?? "https://bai.srv879715.hstgr.cloud";
@@ -57,6 +59,8 @@ const TOOLTIP_STYLE = {
 
 // ─── Data fetch ───────────────────────────────────────────────────────────────
 async function fetchDashboard(tenantId: string) {
+  // Modo demo (Arguto): retorna snapshot pré-curado sem chamar o backend.
+  if (isDemoOrg(tenantId)) return DEMO_CRM_AUDIT_DASHBOARD;
   const r = await fetch(`${BACKEND}/crm/audit/dashboard?tenant_id=${encodeURIComponent(tenantId)}`);
   if (!r.ok) throw new Error(`Erro ${r.status}: ${await r.text()}`);
   return r.json();

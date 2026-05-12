@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Integration, IntegrationInput, SelectedTable } from '@/lib/types';
 import type { Json } from '@/integrations/supabase/types';
+import { isDemoOrg } from '@/lib/featureFlags';
+import { DEMO_INTEGRATIONS } from '@/data/arguto-extra-demo';
 
 // Fetch integrations for an organization
 export const useIntegrations = (orgId: string | undefined) => {
@@ -9,6 +11,7 @@ export const useIntegrations = (orgId: string | undefined) => {
     queryKey: ['integrations', orgId],
     queryFn: async (): Promise<Integration[]> => {
       if (!orgId) return [];
+      if (isDemoOrg(orgId)) return DEMO_INTEGRATIONS;
 
       const { data, error } = await supabase
         .from('integrations')

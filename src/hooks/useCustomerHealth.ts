@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import type { CustomerAlert, CustomerHealthScore, HealthBand } from '@/lib/types';
+import { isDemoOrg } from '@/lib/featureFlags';
+import {
+  DEMO_HEALTH_SCORES,
+  DEMO_HEALTH_SUMMARY,
+  DEMO_CUSTOMER_ALERTS,
+} from '@/data/arguto-extra-demo';
 
 // Tabelas customer_health_scores e customer_alerts não estão tipadas em types.ts
 const supabase = supabaseClient as any;
@@ -17,6 +23,11 @@ export const useHealthScores = (
     queryKey: ['customer-health', orgId, options?.band],
     queryFn: async (): Promise<CustomerHealthScore[]> => {
       if (!orgId) return [];
+      if (isDemoOrg(orgId)) {
+        let rows = DEMO_HEALTH_SCORES;
+        if (options?.band) rows = rows.filter((r) => r.health_band === options.band);
+        return rows.slice(0, options?.limit ?? 100);
+      }
       let q = (supabase as any)
         .from('customer_health_scores')
         .select('*')
@@ -39,6 +50,7 @@ export const useHealthSummary = (orgId: string | undefined) =>
     queryKey: ['customer-health-summary', orgId],
     queryFn: async () => {
       if (!orgId) return null;
+      if (isDemoOrg(orgId)) return DEMO_HEALTH_SUMMARY;
       const { data, error } = await supabase
         .from('customer_health_scores')
         .select('health_band, health_score, trend')
@@ -82,6 +94,12 @@ export const useCustomerAlerts = (
     queryKey: ['customer-alerts', orgId, options?.severity, options?.resolved],
     queryFn: async (): Promise<CustomerAlert[]> => {
       if (!orgId) return [];
+      if (isDemoOrg(orgId)) {
+        const resolved = options?.resolved ?? false;
+        let rows = DEMO_CUSTOMER_ALERTS.filter((a) => a.resolved === resolved);
+        if (options?.severity) rows = rows.filter((a) => a.severity === options.severity);
+        return rows.slice(0, options?.limit ?? 50);
+      }
       let q = supabase
         .from('customer_alerts')
         .select('*')

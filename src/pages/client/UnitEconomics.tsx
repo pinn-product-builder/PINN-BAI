@@ -79,10 +79,11 @@ export default function UnitEconomics() {
     })) ?? [];
 
   // ─── Cada KPI vira um widget independente (drag/drop granular) ───
+  // KPIs ocupam 3 cols cada (12-col grid) → 4 cards por linha em desktop.
   const widgets: CardWidget[] = ue ? [
     {
       id: 'ue:kpi:cac',
-      size: { w: 2, h: 4 },
+      size: { w: 3, h: 4 },
       render: () => (
         <KpiCard
           label="CAC"
@@ -95,7 +96,7 @@ export default function UnitEconomics() {
     },
     {
       id: 'ue:kpi:ltv',
-      size: { w: 2, h: 4 },
+      size: { w: 3, h: 4 },
       render: () => (
         <KpiCard
           label="LTV"
@@ -108,7 +109,7 @@ export default function UnitEconomics() {
     },
     {
       id: 'ue:kpi:ltv-cac',
-      size: { w: 2, h: 4 },
+      size: { w: 3, h: 4 },
       render: () => (
         <KpiCard
           label="LTV:CAC"
@@ -121,7 +122,7 @@ export default function UnitEconomics() {
     },
     {
       id: 'ue:kpi:payback',
-      size: { w: 2, h: 4 },
+      size: { w: 3, h: 4 },
       render: () => (
         <KpiCard
           label="Payback"
@@ -134,7 +135,7 @@ export default function UnitEconomics() {
     },
     {
       id: 'ue:kpi:ticket',
-      size: { w: 2, h: 4 },
+      size: { w: 3, h: 4 },
       render: () => (
         <KpiCard
           label="Ticket Médio"
@@ -147,7 +148,7 @@ export default function UnitEconomics() {
     },
     {
       id: 'ue:kpi:verba',
-      size: { w: 2, h: 4 },
+      size: { w: 3, h: 4 },
       render: () => (
         <KpiCard
           label="Verba Total"
@@ -308,7 +309,7 @@ export default function UnitEconomics() {
         </div>
       ) : (
         <EditableCardGrid
-          pageKey="unit-economics"
+          pageKey="unit-economics-v2"
           orgId={orgId}
           widgets={widgets}
           isEditing={isEditingLayout}

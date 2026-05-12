@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { isDemoOrg } from '@/lib/featureFlags';
+import { DEMO_RFM_PERSISTED_LEADS } from '@/data/arguto-extra-demo';
 
 type LeadRow = {
   id: string;
@@ -93,9 +94,11 @@ export const useRfmChurnAnalysis = (orgId?: string, dateRange?: { start: string;
     queryFn: async () => {
       if (!orgId) return [];
 
-      // Orgs em modo demo (ex.: Arguto) usam scores pré-populados.
-      // Pular invokes evita console.warn ruidoso em reunião comercial.
-      const skipInvokes = isDemoOrg(orgId);
+      // Orgs em modo demo (ex.: Arguto) usam scores pré-populados em fixture local.
+      // Pular invokes + Supabase evita console.warn ruidoso em reunião comercial.
+      if (isDemoOrg(orgId)) return DEMO_RFM_PERSISTED_LEADS as unknown as LeadRow[];
+
+      const skipInvokes = false;
 
       if (!skipInvokes) {
         const body = dateRange ? { orgId, dateStart: dateRange.start, dateEnd: dateRange.end } : { orgId };

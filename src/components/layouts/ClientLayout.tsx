@@ -49,8 +49,13 @@ const baseNavItems: Array<{
   icon: typeof DashboardIcon;
   /** Slug-gated: só aparece pra orgs cujo slug esteja na lista. undefined = todos. */
   onlyForSlugs?: string[];
+  /** Slug-hidden: NÃO aparece pras orgs listadas. */
+  hideForSlugs?: string[];
 }> = [
-  { path: "dashboard",       label: "Dashboard",        icon: DashboardIcon },
+  // Dashboard fica oculto na Arguto — slug "arguto" cai direto em /arguto
+  // (Dashboard.tsx redireciona pra lá em modo demo, então o item duplica o
+  // Arguto · BAI no menu).
+  { path: "dashboard",       label: "Dashboard",        icon: DashboardIcon, hideForSlugs: ["arguto"] },
   { path: "arguto",          label: "Arguto · BAI",     icon: InsightsIcon, onlyForSlugs: ["arguto"] },
   { path: "import",          label: "Dados",            icon: UploadIcon },
   { path: "insights",        label: "Inteligência IA",  icon: LightbulbIcon },
@@ -81,6 +86,11 @@ const ClientLayout = () => {
     // platform admin, que precisa enxergar tudo quando impersona qualquer org).
     if (item.onlyForSlugs && !isPlatformAdmin) {
       if (!orgSlug || !item.onlyForSlugs.includes(orgSlug)) return false;
+    }
+    // Items que devem sumir pra certas orgs (ex.: Dashboard duplica /arguto
+    // pra slug "arguto", então fica oculto).
+    if (item.hideForSlugs && orgSlug && item.hideForSlugs.includes(orgSlug)) {
+      return false;
     }
     return true;
   });

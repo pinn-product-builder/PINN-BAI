@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase as supabaseClient } from '@/integrations/supabase/client';
+import { isDemoOrg } from '@/lib/featureFlags';
+import {
+  DEMO_KPI_GOALS,
+  DEMO_KPI_ALERT_RULES,
+  DEMO_KPI_TRIGGERS,
+} from '@/data/arguto-extra-demo';
 const supabase = supabaseClient as any;
 
 export type GoalUnit = 'number' | 'currency' | 'percent';
@@ -42,6 +48,7 @@ export const useKpiGoals = (orgId: string | undefined) =>
     queryKey: ['kpi-goals', orgId],
     queryFn: async (): Promise<KpiGoal[]> => {
       if (!orgId) return [];
+      if (isDemoOrg(orgId)) return DEMO_KPI_GOALS;
       const { data, error } = await supabase
         .from('kpi_goals')
         .select('*')
@@ -100,6 +107,7 @@ export const useKpiAlertRules = (orgId: string | undefined) =>
     queryKey: ['kpi-alert-rules', orgId],
     queryFn: async (): Promise<KpiAlertRule[]> => {
       if (!orgId) return [];
+      if (isDemoOrg(orgId)) return DEMO_KPI_ALERT_RULES;
       const { data, error } = await supabase
         .from('kpi_alert_rules')
         .select('*')
@@ -170,6 +178,7 @@ export const useKpiTriggers = (orgId: string | undefined) =>
     queryKey: ['kpi-triggers', orgId],
     queryFn: async (): Promise<KpiTrigger[]> => {
       if (!orgId) return [];
+      if (isDemoOrg(orgId)) return DEMO_KPI_TRIGGERS;
       const { data, error } = await supabase
         .from('kpi_alert_triggers')
         .select('*, kpi_alert_rules(name, severity, metric_key)')
