@@ -8,7 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { Loader2, TrendingUp, DollarSign, Users, Target, Clock, Repeat, Move, Check } from 'lucide-react';
+import { Loader2, TrendingUp, DollarSign, Users, Target, Clock, Repeat, Move, Check, CalendarDays, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EditableCardGrid, type CardWidget } from '@/components/dashboard/EditableCardGrid';
 
@@ -78,8 +78,10 @@ export default function UnitEconomics() {
       LTV: Math.round(c.ltv),
     })) ?? [];
 
-  // ─── Cada KPI vira um widget independente (drag/drop granular) ───
-  // KPIs ocupam 3 cols cada (12-col grid) → 4 cards por linha em desktop.
+  // ─── KPIs em 2 linhas de 4 (w:3 cada → 12 cols por linha) ───
+  // Linha 1: CAC · LTV · LTV:CAC · Payback
+  // Linha 2: Ticket Médio · Verba Total · Receita Total · Retenção Média
+  // Widgets maiores embaixo, todos full-width (w:12 = 1 por linha).
   const widgets: CardWidget[] = ue ? [
     {
       id: 'ue:kpi:cac',
@@ -154,7 +156,33 @@ export default function UnitEconomics() {
           label="Verba Total"
           value={BRL.format(ue.totalSpend)}
           sub={`${ue.paidConversions} conv. pagas`}
+          icon={Wallet}
+          health="neutral"
+        />
+      ),
+    },
+    {
+      id: 'ue:kpi:revenue',
+      size: { w: 3, h: 4 },
+      render: () => (
+        <KpiCard
+          label="Receita Total"
+          value={BRL.format(ue.totalRevenue)}
+          sub={`${ue.totalConversions} clientes convertidos`}
           icon={Users}
+          health="neutral"
+        />
+      ),
+    },
+    {
+      id: 'ue:kpi:retention',
+      size: { w: 3, h: 4 },
+      render: () => (
+        <KpiCard
+          label="Retenção Média"
+          value={`${ue.avgRetentionMonths} meses`}
+          sub="Janela usada no LTV"
+          icon={CalendarDays}
           health="neutral"
         />
       ),
@@ -187,7 +215,7 @@ export default function UnitEconomics() {
     },
     ...(ue.byChannel.length > 0 ? [{
       id: 'ue:channels-table',
-      size: { w: 6, h: 8 },
+      size: { w: 12, h: 7 },
       render: () => (
         <Card className="h-full">
           <CardHeader className="pb-3">
@@ -216,7 +244,7 @@ export default function UnitEconomics() {
     } as CardWidget] : []),
     ...(channelChartData.length > 0 ? [{
       id: 'ue:channels-chart',
-      size: { w: 6, h: 8 },
+      size: { w: 12, h: 8 },
       render: () => (
         <Card className="h-full">
           <CardHeader className="pb-2">
@@ -309,7 +337,7 @@ export default function UnitEconomics() {
         </div>
       ) : (
         <EditableCardGrid
-          pageKey="unit-economics-v2"
+          pageKey="unit-economics-v3"
           orgId={orgId}
           widgets={widgets}
           isEditing={isEditingLayout}
