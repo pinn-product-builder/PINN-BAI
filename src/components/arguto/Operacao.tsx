@@ -68,10 +68,10 @@ export default function Operacao() {
         </div>
       </div>
 
-      {/* Tabela */}
+      {/* Tabela — scroll horizontal em mobile pra acomodar 8 colunas */}
       <Card className="overflow-hidden border-border/50">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+          <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-muted/30 border-b border-border/50">
               <tr className="text-left">
                 <th className="px-3 py-2.5 w-8"></th>

@@ -56,32 +56,34 @@ const Arguto = () => {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className={`grid w-full ${churnEnabled ? 'max-w-3xl grid-cols-4' : 'max-w-2xl grid-cols-3'} h-11 bg-muted/40`}>
-          <TabsTrigger value="snapshot" className="gap-1 sm:gap-1.5 text-[11px] sm:text-xs px-1.5 sm:px-3">
-            <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
-            <span className="sm:hidden">Snapshot</span>
-            <span className="hidden sm:inline lg:hidden">Snapshot</span>
-            <span className="hidden lg:inline">Executive Snapshot</span>
-          </TabsTrigger>
-          <TabsTrigger value="operacao" className="gap-1 sm:gap-1.5 text-[11px] sm:text-xs px-1.5 sm:px-3">
-            <ListChecks className="w-3.5 h-3.5 shrink-0" />
-            <span>Operação</span>
-          </TabsTrigger>
-          {churnEnabled && (
-            <TabsTrigger value="churn" className="gap-1 sm:gap-1.5 text-[11px] sm:text-xs px-1.5 sm:px-3">
-              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-              <span className="sm:hidden">Churn</span>
-              <span className="hidden sm:inline lg:hidden">Churn</span>
-              <span className="hidden lg:inline">Predição de Churn</span>
+        {/* Mobile: scroll horizontal, full width tappable. Desktop: grid fixo. */}
+        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+          <TabsList
+            className={`inline-flex sm:grid sm:w-full ${churnEnabled ? 'sm:max-w-3xl sm:grid-cols-4' : 'sm:max-w-2xl sm:grid-cols-3'} h-11 bg-muted/40 gap-1 sm:gap-0`}
+          >
+            <TabsTrigger value="snapshot" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink">
+              <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+              <span className="lg:hidden">Snapshot</span>
+              <span className="hidden lg:inline">Executive Snapshot</span>
             </TabsTrigger>
-          )}
-          <TabsTrigger value="roi" className="gap-1 sm:gap-1.5 text-[11px] sm:text-xs px-1.5 sm:px-3">
-            <Calculator className="w-3.5 h-3.5 shrink-0" />
-            <span className="sm:hidden">ROI</span>
-            <span className="hidden sm:inline lg:hidden">ROI</span>
-            <span className="hidden lg:inline">Simulação ROI</span>
-          </TabsTrigger>
-        </TabsList>
+            <TabsTrigger value="operacao" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink">
+              <ListChecks className="w-3.5 h-3.5 shrink-0" />
+              <span>Operação</span>
+            </TabsTrigger>
+            {churnEnabled && (
+              <TabsTrigger value="churn" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink">
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                <span className="lg:hidden">Churn</span>
+                <span className="hidden lg:inline">Predição de Churn</span>
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="roi" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink">
+              <Calculator className="w-3.5 h-3.5 shrink-0" />
+              <span className="lg:hidden">ROI</span>
+              <span className="hidden lg:inline">Simulação ROI</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="snapshot" className="mt-6">
           <ExecutiveSnapshot

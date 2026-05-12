@@ -277,47 +277,50 @@ const GlobalHQ = () => {
     }
 
     return (
-        <div className="p-8 space-y-8 pb-16">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8 pb-16">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-4xl font-extrabold tracking-tight text-foreground lg:text-5xl">
+                <div className="min-w-0">
+                    <h1 className="text-2xl sm:text-3xl lg:text-5xl font-extrabold tracking-tight text-foreground">
                         Pinn Command <span className="text-accent underline decoration-4 underline-offset-8">Universe Hub</span>
                     </h1>
-                    <p className="text-muted-foreground mt-4 text-lg max-w-2xl">
+                    <p className="text-muted-foreground mt-3 sm:mt-4 text-sm sm:text-base lg:text-lg max-w-2xl">
                         Visão consolidada do seu portfólio de empresas. Monitore crescimento, uso de IA e saúde financeira em tempo real.
                     </p>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         type="button"
                         onClick={() => setIsEditingLayout((v) => !v)}
                         className={cn(
-                            'shrink-0 inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-sm font-semibold border transition-all',
+                            'shrink-0 inline-flex items-center gap-1.5 h-10 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border transition-all',
                             isEditingLayout
                                 ? 'border-primary/50 bg-primary text-primary-foreground shadow-sm'
                                 : 'border-border bg-card text-foreground hover:border-primary/40 hover:text-primary',
                         )}
                     >
                         {isEditingLayout ? <Check className="w-4 h-4" /> : <Move className="w-4 h-4" />}
-                        {isEditingLayout ? 'Concluir edição' : 'Editar layout'}
+                        <span className="hidden sm:inline">{isEditingLayout ? 'Concluir edição' : 'Editar layout'}</span>
+                        <span className="sm:hidden">{isEditingLayout ? 'OK' : 'Layout'}</span>
                     </button>
                     {showRfmChurn && (
                         <Button
                                 variant="outline"
-                                className="h-12 border-border"
+                                className="h-10 sm:h-12 border-border text-xs sm:text-sm"
                                 onClick={() => navigate('/admin/rfm-churn')}
                             >
-                                <LayoutDashboard className="w-4 h-4 mr-2" />
-                                Módulo RFM + Churn
+                                <LayoutDashboard className="w-4 h-4 mr-1.5 sm:mr-2" />
+                                <span className="hidden sm:inline">Módulo RFM + Churn</span>
+                                <span className="sm:hidden">RFM</span>
                             </Button>
                     )}
-                        <Button
-                        className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold px-6 h-12 rounded-xl shadow-xl shadow-accent/20"
+                    <Button
+                        className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold px-3 sm:px-6 h-10 sm:h-12 rounded-xl shadow-xl shadow-accent/20 text-xs sm:text-sm"
                         onClick={() => navigate('/admin/organizations/new')}
                     >
-                        <Zap className="w-4 h-4 mr-2 fill-current" />
-                        Novo Cliente VIP
+                        <Zap className="w-4 h-4 mr-1.5 sm:mr-2 fill-current" />
+                        <span className="hidden sm:inline">Novo Cliente VIP</span>
+                        <span className="sm:hidden">Novo</span>
                     </Button>
                 </div>
             </div>

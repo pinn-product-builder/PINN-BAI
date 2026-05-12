@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link as RouterLink, useLocation, useNavigate, Outlet } from "react-router-dom";
 import {
   Box,
@@ -9,6 +10,11 @@ import {
   Typography,
   Stack,
   Button,
+  AppBar,
+  Toolbar,
+  IconButton,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
@@ -19,15 +25,16 @@ import {
   LinkedIn as LinkedInIcon,
   TrackChanges as TargetIcon,
   People as PeopleIcon,
-  ShowChart as ActivityIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
   ChevronRight as ChevronRightIcon,
+  Menu as MenuIcon,
 } from "@mui/icons-material";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRfmChurnEnabledForAdmin } from "@/lib/featureFlags";
 
 const DRAWER_WIDTH = 220;
+const MOBILE_APPBAR_HEIGHT = 56;
 
 const baseNavItems = [
   { path: "/admin/hq", label: "Command", icon: DashboardIcon },
@@ -38,20 +45,59 @@ const baseNavItems = [
   { path: "/admin/linkedin-sdr", label: "LinkedIn SDR", icon: LinkedInIcon },
   { path: "/admin/rfm-churn", label: "RFM + Churn", icon: TargetIcon },
   { path: "/admin/users", label: "Usuários", icon: PeopleIcon },
-  
+
   { path: "/admin/settings", label: "Config", icon: SettingsIcon },
 ];
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { signOut } = useAuth();
   const navItems = baseNavItems.filter((item) => item.path !== "/admin/rfm-churn" || isRfmChurnEnabledForAdmin());
+  const closeMobileNav = () => setMobileNavOpen(false);
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+      {/* AppBar mobile */}
+      {isMobile && (
+        <AppBar
+          position="fixed"
+          elevation={0}
+          sx={{
+            bgcolor: "background.paper",
+            color: "text.primary",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            zIndex: (t) => t.zIndex.drawer + 1,
+          }}
+        >
+          <Toolbar variant="dense" sx={{ minHeight: MOBILE_APPBAR_HEIGHT, gap: 1.5, px: 2 }}>
+            <IconButton
+              edge="start"
+              size="small"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Abrir menu"
+              sx={{ color: "text.primary" }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Box component="img" src="/pinn-logo.svg" alt="Pinn" sx={{ height: 22, width: "auto" }} />
+            <Box sx={{ flex: 1 }} />
+            <Typography variant="caption" sx={{ fontSize: 10, color: "primary.main", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
+              Admin
+            </Typography>
+          </Toolbar>
+        </AppBar>
+      )}
+
       <Drawer
-        variant="permanent"
+        variant={isMobile ? "temporary" : "permanent"}
+        open={isMobile ? mobileNavOpen : true}
+        onClose={closeMobileNav}
+        ModalProps={{ keepMounted: true }}
         sx={{
           width: DRAWER_WIDTH,
           flexShrink: 0,
@@ -83,6 +129,7 @@ const AdminLayout = () => {
                 component={RouterLink}
                 to={path}
                 selected={active}
+                onClick={isMobile ? closeMobileNav : undefined}
                 sx={{
                   borderRadius: 1,
                   mb: 0.25,
@@ -148,7 +195,15 @@ const AdminLayout = () => {
         </Box>
       </Drawer>
 
-      <Box component="main" sx={{ flex: 1, minHeight: "100vh", minWidth: 0 }}>
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          minHeight: "100vh",
+          minWidth: 0,
+          pt: isMobile ? `${MOBILE_APPBAR_HEIGHT}px` : 0,
+        }}
+      >
         <Outlet />
       </Box>
     </Box>

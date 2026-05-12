@@ -78,17 +78,17 @@ const Organizations = () => {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Gestão de Empresas</h1>
-          <p className="text-muted-foreground mt-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Gestão de Empresas</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
             Controle centralizado do ecossistema Pinn
           </p>
         </div>
         <Button
-          className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold rounded-xl"
+          className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold rounded-xl shrink-0"
           onClick={() => navigate('/admin/organizations/new')}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -97,7 +97,7 @@ const Organizations = () => {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <Card className="border border-border bg-card/80 backdrop-blur-sm shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -158,14 +158,14 @@ const Organizations = () => {
       {/* Organizations table */}
       <Card className="border border-border bg-card/80 backdrop-blur-sm shadow-sm">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
               <CardTitle className="text-foreground">Universo Pinn</CardTitle>
               <CardDescription>
                 {filteredOrgs?.length || 0} organizações monitoradas
               </CardDescription>
             </div>
-            <div className="relative w-72">
+            <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Filtrar por nome..."
@@ -176,8 +176,8 @@ const Organizations = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <Table>
+        <CardContent className="overflow-x-auto">
+          <Table className="min-w-[720px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border">
                 <TableHead className="text-muted-foreground">Organização</TableHead>

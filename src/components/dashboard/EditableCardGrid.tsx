@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Responsive, WidthProvider, type Layout, type Layouts } from 'react-grid-layout';
+import { useMediaQuery, useTheme } from '@mui/material';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
@@ -17,7 +18,7 @@ interface Props {
   orgId?: string | null;
   widgets: CardWidget[];
   isEditing: boolean;
-  /** Altura de uma row do grid (default 40px). */
+  /** Altura de uma row do grid (default 40px desktop, 32px mobile). */
   rowHeight?: number;
   /** Recebe um reset callback exposto pro pai (botão "Resetar layout"). */
   onLayoutReset?: (reset: () => void) => void;
@@ -91,9 +92,12 @@ export function EditableCardGrid({
   orgId,
   widgets,
   isEditing,
-  rowHeight = 40,
+  rowHeight,
   onLayoutReset,
 }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const { layouts: storedLayouts, isReady, saveLayouts, resetLayouts } = useDashboardLayout({
     pageKey,
     orgId,
@@ -119,17 +123,23 @@ export function EditableCardGrid({
     saveLayouts(all);
   };
 
+  // Mobile: rowHeight menor, margens menores, drag/resize sempre desabilitado
+  // (touchscreen + dashboards pequenos = UX pobre. Edit volta no desktop).
+  const effectiveRowHeight = rowHeight ?? (isMobile ? 32 : 40);
+  const effectiveMargin: [number, number] = isMobile ? [8, 8] : [12, 12];
+  const canEdit = isEditing && !isMobile;
+
   return (
     <ResponsiveGridLayout
-      className={`layout ${isEditing ? 'is-editing-grid' : ''}`}
+      className={`layout ${canEdit ? 'is-editing-grid' : ''}`}
       layouts={effectiveLayouts}
       breakpoints={BREAKPOINTS}
       cols={COLS}
-      rowHeight={rowHeight}
-      margin={[12, 12]}
+      rowHeight={effectiveRowHeight}
+      margin={effectiveMargin}
       containerPadding={[0, 0]}
-      isDraggable={isEditing}
-      isResizable={isEditing}
+      isDraggable={canEdit}
+      isResizable={canEdit}
       onLayoutChange={handleChange}
       draggableCancel=".no-drag"
       compactType="vertical"
@@ -138,7 +148,7 @@ export function EditableCardGrid({
         <div
           key={w.id}
           className={`overflow-hidden ${
-            isEditing
+            canEdit
               ? 'ring-2 ring-primary/30 ring-offset-2 ring-offset-background rounded-xl cursor-grab active:cursor-grabbing'
               : ''
           }`}

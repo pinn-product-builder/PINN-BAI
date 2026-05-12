@@ -72,10 +72,10 @@ const OrganizationDetail = () => {
     }
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6 lg:space-y-8">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
+                <div className="min-w-0">
                     <Link
                         to="/admin/organizations"
                         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -83,41 +83,44 @@ const OrganizationDetail = () => {
                         <ArrowLeft className="w-4 h-4" />
                         Voltar para organizações
                     </Link>
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-accent text-2xl font-black">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-accent text-xl sm:text-2xl font-black shrink-0">
                             {organization.name.charAt(0)}
                         </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-foreground">{organization.name}</h1>
-                            <div className="flex items-center gap-2 mt-1">
+                        <div className="min-w-0">
+                            <h1 className="text-xl sm:text-3xl font-bold text-foreground truncate">{organization.name}</h1>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <Badge variant="outline">{planNames[organization.plan]}</Badge>
                                 <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">{organization.status}</Badge>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <Button
                         variant="outline"
-                        className="h-12"
+                        className="h-10 sm:h-12 text-xs sm:text-sm"
                         onClick={() => navigate(`/client/${organization.id}/dashboard`)}
                     >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Visualizar como Cliente
+                        <ExternalLink className="w-4 h-4 mr-1.5 sm:mr-2" />
+                        <span className="hidden sm:inline">Visualizar como Cliente</span>
+                        <span className="sm:hidden">Ver Cliente</span>
                     </Button>
                     {showRfmChurn && (
                         <Button
                             variant="outline"
-                            className="h-12 border-white/10"
+                            className="h-10 sm:h-12 border-white/10 text-xs sm:text-sm"
                             onClick={() => navigate('/admin/rfm-churn')}
                         >
-                            <LayoutDashboard className="w-4 h-4 mr-2" />
-                            RFM + Churn
+                            <LayoutDashboard className="w-4 h-4 mr-1.5 sm:mr-2" />
+                            <span className="hidden sm:inline">RFM + Churn</span>
+                            <span className="sm:hidden">RFM</span>
                         </Button>
                     )}
-                    <Button className="h-12 bg-accent hover:bg-accent/90 text-accent-foreground font-bold group">
-                        <Settings className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
-                        Configurar Org
+                    <Button className="h-10 sm:h-12 bg-accent hover:bg-accent/90 text-accent-foreground font-bold group text-xs sm:text-sm">
+                        <Settings className="w-4 h-4 mr-1.5 sm:mr-2 group-hover:rotate-90 transition-transform" />
+                        <span className="hidden sm:inline">Configurar Org</span>
+                        <span className="sm:hidden">Config</span>
                     </Button>
                 </div>
             </div>
