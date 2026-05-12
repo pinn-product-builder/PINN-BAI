@@ -20,6 +20,10 @@ const NOW = new Date();
 const iso = (offsetDays: number, h = 0) =>
   new Date(NOW.getTime() - offsetDays * 86_400_000 + h * 3_600_000).toISOString();
 
+/** Date-only (YYYY-MM-DD) — Goals.tsx concatena 'T12:00:00' antes de parsear. */
+const dateOnly = (offsetDays: number) =>
+  new Date(NOW.getTime() - offsetDays * 86_400_000).toISOString().substring(0, 10);
+
 /* ═══════════════════════════ SAÚDE DO CLIENTE ═══════════════════════════ */
 
 const CUSTOMER_NAMES: Array<{ name: string; email: string }> = [
@@ -284,8 +288,8 @@ export const DEMO_INSIGHTS = [
 
 /* ═══════════════════════════ METAS & ALERTAS ═══════════════════════════ */
 
-const PERIOD_START = iso(15);
-const PERIOD_END = iso(-15);
+const PERIOD_START = dateOnly(15);
+const PERIOD_END = dateOnly(-15);
 
 export const DEMO_KPI_GOALS: KpiGoal[] = [
   {
