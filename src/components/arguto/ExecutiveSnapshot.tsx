@@ -12,7 +12,7 @@ import {
 } from '@/data/arguto-demo';
 import { isRfmChurnEnabledForOrg } from '@/lib/featureFlags';
 import MetricExplanationDialog from './MetricExplanationDialog';
-import { EditableSnapshotGrid, type SnapshotWidget } from './EditableSnapshotGrid';
+import { EditableCardGrid, type CardWidget } from '@/components/dashboard/EditableCardGrid';
 
 interface ExecutiveSnapshotProps {
   onOpenChurn?: () => void;
@@ -42,7 +42,7 @@ export default function ExecutiveSnapshot({ onOpenChurn, isEditing = false }: Ex
 
   // ─── Widgets (cards) na ordem default ───────────────────────────────
   // Tamanhos pensados pra grid de 12 cols: KPI hero ocupa 3×6, alerta 3×5.
-  const widgets: SnapshotWidget[] = [
+  const widgets: CardWidget[] = [
     {
       id: 'kpi:conversao',
       size: { w: 3, h: 6 },
@@ -244,7 +244,7 @@ export default function ExecutiveSnapshot({ onOpenChurn, isEditing = false }: Ex
     }),
   ];
 
-  const storageKey = `arguto:snapshot:${orgId ?? 'global'}`;
+  const pageKey = 'arguto:snapshot';
 
   return (
     <div className="space-y-6">
@@ -273,8 +273,9 @@ export default function ExecutiveSnapshot({ onOpenChurn, isEditing = false }: Ex
       </div>
 
       {/* Grid editável (cards) */}
-      <EditableSnapshotGrid
-        storageKey={storageKey}
+      <EditableCardGrid
+        pageKey={pageKey}
+        orgId={orgId}
         widgets={widgets}
         isEditing={isEditing}
       />

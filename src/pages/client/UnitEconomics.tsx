@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFilters } from '@/hooks/useFilters';
 import { useUnitEconomics } from '@/hooks/useUnitEconomics';
@@ -7,8 +8,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { Loader2, TrendingUp, DollarSign, Users, Target, Clock, Repeat } from 'lucide-react';
+import { Loader2, TrendingUp, DollarSign, Users, Target, Clock, Repeat, Move, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { EditableCardGrid, type CardWidget } from '@/components/dashboard/EditableCardGrid';
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const NUM = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
@@ -33,9 +35,9 @@ function KpiCard({
   }[health ?? 'neutral'];
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
+    <Card className="h-full">
+      <CardContent className="p-4 h-full">
+        <div className="flex items-start gap-3 h-full">
           <div className={cn('p-2 rounded-lg bg-muted', healthColor)}>
             <Icon className="w-4 h-4" />
           </div>
@@ -61,6 +63,7 @@ export default function UnitEconomics() {
   const { orgId } = useParams<{ orgId: string }>();
   const { dateRangeISO } = useFilters();
   const { data: ue, isLoading } = useUnitEconomics(orgId, dateRangeISO);
+  const [isEditingLayout, setIsEditingLayout] = useState(false);
 
   const ltvHealth = !ue ? 'neutral'
     : ue.ltvCacRatio >= 3 ? 'good'
@@ -75,17 +78,222 @@ export default function UnitEconomics() {
       LTV: Math.round(c.ltv),
     })) ?? [];
 
+  // ─── Cada KPI vira um widget independente (drag/drop granular) ───
+  const widgets: CardWidget[] = ue ? [
+    {
+      id: 'ue:kpi:cac',
+      size: { w: 2, h: 4 },
+      render: () => (
+        <KpiCard
+          label="CAC"
+          value={ue.cac > 0 ? BRL.format(ue.cac) : 'N/A'}
+          sub="Custo por cliente pago"
+          icon={DollarSign}
+          health={ue.cac > 0 ? (ue.ltvCacRatio >= 3 ? 'good' : ue.ltvCacRatio >= 1 ? 'warn' : 'bad') : 'neutral'}
+        />
+      ),
+    },
+    {
+      id: 'ue:kpi:ltv',
+      size: { w: 2, h: 4 },
+      render: () => (
+        <KpiCard
+          label="LTV"
+          value={BRL.format(ue.ltv)}
+          sub={`${ue.avgRetentionMonths} meses ret. est.`}
+          icon={Repeat}
+          health="neutral"
+        />
+      ),
+    },
+    {
+      id: 'ue:kpi:ltv-cac',
+      size: { w: 2, h: 4 },
+      render: () => (
+        <KpiCard
+          label="LTV:CAC"
+          value={ue.cac > 0 ? `${NUM.format(ue.ltvCacRatio)}x` : '∞'}
+          sub={ue.ltvCacRatio >= 3 ? 'Meta: ≥ 3x ✓' : 'Meta: ≥ 3x'}
+          icon={Target}
+          health={ltvHealth}
+        />
+      ),
+    },
+    {
+      id: 'ue:kpi:payback',
+      size: { w: 2, h: 4 },
+      render: () => (
+        <KpiCard
+          label="Payback"
+          value={ue.paybackMonths > 0 ? `${NUM.format(ue.paybackMonths)} meses` : '—'}
+          sub="Para recuperar o CAC"
+          icon={Clock}
+          health={ue.paybackMonths > 0 ? (ue.paybackMonths <= 6 ? 'good' : ue.paybackMonths <= 12 ? 'warn' : 'bad') : 'neutral'}
+        />
+      ),
+    },
+    {
+      id: 'ue:kpi:ticket',
+      size: { w: 2, h: 4 },
+      render: () => (
+        <KpiCard
+          label="Ticket Médio"
+          value={BRL.format(ue.avgTicket)}
+          sub={`${ue.totalConversions} conversões`}
+          icon={DollarSign}
+          health="neutral"
+        />
+      ),
+    },
+    {
+      id: 'ue:kpi:verba',
+      size: { w: 2, h: 4 },
+      render: () => (
+        <KpiCard
+          label="Verba Total"
+          value={BRL.format(ue.totalSpend)}
+          sub={`${ue.paidConversions} conv. pagas`}
+          icon={Users}
+          health="neutral"
+        />
+      ),
+    },
+    {
+      id: 'ue:ltv-cac-health',
+      size: { w: 12, h: 4 },
+      render: () => (
+        <Card className={cn(
+          'border h-full',
+          ltvHealth === 'good' ? 'border-emerald-500/30 bg-emerald-500/5' :
+          ltvHealth === 'warn' ? 'border-amber-500/30 bg-amber-500/5' :
+          ltvHealth === 'bad' ? 'border-destructive/30 bg-destructive/5' : '',
+        )}>
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4 h-full">
+            <div className="flex-1">
+              <p className="font-semibold text-sm">Saúde do Ratio LTV:CAC</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {ltvHealth === 'good'
+                  ? 'Excelente. Para cada R$ 1 investido em aquisição, você recupera ' + NUM.format(ue.ltvCacRatio) + 'x.'
+                  : ltvHealth === 'warn'
+                  ? 'Atenção. O retorno está abaixo do ideal (3x). Revise o ticket médio ou reduza o CAC.'
+                  : 'Crítico. O custo de aquisição é maior que o valor gerado pelo cliente. Intervenção urgente necessária.'}
+              </p>
+            </div>
+            <LtvCacBadge ratio={ue.ltvCacRatio} />
+          </CardContent>
+        </Card>
+      ),
+    },
+    ...(ue.byChannel.length > 0 ? [{
+      id: 'ue:channels-table',
+      size: { w: 6, h: 8 },
+      render: () => (
+        <Card className="h-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Comparativo por Canal</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border/50">
+              {ue.byChannel.map((ch) => (
+                <div key={ch.channel} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{CHANNEL_LABELS[ch.channel] ?? ch.channel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ch.conversions} conv · {ch.spend > 0 ? BRL.format(ch.spend) : 'Sem gasto'}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0 space-y-0.5">
+                    <p className="text-xs font-semibold">CAC: {ch.cac > 0 ? BRL.format(ch.cac) : '—'}</p>
+                    <LtvCacBadge ratio={ch.ltvCacRatio} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    } as CardWidget] : []),
+    ...(channelChartData.length > 0 ? [{
+      id: 'ue:channels-chart',
+      size: { w: 6, h: 8 },
+      render: () => (
+        <Card className="h-full">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">CAC vs LTV por Canal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={channelChartData} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  formatter={(v: number, name: string) => [BRL.format(v), name]}
+                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                />
+                <Bar dataKey="CAC" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} opacity={0.8} />
+                <Bar dataKey="LTV" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} opacity={0.8} />
+                <ReferenceLine y={0} stroke="hsl(var(--border))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      ),
+    } as CardWidget] : []),
+    {
+      id: 'ue:origem',
+      size: { w: 12, h: 5 },
+      render: () => (
+        <Card className="h-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Conversões por Origem</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {[
+              { label: 'Pagas (ads)', value: ue.paidConversions, color: 'text-primary' },
+              { label: 'Orgânicas', value: ue.organicConversions, color: 'text-emerald-500' },
+              { label: 'Total', value: ue.totalConversions, color: 'text-foreground' },
+            ].map((item) => (
+              <div key={item.label} className="text-center p-3 rounded-lg bg-muted/50">
+                <p className={cn('text-2xl font-bold', item.color)}>{item.value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ),
+    },
+  ] : [];
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <TrendingUp className="w-6 h-6 text-primary" />
-          Unit Economics
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          CAC, LTV e payback cruzando CRM com investimento em mídia paga.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <TrendingUp className="w-6 h-6 text-primary" />
+            Unit Economics
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            CAC, LTV e payback cruzando CRM com investimento em mídia paga.
+          </p>
+        </div>
+
+        {ue && (
+          <button
+            type="button"
+            onClick={() => setIsEditingLayout((v) => !v)}
+            className={cn(
+              'shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition-all',
+              isEditingLayout
+                ? 'border-primary/50 bg-primary text-primary-foreground shadow-sm'
+                : 'border-border/60 bg-card text-foreground hover:border-primary/40 hover:text-primary',
+            )}
+          >
+            {isEditingLayout ? <Check className="w-3.5 h-3.5" /> : <Move className="w-3.5 h-3.5" />}
+            {isEditingLayout ? 'Concluir edição' : 'Editar layout'}
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -99,149 +307,12 @@ export default function UnitEconomics() {
           <p className="text-sm mt-1">Conecte Meta Ads ou Google Ads e importe clientes convertidos.</p>
         </div>
       ) : (
-        <>
-          {/* KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <KpiCard
-              label="CAC"
-              value={ue.cac > 0 ? BRL.format(ue.cac) : 'N/A'}
-              sub="Custo por cliente pago"
-              icon={DollarSign}
-              health={ue.cac > 0 ? (ue.ltvCacRatio >= 3 ? 'good' : ue.ltvCacRatio >= 1 ? 'warn' : 'bad') : 'neutral'}
-            />
-            <KpiCard
-              label="LTV"
-              value={BRL.format(ue.ltv)}
-              sub={`${ue.avgRetentionMonths} meses ret. est.`}
-              icon={Repeat}
-              health="neutral"
-            />
-            <KpiCard
-              label="LTV:CAC"
-              value={ue.cac > 0 ? `${NUM.format(ue.ltvCacRatio)}x` : '∞'}
-              sub={ue.ltvCacRatio >= 3 ? 'Meta: ≥ 3x ✓' : 'Meta: ≥ 3x'}
-              icon={Target}
-              health={ltvHealth}
-            />
-            <KpiCard
-              label="Payback"
-              value={ue.paybackMonths > 0 ? `${NUM.format(ue.paybackMonths)} meses` : '—'}
-              sub="Para recuperar o CAC"
-              icon={Clock}
-              health={ue.paybackMonths > 0 ? (ue.paybackMonths <= 6 ? 'good' : ue.paybackMonths <= 12 ? 'warn' : 'bad') : 'neutral'}
-            />
-            <KpiCard
-              label="Ticket Médio"
-              value={BRL.format(ue.avgTicket)}
-              sub={`${ue.totalConversions} conversões`}
-              icon={DollarSign}
-              health="neutral"
-            />
-            <KpiCard
-              label="Verba Total"
-              value={BRL.format(ue.totalSpend)}
-              sub={`${ue.paidConversions} conv. pagas`}
-              icon={Users}
-              health="neutral"
-            />
-          </div>
-
-          {/* LTV:CAC explanation */}
-          <Card className={cn(
-            'border',
-            ltvHealth === 'good' ? 'border-emerald-500/30 bg-emerald-500/5' :
-            ltvHealth === 'warn' ? 'border-amber-500/30 bg-amber-500/5' :
-            ltvHealth === 'bad' ? 'border-destructive/30 bg-destructive/5' : '',
-          )}>
-            <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="flex-1">
-                <p className="font-semibold text-sm">Saúde do Ratio LTV:CAC</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {ltvHealth === 'good'
-                    ? 'Excelente. Para cada R$ 1 investido em aquisição, você recupera ' + NUM.format(ue.ltvCacRatio) + 'x.'
-                    : ltvHealth === 'warn'
-                    ? 'Atenção. O retorno está abaixo do ideal (3x). Revise o ticket médio ou reduza o CAC.'
-                    : 'Crítico. O custo de aquisição é maior que o valor gerado pelo cliente. Intervenção urgente necessária.'}
-                </p>
-              </div>
-              <LtvCacBadge ratio={ue.ltvCacRatio} />
-            </CardContent>
-          </Card>
-
-          {/* Por canal */}
-          {ue.byChannel.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Tabela de canais */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Comparativo por Canal</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y divide-border/50">
-                    {ue.byChannel.map((ch) => (
-                      <div key={ch.channel} className="flex items-center gap-3 px-4 py-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{CHANNEL_LABELS[ch.channel] ?? ch.channel}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {ch.conversions} conv · {ch.spend > 0 ? BRL.format(ch.spend) : 'Sem gasto'}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0 space-y-0.5">
-                          <p className="text-xs font-semibold">CAC: {ch.cac > 0 ? BRL.format(ch.cac) : '—'}</p>
-                          <LtvCacBadge ratio={ch.ltvCacRatio} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Gráfico CAC vs LTV */}
-              {channelChartData.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">CAC vs LTV por Canal</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={channelChartData} barGap={4}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip
-                          formatter={(v: number, name: string) => [BRL.format(v), name]}
-                          contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
-                        />
-                        <Bar dataKey="CAC" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} opacity={0.8} />
-                        <Bar dataKey="LTV" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} opacity={0.8} />
-                        <ReferenceLine y={0} stroke="hsl(var(--border))" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {/* Breakdown por origem */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Conversões por Origem</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {[
-                { label: 'Pagas (ads)', value: ue.paidConversions, color: 'text-primary' },
-                { label: 'Orgânicas', value: ue.organicConversions, color: 'text-emerald-500' },
-                { label: 'Total', value: ue.totalConversions, color: 'text-foreground' },
-              ].map((item) => (
-                <div key={item.label} className="text-center p-3 rounded-lg bg-muted/50">
-                  <p className={cn('text-2xl font-bold', item.color)}>{item.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </>
+        <EditableCardGrid
+          pageKey="unit-economics"
+          orgId={orgId}
+          widgets={widgets}
+          isEditing={isEditingLayout}
+        />
       )}
     </div>
   );
