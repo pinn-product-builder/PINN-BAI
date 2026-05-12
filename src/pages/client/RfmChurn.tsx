@@ -22,7 +22,7 @@ const ClientRfmChurn = () => {
   });
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 pb-32">
+    <div className="p-6 space-y-6 pb-32 max-w-7xl mx-auto">
       <RfmChurnModule
         orgId={orgId || ''}
         title="Módulo RFM + Churn"

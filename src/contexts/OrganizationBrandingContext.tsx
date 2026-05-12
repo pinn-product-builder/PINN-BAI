@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Organization } from "@/lib/types";
+import { setActiveOrgSlug, isDemoSlug } from "@/lib/featureFlags";
 
 export interface OrganizationBrandingContextType {
   organization: Organization | null;
@@ -14,6 +16,7 @@ const OrganizationBrandingContext = createContext<OrganizationBrandingContextTyp
 export const OrganizationBrandingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { profile, isPlatformAdmin } = useAuth();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,6 +35,7 @@ export const OrganizationBrandingProvider: React.FC<{ children: React.ReactNode 
       if (isAdminContext && !isClientContext) {
         setOrganization(null);
         resetToAdminTheme();
+        setActiveOrgSlug(null);
         setIsLoading(false);
         return;
       }
@@ -42,6 +46,7 @@ export const OrganizationBrandingProvider: React.FC<{ children: React.ReactNode 
       if (!targetOrgId) {
         setOrganization(null);
         resetToAdminTheme();
+        setActiveOrgSlug(null);
         setIsLoading(false);
         return;
       }
@@ -51,8 +56,19 @@ export const OrganizationBrandingProvider: React.FC<{ children: React.ReactNode 
       if (!error && data) {
         setOrganization(data as unknown as Organization);
         applyTheme(data);
+        // Permite que helpers globais (isDemoOrg) detectem Arguto via slug
+        // mesmo quando o UUID local não bate o hardcoded em featureFlags.
+        const slug = (data as { slug?: string | null })?.slug ?? null;
+        setActiveOrgSlug(slug);
+        // Org demo → invalida queries cacheadas com resultado "vazio" do
+        // Supabase (que rodaram antes do slug chegar). Garante refetch
+        // que agora cai no branch de mock.
+        if (isDemoSlug(slug)) {
+          queryClient.invalidateQueries();
+        }
       } else {
         resetToAdminTheme();
+        setActiveOrgSlug(null);
       }
       setIsLoading(false);
     };

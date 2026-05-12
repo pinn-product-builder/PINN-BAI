@@ -30,9 +30,33 @@ export const isRfmChurnEnabledForOrg = (orgId?: string | null): boolean => {
 
 export const isRfmChurnEnabledForAdmin = (): boolean => RFM_CHURN_MODULE_ENABLED;
 
+/**
+ * Slug ativo da org, populado pelo OrganizationBrandingContext quando o
+ * usuário entra numa org. Permite que hooks/util que só recebem orgId
+ * detectem demo via slug — porque o UUID muda entre dev/staging/prod
+ * (cada ambiente seeda Arguto com id próprio).
+ */
+declare global {
+  interface Window {
+    __pinnActiveOrgSlug?: string | null;
+  }
+}
+
+export const setActiveOrgSlug = (slug?: string | null): void => {
+  if (typeof window !== 'undefined') {
+    window.__pinnActiveOrgSlug = slug ?? null;
+  }
+};
+
 export const isDemoOrg = (orgId?: string | null): boolean => {
   if (!orgId) return false;
-  return DEMO_ORG_IDS.includes(orgId);
+  if (DEMO_ORG_IDS.includes(orgId)) return true;
+  // Fallback por slug — pega o UUID novo em ambientes onde Arguto foi seedada
+  // com id diferente do hardcoded acima.
+  if (typeof window !== 'undefined' && window.__pinnActiveOrgSlug) {
+    return DEMO_ORG_SLUGS.includes(window.__pinnActiveOrgSlug);
+  }
+  return false;
 };
 
 export const isDemoSlug = (slug?: string | null): boolean => {

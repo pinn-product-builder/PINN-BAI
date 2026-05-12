@@ -16,7 +16,7 @@ const Arguto = () => {
   const churnEnabled = isRfmChurnEnabledForOrg(orgId);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 pb-24">
+    <div className="p-6 space-y-6 pb-24 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div className="space-y-2 flex-1 min-w-0">
