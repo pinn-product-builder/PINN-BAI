@@ -41,15 +41,15 @@ const RfmChurnModule = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{title}</h1>
-          <p className="text-muted-foreground mt-1">{description}</p>
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold text-foreground tracking-tight">{title}</h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="w-fit gap-2"
+          className="w-fit gap-2 shrink-0"
           onClick={() => refetch()}
           disabled={isFetching}
         >

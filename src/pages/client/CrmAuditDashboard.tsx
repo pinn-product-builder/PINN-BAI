@@ -31,7 +31,7 @@ import { resolveExecutiveScoreboard } from "@/bai/executiveScores";
 import { resolveEvidenceTables } from "@/bai/evidenceFallback";
 import { buildExecutiveBrief, splitActionHorizons, fmtMoney, fmtNum, fmtPct, tierFromScore, tierLabelPt } from "@/bai/helpers";
 import { isDemoOrg } from "@/lib/featureFlags";
-import { DEMO_CRM_AUDIT_DASHBOARD } from "@/data/arguto-extra-demo";
+import { DEMO_CRM_AUDIT_DASHBOARD, DEMO_CRM_AI_REPORT } from "@/data/arguto-extra-demo";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const BACKEND = import.meta.env.VITE_BACKEND_URL ?? "https://bai.srv879715.hstgr.cloud";
@@ -461,6 +461,14 @@ export default function CrmAuditDashboard() {
   const handleAnalyze = useCallback(async () => {
     setAnalyzing(true);
     try {
+      // Modo demo (Arguto): parecer pre-gerado, com pequeno delay pra simular
+      // geracao real. Garante que a aba "Parecer IA" e 100% executavel sem
+      // depender do backend.
+      if (isDemoOrg(tenantId)) {
+        await new Promise((res) => setTimeout(res, 1500));
+        setAnalysis(DEMO_CRM_AI_REPORT);
+        return;
+      }
       const r = await fetch(`${BACKEND}/crm/analysis/generate?tenant_id=${encodeURIComponent(tenantId)}`, { method: "POST" });
       if (r.ok) setAnalysis(await r.json());
     } finally {

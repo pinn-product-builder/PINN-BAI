@@ -629,3 +629,243 @@ export const DEMO_CRM_AUDIT_DASHBOARD: Record<string, unknown> = {
   sync_stats: { contacts: 1_247, leads: 412, tasks: 318 },
   extended_catalog: { loss_reasons: [] },
 };
+
+/* ═══════════════════════════ PARECER IA (Auditoria CRM) ═══════════════════════════ */
+/* Payload modela o shape esperado pela aba "Parecer IA" do CrmAuditDashboard. */
+
+export const DEMO_CRM_AI_REPORT: Record<string, unknown> = {
+  overall_verdict: 'warning',
+  operation_score: 67,
+  model_used: 'claude-opus-4-7 · auditoria deterministica + camada generativa',
+  executive_summary:
+    'A operação comercial da Arguto opera com pipeline saudável em volume (412 deals · R$ 8,24M em aberto) e win rate acima do benchmark do setor (20,4% vs 14%), porém com disciplina de cadência abaixo do necessário pra sustentar o crescimento previsto.\n\n' +
+    'O gargalo central é o estágio "Proposta enviada": 38 propostas (R$ 720k em volume) estão há mais de 14 dias sem follow-up. A conversão histórica do estágio cai de 47% pra 12% após esse threshold — ou seja, dois terços desses deals estão em risco evitável de queda. Some-se a isso 47 deals sem atividade há > 21 dias (R$ 1,1M expostos) e o quadro de fricção operacional fica claro.\n\n' +
+    'A qualidade do dado é o ponto mais forte da operação (81/100): valor estimado preenchido em 91% dos deals, cadência média de 4,2 notas por deal aberto. O atrito vem da falta de validação no momento da criação — origem vazia em 18% das contas (224 ao todo) cega completamente a análise de CAC por canal, e 32% dos deals abertos não têm "próximo passo" preenchido, transformando o forecast em chutômetro.\n\n' +
+    'Recomendação principal: implementar cadência automática D+3/D+7/D+14 no estágio "Proposta enviada" com escalada pro gestor, e validation rules no Ploomes pra "Próximo passo" e "Origem". Impacto estimado: recuperação de ~R$ 540k em pipeline atualmente em risco + ganho de visibilidade de CAC por canal.',
+
+  main_bottlenecks: [
+    {
+      title: 'Propostas enviadas sem follow-up em > 14 dias',
+      severity: 'critical',
+      metric: '38 deals · R$ 720k em volume',
+      detail: 'Maior gargalo do funil. A conversão histórica do estágio "Proposta enviada" cai de 47% pra 12% quando passa de 14d sem contato. Esses 38 deals representam pipeline em queda livre.',
+      root_cause: 'Ausência de cadência automatizada no estágio "Proposta enviada". Vendedor depende de memória/agenda manual pra fazer o follow-up no timing certo.',
+      financial_impact: '~R$ 540k em risco evitável (75% × R$ 720k baseado em diferença de conversão)',
+    },
+    {
+      title: 'Deals sem atividade há mais de 21 dias',
+      severity: 'high',
+      metric: '47 deals · R$ 1,1M expostos',
+      detail: '11% do pipeline ativo sem qualquer registro de interação (visita, ligação, e-mail, nota) há ≥ 21 dias. Em B2B distribuição esse threshold é vermelho: cliente já decidiu (com ou sem você).',
+      root_cause: 'Falta de workflow automático de reativação. Vendedor não recebe alerta quando deal "esfria".',
+      financial_impact: 'R$ 1,1M em volume aberto · estimativa de perda: 60-70% sem ação imediata',
+    },
+    {
+      title: 'Tempo médio em "Negociação" 2x acima do benchmark',
+      severity: 'high',
+      metric: '28 dias médio (benchmark setor: 14 dias)',
+      detail: '54 deals em "Negociação" com idade média de 28 dias indica falta de habilidade de fechamento ou propostas mal estruturadas que geram volta-pra-revisão.',
+      root_cause: 'Hipótese 1: propostas comerciais com gaps de informação. Hipótese 2: gestor não tem ritual de coaching nas negociações longas.',
+      financial_impact: 'R$ 810k presos no estágio com risco de erosão de margem por concessão',
+    },
+    {
+      title: 'Origem vazia em 18% das contas',
+      severity: 'medium',
+      metric: '224 contas sem campo "Origem"',
+      detail: 'Impossível medir CAC por canal. Investimento em prospecção/mídia paga vira caixa-preta — não se sabe o que está gerando os deals que fecham.',
+      root_cause: 'Campo não-obrigatório no formulário de criação. Ausência de UTM auto-fill na captação via formulário web.',
+      financial_impact: '—',
+    },
+  ],
+
+  funnel_analysis: [
+    {
+      pipeline_name: 'Pipeline Principal · Distribuição B2B',
+      leads_open: 286,
+      total_value: 6_240_000,
+      conversion_rate: 20.4,
+      bottleneck_stage: 'Proposta enviada',
+      severity: 'high',
+      problems: [
+        'Conversão "Qualificação → Proposta" caiu de 64% pra 51% no último trimestre.',
+        '78 deals em "Proposta enviada" — 38 deles em risco (> 14 dias sem contato).',
+        'Volume entrando em "Negociação" cresce, mas tempo médio dobrou em 6 meses.',
+      ],
+      recommendation: 'Cadência automática D+3/D+7/D+14 em "Proposta enviada" + revisão semanal das negociações longas no rito comercial.',
+    },
+    {
+      pipeline_name: 'Pipeline Inbound · Pré-vendas',
+      leads_open: 86,
+      total_value: 1_290_000,
+      conversion_rate: 14.8,
+      bottleneck_stage: 'Qualificação',
+      severity: 'medium',
+      problems: [
+        '63 leads em "Qualificação" sem next-step preenchido.',
+        'Lead time médio até primeiro contato: 38h (target: < 4h).',
+      ],
+      recommendation: 'SLA de 4h pra primeiro contato + obrigatoriedade de next-step antes de avançar etapa.',
+    },
+    {
+      pipeline_name: 'Pipeline Renovação · Carteira ativa',
+      leads_open: 40,
+      total_value: 710_000,
+      conversion_rate: 76.0,
+      bottleneck_stage: null,
+      severity: 'low',
+      problems: [
+        'Volume baixo — só 40 contas em renovação ativa no Q.',
+        'Sem fricção identificada nesse fluxo.',
+      ],
+      recommendation: 'Aumentar volume puxando renovações com 90 dias de antecedência. Hoje o time só ativa em 60d.',
+    },
+  ],
+
+  task_discipline: {
+    overdue_tasks: 38,
+    no_next_action: 132,
+    stuck_leads: 47,
+    stuck_threshold_days: 21,
+    severity: 'high',
+    assessment:
+      '47 deals parados há > 21 dias, 132 sem próximo passo preenchido e 38 tarefas vencidas indicam quebra de cadência sistemática — não é falha de pessoa específica, é falha de processo. A operação está rodando no "modo bombeiro" (resolver o que grita) em vez de cadência preventiva.',
+    pattern: 'Disciplina alta nos primeiros 10 dias do deal e cai progressivamente após semana 2.',
+  },
+
+  data_hygiene: {
+    score_0_100: 81,
+    diagnosis:
+      'Higiene de dado está acima da média (81/100), com 91% de preenchimento em "Valor estimado" e 88% em CNPJ. Os pontos fracos são "Próximo passo" (68%) e "Decisor identificado" (54%) — campos diretamente ligados à execução comercial. Tags inconsistentes em 22% dos contatos comprometem segmentação de campanhas.',
+    issues: [
+      {
+        title: 'Campo "Próximo passo" vazio em 32% dos deals abertos',
+        severity: 'high',
+        qty: 132, pct: 32.0,
+        detail: 'Sem next-step, o forecast vira chutômetro e o handoff entre vendedores em férias quebra.',
+        impact: 'Forecast com erro médio > 25%',
+        fix: 'Validation rule no Ploomes: impedir avanço de etapa sem next-step preenchido. Treino de 15min com vendedores.',
+      },
+      {
+        title: 'Origem vazia em 18% das contas',
+        severity: 'high',
+        qty: 224, pct: 18.0,
+        detail: '224 contas sem campo source. Impossível atribuir CAC por canal.',
+        impact: 'Decisões de investimento em mídia cegas',
+        fix: 'Required field + UTM auto-fill no formulário web. Backfill manual das 50 contas top.',
+      },
+      {
+        title: 'Decisor identificado preenchido em apenas 54%',
+        severity: 'medium',
+        qty: 189, pct: 46.0,
+        detail: 'Em quase metade dos deals abertos não se sabe quem decide. Cycle stretching e perda de poder de fogo na negociação.',
+        impact: 'Negociações se arrastam · risco de proposta apresentada pro stakeholder errado',
+        fix: 'Adicionar etapa de qualificação obrigatória com 3 perguntas (decisor / orçamento / timing).',
+      },
+      {
+        title: 'Tags inconsistentes em 22% dos contatos',
+        severity: 'low',
+        qty: 274, pct: 22.0,
+        detail: 'Mistura de "Industria B2B", "industria-b2b", "Indústria-B2B" no mesmo workspace.',
+        impact: 'Segmentação de campanha imprecisa',
+        fix: 'Migration script + lista controlada de tags (controlled vocabulary).',
+      },
+    ],
+  },
+
+  commercial_risks: [
+    {
+      title: 'Receita do trimestre depende de 12 deals (38% do volume)',
+      urgency: 'immediate',
+      detail: 'Top 12 deals abertos representam R$ 3,13M de um total de R$ 8,24M. Se 2 deles caem, o trimestre vira amarelo. Vendedores estão sub-priorizando os outros 274 deals.',
+      financial_impact: 'R$ 3,13M concentrados · risco de queda > 25% do forecast',
+    },
+    {
+      title: 'Vendedor top concentra 24% do pipeline',
+      urgency: 'short_term',
+      detail: 'Carlos M. carrega 62 deals (R$ 1,98M). Se sair de férias, licença médica ou pedir desligamento, o trimestre desestabiliza.',
+      financial_impact: 'R$ 1,98M sem backup definido',
+    },
+    {
+      title: 'Concentração geográfica em Uberlândia (61% do pipeline)',
+      urgency: 'structural',
+      detail: 'Operação dependente de uma única praça. Shock regional (greve de transporte, evento de cliente âncora) afeta resultado do mês.',
+      financial_impact: 'Vulnerabilidade estrutural · revisar plano de expansão pra Patos/Patrocínio',
+    },
+  ],
+
+  owner_analysis: [
+    {
+      owner: 'Carlos M.',
+      open_leads: 62, open_value: 1_984_000,
+      risk_level: 'high',
+      assessment: 'Top performer em volume e qualidade, mas concentra 24% do pipeline da operação.',
+      concerns: 'Risco de concentração. Sem backup formal se sair temporariamente.',
+    },
+    {
+      owner: 'Ana P.',
+      open_leads: 54, open_value: 1_512_000,
+      risk_level: 'medium',
+      assessment: 'Disciplina alta em next-step e tags. Conversão acima da média.',
+      concerns: '5 deals em "Proposta enviada" > 14 dias sem contato.',
+    },
+    {
+      owner: 'Roberto S.',
+      open_leads: 41, open_value: 1_230_000,
+      risk_level: 'medium',
+      assessment: 'Ramp-up bom, evoluindo. Tem dificuldade em deals > R$ 80k.',
+      concerns: 'Coaching estruturado em fechamento de tickets altos.',
+    },
+    {
+      owner: 'Juliana F.',
+      open_leads: 38, open_value: 972_000,
+      risk_level: 'medium',
+      assessment: 'Volume saudável, mas conversão abaixo dos pares (15% vs 22% média).',
+      concerns: '8 deals sem atividade há > 21 dias. Avaliar cadência da rotina.',
+    },
+    {
+      owner: 'Marcos T.',
+      open_leads: 31, open_value: 744_000,
+      risk_level: 'low',
+      assessment: 'Sem preocupações críticas identificadas.',
+      concerns: 'Sem preocupações críticas identificadas.',
+    },
+  ],
+
+  lost_reason_analysis: {
+    total_lost: 42,
+    without_reason_pct: 9.5,
+    insight:
+      'Das 42 perdas do trimestre, 14 (33%) vão pra "Preço" como motivo principal. Mas o cruzamento com tempo em "Negociação" mostra que metade dessas perdas-por-preço tem > 28 dias no estágio — sinal forte de que o problema real é proposta mal estruturada ou apresentada pro decisor errado, e o cliente usa "preço" como justificativa de saída fácil.',
+    top_reasons: [
+      { reason: 'Preço', count: 14, pct: 33.3, suggestion: 'Cruzar com tempo em negociação · revisar propostas de deals > 21d no estágio.' },
+      { reason: 'Sem retorno do cliente', count: 11, pct: 26.2, suggestion: 'Cadência obrigatória após "Proposta enviada" · ativar fluxo de win-back em 60d.' },
+      { reason: 'Concorrente', count: 8, pct: 19.0, suggestion: 'Treino de battle card · entender qual concorrente está ganhando esses deals.' },
+      { reason: 'Timing', count: 5, pct: 11.9, suggestion: 'Cadastrar em fluxo de nurturing — esses voltam em 6-12 meses.' },
+      { reason: '(não informado)', count: 4, pct: 9.5, suggestion: 'Validation rule: motivo de perda obrigatório antes de mover pra Lost.' },
+    ],
+    recommendation:
+      'Implementar Loss Review semanal de 30min cobrindo as perdas da semana. Validação cruzada do motivo informado pelo vendedor vs. dados objetivos do deal (tempo em estágio, propostas anteriores, decisor mapeado).',
+  },
+
+  action_plan: {
+    immediate_7d: [
+      'Ativar cadência automática D+3/D+7/D+14 em "Proposta enviada" via Ploomes workflows.',
+      'Mutirão de reativação: vendedores ligam pros 47 deals parados > 21 dias até sexta.',
+      'Bloquear avanço de etapa sem "Próximo passo" preenchido (validation rule).',
+      'Reunião 1:1 dos 12 deals top com gestor — destravar bloqueios concretos.',
+    ],
+    short_term_15d: [
+      'Implementar campo obrigatório "Origem" no formulário de criação + UTM auto-fill no site.',
+      'Adicionar etapa de qualificação obrigatória (decisor/orçamento/timing) antes de avançar pra "Proposta".',
+      'Ritual semanal de Loss Review (30min · gestor + vendedores · 1× por semana).',
+      'Onboarding de Roberto S. com Carlos M. em deals > R$ 80k (peer coaching).',
+    ],
+    structural_30d: [
+      'Migration script + controlled vocabulary de tags pra eliminar inconsistências.',
+      'Battle cards por concorrente principal (treino + repositório no Ploomes).',
+      'Plano de expansão pra Patos de Minas e Patrocínio reduzindo dependência de Uberlândia.',
+      'Definir backup formal pros top performers (rotina de shadow + repasse documentado).',
+      'Forecast probabilístico no Ploomes (cada etapa com taxa de conversão histórica · não chute do vendedor).',
+    ],
+  },
+};
