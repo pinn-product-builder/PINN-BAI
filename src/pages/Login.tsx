@@ -19,7 +19,7 @@ const Login = () => {
     if (authLoading || !user) return;
     if (!profile || roles.length === 0) return;
     if (isPlatformAdmin) navigate('/admin/hq', { replace: true });
-    else if (profile.org_id) navigate(`/client/${profile.org_id}/arguto`, { replace: true });
+    else if (profile.org_id) navigate(`/client/${profile.org_id}/dashboard`, { replace: true });
   }, [authLoading, user, profile, roles, isPlatformAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {

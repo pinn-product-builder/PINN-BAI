@@ -116,7 +116,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Navigate to="arguto" replace />} />
+                <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="crm" element={<CRMKanban />} />
                 <Route path="import" element={<Import />} />

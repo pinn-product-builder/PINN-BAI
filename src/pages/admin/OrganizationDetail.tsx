@@ -100,7 +100,7 @@ const OrganizationDetail = () => {
                     <Button
                         variant="outline"
                         className="h-12"
-                        onClick={() => navigate(`/client/${organization.id}/arguto`)}
+                        onClick={() => navigate(`/client/${organization.id}/dashboard`)}
                     >
                         <ExternalLink className="w-4 h-4 mr-2" />
                         Visualizar como Cliente

@@ -18,6 +18,7 @@ import {
   useTheme,
 } from "@mui/material";
 import {
+  Dashboard as DashboardIcon,
   Upload as UploadIcon,
   Lightbulb as LightbulbIcon,
   Logout as LogoutIcon,
@@ -42,8 +43,15 @@ import { isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
 const DRAWER_WIDTH = 220;
 const MOBILE_APPBAR_HEIGHT = 56;
 
-const baseNavItems = [
-  { path: "arguto",          label: "Arguto · BAI",     icon: InsightsIcon },
+const baseNavItems: Array<{
+  path: string;
+  label: string;
+  icon: typeof DashboardIcon;
+  /** Slug-gated: só aparece pra orgs cujo slug esteja na lista. undefined = todos. */
+  onlyForSlugs?: string[];
+}> = [
+  { path: "dashboard",       label: "Dashboard",        icon: DashboardIcon },
+  { path: "arguto",          label: "Arguto · BAI",     icon: InsightsIcon, onlyForSlugs: ["arguto"] },
   { path: "import",          label: "Dados",            icon: UploadIcon },
   { path: "insights",        label: "Inteligência IA",  icon: LightbulbIcon },
   { path: "rfm-churn",       label: "RFM + Churn",      icon: TargetIcon },
@@ -65,7 +73,17 @@ const ClientLayout = () => {
   const { profile, signOut, isPlatformAdmin } = useAuth();
   const navigate = useNavigate();
   const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
-  const navItems = baseNavItems.filter((item) => item.path !== "rfm-churn" || showRfmChurn);
+  const orgSlug = organization?.slug;
+  const navItems = baseNavItems.filter((item) => {
+    // RFM atrás de feature flag global
+    if (item.path === "rfm-churn" && !showRfmChurn) return false;
+    // Items slug-gated: só aparecem pra orgs cujo slug autoriza (ou pra
+    // platform admin, que precisa enxergar tudo quando impersona qualquer org).
+    if (item.onlyForSlugs && !isPlatformAdmin) {
+      if (!orgSlug || !item.onlyForSlugs.includes(orgSlug)) return false;
+    }
+    return true;
+  });
   const currentPath = location.pathname.split("/").pop();
 
   if (isLoading) {
