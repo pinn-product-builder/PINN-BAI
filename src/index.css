@@ -124,6 +124,12 @@
 /* ── Base styles ── */
 @layer base {
   * { @apply border-border; }
+  /* Reserva espaco pra scrollbar sempre — evita layout shift quando troca de
+     tab/menu e o conteudo muda de altura (ex.: Predicao de Churn vs Snapshot
+     no Arguto, ou aba Alertas vs Clientes em Saude do Cliente). */
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground antialiased;
     font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

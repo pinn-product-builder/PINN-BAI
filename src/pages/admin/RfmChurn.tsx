@@ -21,21 +21,6 @@ const AdminRfmChurn = () => {
 
   const activeOrgId = selectedOrgId || organizations?.[0]?.id || '';
 
-  const { data: dashboards } = useQuery({
-    queryKey: ['admin-rfm-churn-dashboards', activeOrgId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('dashboards')
-        .select('id, name')
-        .eq('org_id', activeOrgId)
-        .order('is_default', { ascending: false })
-        .order('name');
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!activeOrgId,
-  });
-
   const activeOrg = useMemo(
     () => organizations?.find(org => org.id === activeOrgId),
     [organizations, activeOrgId],
@@ -70,7 +55,6 @@ const AdminRfmChurn = () => {
           orgId={activeOrgId}
           title={`RFM + Churn - ${activeOrg?.name || 'Organização'}`}
           description="Visão analítica pronta para uso nos 3 dashboards principais."
-          dashboardNames={(dashboards || []).map(d => d.name)}
         />
       ) : (
         <p className="text-sm text-muted-foreground">Selecione uma organização para iniciar.</p>
