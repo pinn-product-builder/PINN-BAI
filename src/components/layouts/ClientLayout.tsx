@@ -27,11 +27,11 @@ import {
   FactCheck as AuditorIcon,
   Insights as InsightsIcon,
   FavoriteBorder as HeartIcon,
-  Hub as HubIcon,
   TrendingUp as TrendingUpIcon,
   EmojiEvents as TrophyIcon,
   ArrowBack as ArrowBackIcon,
   Menu as MenuIcon,
+  Settings as SettingsIcon,
 } from "@mui/icons-material";
 import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -63,8 +63,8 @@ const baseNavItems: Array<{
   { path: "customer-health", label: "Saúde do Cliente", icon: HeartIcon },
   { path: "unit-economics",  label: "CAC + LTV",        icon: TrendingUpIcon },
   { path: "goals",           label: "Metas & Alertas",  icon: TrophyIcon },
-  { path: "integrations",    label: "Integrações",      icon: HubIcon },
   { path: "crm-audit",       label: "Auditoria CRM",    icon: AuditorIcon },
+  // Integrações migrou pro footer do drawer (ícone de engrenagem ao lado do usuário).
 ];
 
 const ClientLayout = () => {
@@ -299,6 +299,20 @@ const ClientLayout = () => {
                 Dashboard
               </Typography>
             </Box>
+            <IconButton
+              size="small"
+              component={RouterLink}
+              to={`/client/${orgId}/integrations`}
+              onClick={isMobile ? closeMobileNav : undefined}
+              sx={{
+                color: currentPath === "integrations" ? "primary.main" : "text.secondary",
+                "&:hover": { color: "primary.main" },
+              }}
+              aria-label="Integrações"
+              title="Integrações"
+            >
+              <SettingsIcon fontSize="small" />
+            </IconButton>
             <IconButton size="small" onClick={() => signOut()} sx={{ color: "text.secondary" }} aria-label="Sair">
               <LogoutIcon fontSize="small" />
             </IconButton>
