@@ -15,11 +15,13 @@ import { cn } from '@/lib/utils';
 import { useTheme } from '@mui/material/styles';
 import { getChartSeriesColors, chartGridColor } from '@/theme/chartColors';
 
-interface BarChartWidgetProps {
+export interface BarChartWidgetProps {
   title: string;
   description: string;
   data?: Array<{ label: string; value: number; color?: string }>;
   isLoading?: boolean;
+  /** Se fornecido, as barras ficam clicáveis e chamam este callback */
+  onBarClick?: (entry: { label: string; value: number }) => void;
 }
 
 // Prettify bar labels
@@ -34,6 +36,7 @@ const BarChartWidget = ({
   description,
   data = [],
   isLoading = false,
+  onBarClick,
 }: BarChartWidgetProps) => {
   const theme = useTheme();
   const chartColors = getChartSeriesColors(theme);
@@ -128,9 +131,20 @@ const BarChartWidget = ({
                   width={100}
                 />
                 <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: mutedBg, opacity: 0.35 }} />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={22} animationDuration={800} animationEasing="ease-out">
+                <Bar
+                  dataKey="value"
+                  radius={[0, 6, 6, 0]}
+                  barSize={22}
+                  animationDuration={800}
+                  animationEasing="ease-out"
+                  onClick={onBarClick ? (payload) => onBarClick({ label: payload.label, value: payload.value }) : undefined}
+                >
                   {cleanData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || chartColors[index % chartColors.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.color || chartColors[index % chartColors.length]}
+                      cursor={onBarClick ? 'pointer' : 'default'}
+                    />
                   ))}
                 </Bar>
               </BarChart>

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { mariSupabase } from '@/integrations/supabase/mariClient';
+import { supabase } from '@/integrations/supabase/client';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -48,22 +48,12 @@ export const useMariSDR = () => {
   return useQuery<MariMetrics>({
     queryKey: ['mari-sdr-metrics'],
     queryFn: async () => {
-      if (!mariSupabase) {
-        return _buildMetrics([]);
-      }
-      const { data, error } = await mariSupabase
-        .from('sdr_sessions')
-        .select(
-          'session_id, phone, lead_name, company, sector, stage, pain, role, ' +
-          'lead_score, urgency_level, follow_up_count, briefing_sent, ' +
-          'confirmed_slot, last_outbound_at, last_inbound_at, ' +
-          'handoff, optout, created_at'
-        )
-        .order('created_at', { ascending: false })
-        .limit(500);
+      const { data, error } = await supabase.functions.invoke('fetch-mari-sdr');
 
-      if (error) throw error;
-      const sessions = (data ?? []) as unknown as MariSession[];
+      if (error) throw new Error(error.message || 'Erro ao buscar dados da Mari');
+      if (data?.error) throw new Error(data.error);
+
+      const sessions: MariSession[] = data?.sessions || [];
       return _buildMetrics(sessions);
     },
     staleTime: 2 * 60 * 1000,
@@ -105,7 +95,6 @@ function _buildMetrics(sessions: MariSession[]): MariMetrics {
     ? Math.round((confirmed / activeSessions) * 100)
     : 0;
 
-  // Funil por stage
   const stageCounts: Record<string, number> = {};
   sessions.forEach(s => {
     stageCounts[s.stage] = (stageCounts[s.stage] || 0) + 1;
@@ -114,7 +103,6 @@ function _buildMetrics(sessions: MariSession[]): MariMetrics {
     .map(([stage, count]) => ({ stage: STAGE_LABEL[stage] || stage, count }))
     .sort((a, b) => b.count - a.count);
 
-  // Por setor
   const sectorCounts: Record<string, number> = {};
   sessions.forEach(s => {
     if (s.sector) {
@@ -127,7 +115,6 @@ function _buildMetrics(sessions: MariSession[]): MariMetrics {
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
-  // Por urgência
   const urgencyCounts: Record<string, number> = {};
   sessions.forEach(s => {
     if (s.urgency_level) {

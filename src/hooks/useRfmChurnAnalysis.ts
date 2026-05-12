@@ -87,26 +87,27 @@ const resolveSegment = (r: number, f: number): string => {
   return 'Regulares';
 };
 
-export const useRfmChurnAnalysis = (orgId?: string) => {
+export const useRfmChurnAnalysis = (orgId?: string, dateRange?: { start: string; end: string }) => {
   const leadsQuery = useQuery({
-    queryKey: ['rfm-churn-analysis', orgId],
+    queryKey: ['rfm-churn-analysis', orgId, dateRange?.start, dateRange?.end],
     queryFn: async () => {
       if (!orgId) return [];
 
       // Orgs em modo demo (ex.: Arguto) usam scores pré-populados.
-      // Pular invokes evita console.warn ruidoso em reunião comercial e
-      // economiza ~2 round-trips desnecessários por refresh.
+      // Pular invokes evita console.warn ruidoso em reunião comercial.
       const skipInvokes = isDemoOrg(orgId);
 
       if (!skipInvokes) {
+        const body = dateRange ? { orgId, dateStart: dateRange.start, dateEnd: dateRange.end } : { orgId };
+
         // 1) Tenta recalcular RFM. Se falhar (ex.: integração incompleta), segue com dados persistidos.
-        const { error: rfmInvokeError } = await supabase.functions.invoke('calculate-rfm', { body: { orgId } });
+        const { error: rfmInvokeError } = await supabase.functions.invoke('calculate-rfm', { body });
         if (rfmInvokeError) {
           console.warn('[useRfmChurnAnalysis] calculate-rfm falhou, usando cache persistido:', rfmInvokeError.message);
         }
 
         // 2) Tenta recalcular churn, sem bloquear a tela em caso de falha.
-        const { error: churnInvokeError } = await supabase.functions.invoke('predict-churn', { body: { orgId } });
+        const { error: churnInvokeError } = await supabase.functions.invoke('predict-churn', { body });
         if (churnInvokeError) {
           console.warn('[useRfmChurnAnalysis] predict-churn falhou, usando cache persistido:', churnInvokeError.message);
         }
@@ -132,12 +133,15 @@ export const useRfmChurnAnalysis = (orgId?: string) => {
       // se não há scores persistidos, tenta usar a tabela interna de leads da org
       // para manter a tela funcional enquanto o pipeline externo é configurado.
       if (!rfmData || rfmData.length === 0) {
-        const { data: leadRows, error: leadsError } = await supabase
+        let fallbackQuery = supabase
           .from('leads')
           .select('id, name, email, status, value, created_at, updated_at, converted_at')
           .eq('org_id', orgId)
           .order('updated_at', { ascending: false })
           .limit(10000);
+        if (dateRange?.start) fallbackQuery = fallbackQuery.gte('created_at', dateRange.start);
+        if (dateRange?.end) fallbackQuery = fallbackQuery.lte('created_at', dateRange.end);
+        const { data: leadRows, error: leadsError } = await fallbackQuery;
 
         if (leadsError) {
           console.warn('[useRfmChurnAnalysis] fallback via leads falhou:', leadsError.message);

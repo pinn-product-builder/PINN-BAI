@@ -198,3 +198,27 @@
   font-size: 11px !important;
   font-family: "JetBrains Mono Variable", ui-monospace, monospace !important;
 }
+
+/* react-grid-layout customizations */
+.react-grid-item.react-grid-placeholder {
+  background: hsl(var(--primary) / 0.15) !important;
+  border: 2px dashed hsl(var(--primary) / 0.5) !important;
+  border-radius: 0.75rem !important;
+  opacity: 1 !important;
+}
+.layout.is-editing .react-grid-item {
+  outline: 1px dashed hsl(var(--border));
+  outline-offset: -2px;
+  cursor: grab;
+}
+.layout.is-editing .react-grid-item:active { cursor: grabbing; }
+.react-grid-item > .react-resizable-handle {
+  opacity: 0;
+  transition: opacity .15s;
+}
+.layout.is-editing .react-grid-item > .react-resizable-handle {
+  opacity: 1;
+}
+.react-grid-item > .react-resizable-handle::after {
+  border-color: hsl(var(--primary)) !important;
+}

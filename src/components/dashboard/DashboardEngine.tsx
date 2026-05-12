@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { DashboardGrid } from './DashboardGrid';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
@@ -15,6 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { DashboardWidget } from '@/lib/types';
 import { useExternalData } from '@/hooks/useExternalData';
+import { useFilters } from '@/hooks/useFilters';
 import { resolveByWidgetTitle } from '@/lib/referenceMappings';
 import { REFERENCE_MAPPINGS } from '@/lib/referenceMappings';
 
@@ -78,7 +80,9 @@ const formatDateLabel = (dateStr: string): string => {
  */
 const isDateField = (field: string): boolean => {
   const lower = field.toLowerCase();
-  return ['day', 'date', 'created_at', 'updated_at', 'dia', 'data'].some(k => lower.includes(k));
+  // Ignorar campos de timestamp Unix (sufixo _ts) — preferimos campos ISO/legíveis
+  if (lower.endsWith('_ts') || lower.endsWith('_unix') || lower.endsWith('_epoch')) return false;
+  return ['day', 'date', 'created_at', 'updated_at', 'dia', 'data', '_iso', '_at'].some(k => lower.includes(k));
 };
 
 /**
@@ -476,7 +480,7 @@ const WidgetRenderer = ({
   widget, 
   orgId,
   onRemove
-}: { 
+}: {
   widget: DashboardWidget;
   orgId: string;
   onRemove?: (widgetId: string) => void;
@@ -488,10 +492,13 @@ const WidgetRenderer = ({
     metric: rawConfig.metric || rawConfig.metricField,
   };
   const tableName = config.dataSource || config.sourceTable;
-  
+  const { dateRangeISO } = useFilters();
+
   const { data: externalData, isLoading, error, refetch } = useExternalData(
     orgId,
-    tableName ? { tableName, limit: 1000 } : undefined
+    tableName
+      ? { tableName, limit: 1000, dateRange: dateRangeISO, dateField: config.groupBy }
+      : undefined
   );
   
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -511,8 +518,26 @@ const WidgetRenderer = ({
     if (onRemove) onRemove(widget.id);
   };
   
-  const rawData = externalData?.data || [];
-  
+  const unfilteredData = externalData?.data || [];
+
+  // Client-side date filter: detect date field from config or common column names
+  const rawData = (() => {
+    if (!unfilteredData.length) return unfilteredData;
+    const start = dateRangeISO.start;
+    const end = dateRangeISO.end;
+    // Detect which column holds the date value
+    const candidate = config.groupBy && isDateField(config.groupBy)
+      ? config.groupBy
+      : Object.keys(unfilteredData[0] as Record<string, unknown>).find(isDateField);
+    if (!candidate) return unfilteredData;
+    return unfilteredData.filter((row) => {
+      const val = (row as Record<string, unknown>)[candidate];
+      if (!val) return true;
+      const ts = new Date(val as string).getTime();
+      return ts >= new Date(start).getTime() && ts <= new Date(end).getTime();
+    });
+  })();
+
   // Debug logging
   console.log(`[WidgetRenderer] ${widget.title} (${widget.type}):`, {
     tableName: tableName || 'NOT SET',
@@ -570,7 +595,7 @@ const WidgetRenderer = ({
     // Helper: rejeitar campos de data/timestamp como métrica
     const isDateColumn = (col: string): boolean => {
       const cl = col.toLowerCase();
-      return cl.includes('date') || cl.endsWith('_at') || cl === 'created' || cl === 'updated' || cl === 'timestamp' || cl === 'day' || cl === 'dia';
+      return cl.includes('date') || cl.endsWith('_at') || cl.includes('_at_') || cl.endsWith('_ts') || cl.endsWith('_iso') || cl.endsWith('_unix') || cl.endsWith('_epoch') || cl === 'created' || cl === 'updated' || cl === 'timestamp' || cl === 'day' || cl === 'dia';
     };
     
     // Helper: rejeitar campos de ID
@@ -582,15 +607,17 @@ const WidgetRenderer = ({
       return v !== undefined && v !== null && (typeof v === 'number' || !isNaN(parseFloat(String(v))));
     };
 
-    // 1. Campo exato presente nos dados (e não é data/ID)
-    if (cfg.metric && available.includes(cfg.metric) && !isDateColumn(cfg.metric) && !isIdColumn(cfg.metric)) {
+    const allowsIdCount = cfg.aggregation === 'count';
+
+    // 1. Campo exato presente nos dados. IDs são válidos apenas para contagem explícita.
+    if (cfg.metric && available.includes(cfg.metric) && !isDateColumn(cfg.metric) && (!isIdColumn(cfg.metric) || allowsIdCount)) {
       return cfg.metric;
     }
 
     // 2. Match case-insensitive (excluindo datas)
     if (cfg.metric) {
       const lower = cfg.metric.toLowerCase();
-      const found = available.find(k => k.toLowerCase() === lower && !isDateColumn(k) && !isIdColumn(k));
+      const found = available.find(k => k.toLowerCase() === lower && !isDateColumn(k) && (!isIdColumn(k) || allowsIdCount));
       if (found) return found;
     }
 
@@ -711,14 +738,17 @@ const WidgetRenderer = ({
       return undefined;
     }
 
-    const aggregation = config.aggregation || 'count';
+    const requestedAggregation = config.aggregation || 'count';
     const metricField = resolveMetricField(rawData, config, widget.title || '');
+    const fieldConfigured = Boolean(config.metric || config.metricField || config.targetMetric);
+    const aggregation = requestedAggregation === 'count' && fieldConfigured ? 'count_values' : requestedAggregation;
 
     console.log('[DashboardEngine] Resolução de campo:', {
       configMetric: config.metric,
       targetMetric: config.targetMetric,
       resolvedField: metricField,
       aggregation,
+      requestedAggregation,
       dataRows: rawData.length,
       availableFields: Object.keys(rawData[0] || {}),
     });
@@ -759,25 +789,34 @@ const WidgetRenderer = ({
       .filter((v): v is number => v !== null);
 
     if (values.length === 0) {
-      console.warn('[DashboardEngine] Sem valores numéricos no campo:', metricField, '→ usando row count');
-      return rawData.length;
+      if (aggregation === 'count_values') {
+        const nonEmptyCount = rawData.filter(row => {
+          const value = row[metricField];
+          return value !== null && value !== undefined && value !== '';
+        }).length;
+        console.warn('[DashboardEngine] Campo não numérico contado por presença:', metricField, '→', nonEmptyCount);
+        return nonEmptyCount;
+      }
+      console.warn('[DashboardEngine] Sem valores numéricos no campo:', metricField, '→ usando 0');
+      return 0;
     }
 
-    // View agregada (flag explícita OU 1 row com KPIs pré-calculados) → retorna valor direto
-    // Detectar automaticamente se a view é KPI: nome contém vw_*, kpi, _30d, _60d, summary
+    // View KPI pré-agregada → retorna valor direto SEM re-agregar
+    // IMPORTANTE: views diárias/horárias (_dia, _daily, _hora) NUNCA são KPI — precisam somar período.
+    // Só é KPI quando: flag explícita, OU nome indica janela fechada (kpi, _30d, _60d, _7d, summary, overview),
+    // OU resultado tem exatamente 1 linha (visivelmente agregado).
     const tableName = (config.dataSource || config.sourceTable || '').toLowerCase();
-    const isViewKpi = config.isAggregatedView ||
-      /^vw_|^view_/i.test(tableName) ||
-      /kpi|_30d|_60d|_7d|summary|overview/i.test(tableName);
+    const isDailyView = /(_dia|_daily|_diario|_hora|_hourly|_min|_minute)\b/i.test(tableName);
+    const hasKpiMarker = /kpi|_30d|_60d|_90d|_7d|_mtd|_ytd|summary|overview|_resumo|_total/i.test(tableName);
+    const canUseDirectKpiValue = !['count', 'count_values'].includes(aggregation);
+    const isViewKpi = canUseDirectKpiValue && !isDailyView && (
+      config.isAggregatedView === true ||
+      hasKpiMarker ||
+      (rawData.length === 1 && values.length === 1)
+    );
 
     if (isViewKpi && values.length >= 1) {
-      // View KPI: retorna o primeiro valor sem re-agregar (evita double-sum)
-      console.log('[DashboardEngine] View KPI detectada, valor direto:', values[0], '| tabela:', tableName);
-      return values[0];
-    }
-
-    if (rawData.length === 1 && values.length === 1) {
-      console.log('[DashboardEngine] View agregada (1 row), retornando valor direto:', values[0]);
+      console.log('[DashboardEngine] View KPI pré-agregada, valor direto:', values[0], '| tabela:', tableName);
       return values[0];
     }
 
@@ -797,6 +836,11 @@ const WidgetRenderer = ({
         result = Math.max(...values);
         break;
       case 'count':
+        result = rawData.length;
+        break;
+      case 'count_values':
+        result = values.length;
+        break;
       default:
         result = rawData.length;
     }
@@ -874,13 +918,8 @@ const WidgetRenderer = ({
 
   switch (widget.type) {
     case 'metric_card': {
-      let metricValue = calculateMetricValue();
+      const metricValue = calculateMetricValue();
       const format = resolveFormat(config, widget.title || '');
-      
-      // Override: "Reuniões Realizadas" forçado a 0 (não está sendo marcado no CRM)
-      if (widget.title && widget.title.toLowerCase().includes('reuniões realizadas')) {
-        metricValue = 0;
-      }
       
       return (
         <WidgetWrapper {...wrapperProps}>
@@ -1028,7 +1067,7 @@ const WidgetRenderer = ({
   }
 };
 
-const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
+const DashboardEngine = ({ dashboardId, isEditing = false }: { dashboardId: string; isEditing?: boolean }) => {
   // Log básico que sempre aparece
   console.log('[DashboardEngine] STARTED', dashboardId);
   
@@ -1149,147 +1188,88 @@ const DashboardEngine = ({ dashboardId }: { dashboardId: string }) => {
     );
   }
 
-  // Layout premium inspirado no dashboard Afonsina de referência
+  // Layout com drag-and-drop (react-grid-layout). Salva em dashboards.layout (jsonb).
   const sortedWidgets = [...widgets].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
-  // Agrupamentos por tipo
-  const metricWidgets = sortedWidgets.filter(w => w.type === 'metric_card');
-  const timeSeriesCharts = sortedWidgets.filter(w => ['area_chart', 'line_chart'].includes(w.type));
-  const funnelWidgets = sortedWidgets.filter(w => w.type === 'funnel');
-  const barCharts = sortedWidgets.filter(w => w.type === 'bar_chart');
-  const pieCharts = sortedWidgets.filter(w => w.type === 'pie_chart');
-  const tableWidgets = sortedWidgets.filter(w => w.type === 'table');
-  const insightWidgets = sortedWidgets.filter(w => w.type === 'insight_card');
-  const rfmChurnWidgets = sortedWidgets.filter(w => ['rfm_matrix', 'churn_prediction'].includes(w.type));
-
-  // Combine tables + bar charts sorted by position for side-by-side pairing
-  const tablesAndBars = [...tableWidgets, ...barCharts].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-
-  const heroCount = Math.min(metricWidgets.length, 4);
-  const heroMetrics = metricWidgets.slice(0, heroCount);
-  const secondaryMetrics = metricWidgets.slice(heroCount, heroCount + 4);
-  const extraMetrics = metricWidgets.slice(heroCount + 4);
-
   return (
-    <div className="space-y-8 pb-24">
-      {/* Section: Indicadores Principais */}
-      {heroMetrics.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Últimos 30 Dias</h2>
-          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
-            {heroMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[130px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Secondary KPIs row */}
-      {secondaryMetrics.length > 0 && (
-        <section>
-          <div className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4`}>
-            {secondaryMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[120px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Extra metrics if any */}
-      {extraMetrics.length > 0 && (
-        <section>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            {extraMetrics.map(widget => (
-              <div key={widget.id} className="min-h-[120px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Evolução Diária (area/line) + first funnel — side by side */}
-      {(timeSeriesCharts.length > 0 || funnelWidgets.length > 0) && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {timeSeriesCharts.map(widget => (
-              <div 
-                key={widget.id} 
-                className="min-h-[380px]"
-              >
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-            {funnelWidgets.length > 0 && (
-              <div 
-                key={funnelWidgets[0].id} 
-                className="min-h-[380px]"
-              >
-                <WidgetRenderer widget={funnelWidgets[0]} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Additional funnels — paired side by side */}
-      {funnelWidgets.length > 1 && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {funnelWidgets.slice(1).map(widget => (
-              <div key={widget.id} className="min-h-[380px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Tables, Bar charts & Insights — paired side-by-side */}
-      {(tablesAndBars.length > 0 || insightWidgets.length > 0) && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {[...tablesAndBars, ...insightWidgets].map(widget => (
-              <div key={widget.id} className="min-h-[340px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* RFM e Churn */}
-      {rfmChurnWidgets.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Retenção e Relacionamento</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {rfmChurnWidgets.map(widget => (
-              <div key={widget.id} className="min-h-[320px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Pie charts if any */}
-      {pieCharts.length > 0 && (
-        <section>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {pieCharts.map(widget => (
-              <div key={widget.id} className="min-h-[320px]">
-                <WidgetRenderer widget={widget} orgId={orgId || ''} onRemove={handleDelete} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+    <DashboardEngineGrid
+      dashboardId={dashboardId}
+      widgets={sortedWidgets}
+      orgId={orgId || ''}
+      isEditing={isEditing}
+      onDelete={handleDelete}
+    />
   );
 };
+
+// ─── Grid wrapper: lê/salva layout em dashboards.layout ────────────────────────
+function DashboardEngineGrid({
+  dashboardId,
+  widgets,
+  orgId,
+  isEditing,
+  onDelete,
+}: {
+  dashboardId: string;
+  widgets: DashboardWidget[];
+  orgId: string;
+  isEditing: boolean;
+  onDelete: (id: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [savedLayouts, setSavedLayouts] = useState<any | null>(null);
+  const [pendingLayouts, setPendingLayouts] = useState<any | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('dashboards')
+        .select('layout')
+        .eq('id', dashboardId)
+        .single();
+      if (cancelled) return;
+      const layout = (data?.layout as any) ?? null;
+      if (layout && typeof layout === 'object' && Object.keys(layout).length > 0) {
+        setSavedLayouts(layout);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dashboardId]);
+
+  // Auto-save (debounce) durante edição
+  useEffect(() => {
+    if (!isEditing || !pendingLayouts) return;
+    const t = setTimeout(async () => {
+      await supabase
+        .from('dashboards')
+        .update({ layout: pendingLayouts, updated_at: new Date().toISOString() })
+        .eq('id', dashboardId);
+      queryClient.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [pendingLayouts, isEditing, dashboardId, queryClient]);
+
+  return (
+    <div className="pb-24">
+      <DashboardGrid
+        widgets={widgets.map((w) => ({ id: w.id, type: w.type as string }))}
+        savedLayouts={savedLayouts}
+        isEditing={isEditing}
+        onLayoutChange={setPendingLayouts}
+        renderWidget={(gw) => {
+          const widget = widgets.find((w) => w.id === gw.id);
+          if (!widget) return null;
+          return (
+            <div className="h-full">
+              <WidgetRenderer widget={widget} orgId={orgId} onRemove={onDelete} />
+            </div>
+          );
+        }}
+      />
+    </div>
+  );
+}
+
 
 export default DashboardEngine;

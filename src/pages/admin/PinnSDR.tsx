@@ -1093,7 +1093,7 @@ const PinnSDRDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pinn SDR Painel</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Mari SDR + LinkedIn + Ploomes + Cold Mail · Visão unificada
+            LinkedIn + Ploomes + Cold Mail · Visão unificada
             {syncing && <span className="ml-2 inline-flex items-center gap-1 text-primary"><Loader2 className="w-3 h-3 animate-spin" /> Sincronizando...</span>}
           </p>
         </div>
@@ -1133,9 +1133,6 @@ const PinnSDRDashboard = () => {
           <TabsTrigger value="coldmail" className="gap-2">
             <Mail className="w-4 h-4" /> Cold Mail
           </TabsTrigger>
-          <TabsTrigger value="mari" className="gap-2">
-            <Bot className="w-4 h-4" /> Mari SDR
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="ploomes" className="mt-4">
@@ -1148,10 +1145,6 @@ const PinnSDRDashboard = () => {
 
         <TabsContent value="coldmail" className="mt-4">
           <ColdMailTab snapshots={coldmailSnapshots} syncing={syncingColdMail} onSync={() => syncColdMail.mutate()} />
-        </TabsContent>
-
-        <TabsContent value="mari" className="mt-4">
-          <MariSDRTab />
         </TabsContent>
       </Tabs>
     </div>

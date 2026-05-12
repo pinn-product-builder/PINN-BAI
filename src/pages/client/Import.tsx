@@ -1,5 +1,9 @@
-import { useState, useCallback } from 'react';
-import { Link, useNavigate, useParams, Outlet } from 'react-router-dom';
+import { useState, useCallback, useMemo } from 'react';
+import { Link, useNavigate, useParams, Outlet, useSearchParams } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useCreateIntegration } from '@/hooks/useIntegrations';
+import type { IntegrationType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -68,6 +72,113 @@ const ClientImport = () => {
   const { toast } = useToast();
   const { organization } = useOrganizationBranding();
   const { profile, signOut } = useAuth();
+  const [searchParams] = useSearchParams();
+  const providerSlug = searchParams.get('provider') as IntegrationType | null;
+  const createIntegration = useCreateIntegration();
+  const [creds, setCreds] = useState<Record<string, string>>({});
+  const [connectionName, setConnectionName] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  type FieldDef = {
+    key: string;
+    label: string;
+    type?: string;
+    placeholder?: string;
+    validate?: (v: string) => string | null;
+  };
+
+  const validators = useMemo(() => ({
+    url: (v: string) => {
+      if (!v.trim()) return 'Campo obrigatório.';
+      try {
+        const u = new URL(v.trim());
+        if (!u.protocol.startsWith('http')) return 'Use http(s)://';
+        return null;
+      } catch { return 'URL inválida.'; }
+    },
+    minLen: (n: number) => (v: string) =>
+      !v.trim() ? 'Campo obrigatório.' : v.trim().length < n ? `Mínimo ${n} caracteres.` : null,
+    required: (v: string) => (!v.trim() ? 'Campo obrigatório.' : null),
+  }), []);
+
+  const PROVIDER_FORMS: Record<IntegrationType, { name: string; logo: string; fields: FieldDef[] }> = useMemo(() => ({
+    supabase: {
+      name: 'Supabase', logo: '⚡',
+      fields: [
+        { key: 'url', label: 'Project URL', placeholder: 'https://xxx.supabase.co', validate: validators.url },
+        { key: 'anon_key', label: 'Anon Public Key', type: 'password', validate: validators.minLen(20) },
+      ],
+    },
+    google_sheets: {
+      name: 'Google Sheets', logo: '🟩',
+      fields: [
+        { key: 'spreadsheet_id', label: 'ID da Planilha', placeholder: 'Cole o ID entre /d/ e /edit', validate: validators.minLen(10) },
+        { key: 'sheet_name', label: 'Nome da Aba', placeholder: 'Sheet1', validate: validators.required },
+      ],
+    },
+    csv: {
+      name: 'Upload CSV', logo: '📄',
+      fields: [{ key: 'file_name', label: 'Nome do arquivo', placeholder: 'leads.csv', validate: validators.required }],
+    },
+    api: {
+      name: 'API REST', logo: '🔌',
+      fields: [
+        { key: 'base_url', label: 'URL Base', placeholder: 'https://api.exemplo.com', validate: validators.url },
+        { key: 'api_key', label: 'API Key / Token', type: 'password', validate: validators.minLen(8) },
+      ],
+    },
+    ploomes: {
+      name: 'Ploomes CRM', logo: '🟦',
+      fields: [{ key: 'user_key', label: 'User-Key', type: 'password', placeholder: 'Sua chave do Ploomes', validate: validators.minLen(16) }],
+    },
+    coldmail: {
+      name: 'Cold Mail Hackers', logo: '✉️',
+      fields: [{ key: 'api_key', label: 'API Key (CMH)', type: 'password', validate: validators.minLen(8) }],
+    },
+    smartlead: {
+      name: 'Smartlead', logo: '📧',
+      fields: [{ key: 'api_key', label: 'API Key (Smartlead)', type: 'password', validate: validators.minLen(8) }],
+    },
+  }), [validators]);
+
+  const providerForm = providerSlug ? PROVIDER_FORMS[providerSlug] : null;
+
+  const fieldErrors = useMemo(() => {
+    if (!providerForm) return {} as Record<string, string | null>;
+    return Object.fromEntries(
+      providerForm.fields.map((f) => [f.key, f.validate ? f.validate(creds[f.key] ?? '') : null]),
+    );
+  }, [providerForm, creds]);
+
+  const hasErrors = Object.values(fieldErrors).some(Boolean);
+
+  const handleProviderConnect = async () => {
+    if (!orgId || !providerSlug || !providerForm) return;
+    if (hasErrors) {
+      toast({ variant: 'destructive', title: 'Corrija os campos destacados antes de conectar.' });
+      return;
+    }
+    setIsConnecting(true);
+    try {
+      await createIntegration.mutateAsync({
+        org_id: orgId,
+        name: connectionName.trim() || providerForm.name,
+        type: providerSlug,
+        config: creds as never,
+      });
+      toast({ title: 'Integração conectada com sucesso!' });
+      navigate(`/client/${orgId}/integrations`);
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Falha ao conectar',
+        description: err instanceof Error ? err.message : 'Verifique as credenciais.',
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
 
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload');
   const [isDragging, setIsDragging] = useState(false);
@@ -76,6 +187,98 @@ const ClientImport = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const [detectedColumns, setDetectedColumns] = useState<DetectedColumn[]>([]);
+
+  // CSV pre-validation state
+  const EXPECTED_COLUMNS = ['nome', 'email', 'telefone', 'empresa', 'origem', 'status', 'valor'];
+  type CsvPreview = {
+    headers: string[];
+    rows: string[][];
+    rowCount: number;
+    types: Record<string, 'number' | 'date' | 'email' | 'string'>;
+    missingExpected: string[];
+    matchedExpected: string[];
+    issues: string[];
+  };
+  const [csvPreview, setCsvPreview] = useState<CsvPreview | null>(null);
+  const [csvValidating, setCsvValidating] = useState(false);
+
+  function detectType(values: string[]): 'number' | 'date' | 'email' | 'string' {
+    const clean = values.filter((v) => v && v.trim() !== '');
+    if (clean.length === 0) return 'string';
+    const isNum = clean.every((v) => !isNaN(Number(v.replace(',', '.'))));
+    if (isNum) return 'number';
+    const isEmail = clean.every((v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v));
+    if (isEmail) return 'email';
+    const isDate = clean.every((v) => !isNaN(Date.parse(v)));
+    if (isDate) return 'date';
+    return 'string';
+  }
+
+  function parseCsvLine(line: string, delim: string): string[] {
+    const out: string[] = [];
+    let cur = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === delim && !inQuotes) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map((c) => c.trim());
+  }
+
+  async function validateCsv(file: File) {
+    setCsvValidating(true);
+    setCsvPreview(null);
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
+      if (lines.length === 0) {
+        setCsvPreview({
+          headers: [], rows: [], rowCount: 0, types: {},
+          missingExpected: EXPECTED_COLUMNS, matchedExpected: [],
+          issues: ['Arquivo vazio.'],
+        });
+        return;
+      }
+      const delim = (lines[0].match(/;/g)?.length ?? 0) > (lines[0].match(/,/g)?.length ?? 0) ? ';' : ',';
+      const headers = parseCsvLine(lines[0], delim);
+      const dataLines = lines.slice(1);
+      const sample = dataLines.slice(0, 20).map((l) => parseCsvLine(l, delim));
+
+      const types: Record<string, 'number' | 'date' | 'email' | 'string'> = {};
+      headers.forEach((h, i) => {
+        types[h] = detectType(sample.map((r) => r[i] ?? ''));
+      });
+
+      const lower = headers.map((h) => h.toLowerCase());
+      const matchedExpected = EXPECTED_COLUMNS.filter((e) => lower.some((h) => h.includes(e)));
+      const missingExpected = EXPECTED_COLUMNS.filter((e) => !matchedExpected.includes(e));
+
+      const issues: string[] = [];
+      if (headers.length < 2) issues.push('Apenas uma coluna detectada — verifique o delimitador.');
+      if (new Set(headers).size !== headers.length) issues.push('Existem cabeçalhos duplicados.');
+      if (headers.some((h) => !h)) issues.push('Há cabeçalhos vazios.');
+      if (dataLines.length === 0) issues.push('Nenhuma linha de dados encontrada.');
+      const inconsistent = sample.filter((r) => r.length !== headers.length).length;
+      if (inconsistent > 0) issues.push(`${inconsistent} linha(s) com número de colunas inconsistente.`);
+
+      setCsvPreview({
+        headers, rows: sample, rowCount: dataLines.length,
+        types, missingExpected, matchedExpected, issues,
+      });
+    } catch (e) {
+      setCsvPreview({
+        headers: [], rows: [], rowCount: 0, types: {},
+        missingExpected: [], matchedExpected: [],
+        issues: [e instanceof Error ? e.message : 'Falha ao ler arquivo.'],
+      });
+    } finally {
+      setCsvValidating(false);
+    }
+  }
 
   const steps = [
     { id: 'upload', label: 'Upload', icon: Upload },
@@ -102,6 +305,8 @@ const ClientImport = () => {
     const file = e.dataTransfer.files[0];
     if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
       setSelectedFile(file);
+      if (file.name.endsWith('.csv')) validateCsv(file);
+      else setCsvPreview(null);
     } else {
       toast({
         title: 'Formato inválido',
@@ -109,12 +314,15 @@ const ClientImport = () => {
         variant: 'destructive',
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      if (file.name.endsWith('.csv')) validateCsv(file);
+      else setCsvPreview(null);
     }
   };
 
@@ -207,6 +415,81 @@ const ClientImport = () => {
       setIsImporting(false);
     }
   };
+
+  if (providerForm) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <Button
+          variant="ghost"
+          className="mb-4"
+          onClick={() => navigate(`/client/${orgId}/integrations`)}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Voltar à Central de Integrações
+        </Button>
+
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <span>{providerForm.logo}</span>
+              Conectar {providerForm.name}
+            </CardTitle>
+            <CardDescription>
+              Informe as credenciais para autorizar o Pinn a sincronizar seus dados.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Nome da conexão</Label>
+              <Input
+                value={connectionName}
+                onChange={(e) => setConnectionName(e.target.value)}
+                placeholder={`Ex.: ${providerForm.name} — Conta Principal`}
+              />
+            </div>
+
+            {providerForm.fields.map((field) => {
+              const value = creds[field.key] ?? '';
+              const err = value.length > 0 ? fieldErrors[field.key] : null;
+              return (
+                <div key={field.key} className="space-y-1.5">
+                  <Label>
+                    {field.label} <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type={field.type === 'password' ? 'password' : 'text'}
+                    placeholder={field.placeholder}
+                    value={value}
+                    aria-invalid={!!err}
+                    className={err ? 'border-destructive focus-visible:ring-destructive' : ''}
+                    onChange={(e) => setCreds((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  />
+                  {err && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />{err}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/client/${orgId}/integrations`)}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleProviderConnect} disabled={isConnecting || hasErrors}>
+                {isConnecting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Conectar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -336,7 +619,86 @@ const ClientImport = () => {
                 )}
               </div>
 
-              {selectedFile && (
+              {selectedFile && selectedFile.name.endsWith('.csv') && (
+                <div className="mt-6 space-y-3">
+                  {csvValidating && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Validando CSV (cabeçalhos, tipos e amostra)...
+                    </div>
+                  )}
+                  {csvPreview && (
+                    <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                        <span><strong>{csvPreview.rowCount}</strong> linhas</span>
+                        <span><strong>{csvPreview.headers.length}</strong> colunas</span>
+                        <span className="text-emerald-600">
+                          {csvPreview.matchedExpected.length}/{EXPECTED_COLUMNS.length} colunas esperadas detectadas
+                        </span>
+                      </div>
+
+                      {csvPreview.issues.length > 0 && (
+                        <div className="text-xs space-y-1 text-destructive">
+                          {csvPreview.issues.map((i) => (
+                            <div key={i} className="flex items-center gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5" />{i}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {csvPreview.missingExpected.length > 0 && (
+                        <div className="text-xs text-amber-600">
+                          Colunas esperadas ausentes (opcional): {csvPreview.missingExpected.join(', ')}
+                        </div>
+                      )}
+
+                      {csvPreview.headers.length > 0 && (
+                        <div className="overflow-x-auto">
+                          <table className="text-xs w-full border-collapse">
+                            <thead>
+                              <tr className="border-b">
+                                {csvPreview.headers.map((h) => (
+                                  <th key={h} className="text-left p-1.5 font-semibold">
+                                    <div>{h || <em className="text-destructive">vazio</em>}</div>
+                                    <div className="text-[10px] text-muted-foreground font-normal">
+                                      {csvPreview.types[h] ?? 'string'}
+                                    </div>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {csvPreview.rows.slice(0, 5).map((row, ri) => (
+                                <tr key={ri} className="border-b border-border/30">
+                                  {csvPreview.headers.map((_, ci) => (
+                                    <td key={ci} className="p-1.5 text-muted-foreground truncate max-w-[180px]">
+                                      {row[ci] ?? ''}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                      onClick={handleAnalyze}
+                      disabled={csvValidating || (csvPreview?.issues.length ?? 0) > 0}
+                    >
+                      Continuar
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selectedFile && !selectedFile.name.endsWith('.csv') && (
                 <div className="mt-6 flex justify-end">
                   <Button
                     className="bg-accent hover:bg-accent/90 text-accent-foreground"
