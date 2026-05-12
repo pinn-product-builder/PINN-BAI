@@ -3,7 +3,10 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+# Usa `npm install --legacy-peer-deps` (não `npm ci`) porque o lockfile
+# pode estar parcialmente fora de sync após merges grandes — mais resiliente,
+# custa ~5s a mais por build.
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 COPY . .
 
