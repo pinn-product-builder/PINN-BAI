@@ -12,24 +12,25 @@ import {
   CircularProgress,
   Fab,
   Button,
+  AppBar,
+  Toolbar,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
-  Dashboard as DashboardIcon,
   Upload as UploadIcon,
   Lightbulb as LightbulbIcon,
-  Settings as SettingsIcon,
   Logout as LogoutIcon,
   TrackChanges as TargetIcon,
   AutoAwesome as SparklesIcon,
   FactCheck as AuditorIcon,
   Insights as InsightsIcon,
-  Campaign as CampaignIcon,
   FavoriteBorder as HeartIcon,
   Hub as HubIcon,
   TrendingUp as TrendingUpIcon,
   EmojiEvents as TrophyIcon,
-  WorkspacePremium as AchievementIcon,
   ArrowBack as ArrowBackIcon,
+  Menu as MenuIcon,
 } from "@mui/icons-material";
 import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,27 +40,27 @@ import { useState } from "react";
 import { isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
 
 const DRAWER_WIDTH = 220;
+const MOBILE_APPBAR_HEIGHT = 56;
 
 const baseNavItems = [
   { path: "arguto",          label: "Arguto · BAI",     icon: InsightsIcon },
   { path: "import",          label: "Dados",            icon: UploadIcon },
   { path: "insights",        label: "Inteligência IA",  icon: LightbulbIcon },
   { path: "rfm-churn",       label: "RFM + Churn",      icon: TargetIcon },
-  { path: "paid-traffic",    label: "Tráfego Pago",     icon: CampaignIcon },
   { path: "customer-health", label: "Saúde do Cliente", icon: HeartIcon },
   { path: "unit-economics",  label: "CAC + LTV",        icon: TrendingUpIcon },
   { path: "goals",           label: "Metas & Alertas",  icon: TrophyIcon },
-  { path: "gamification",    label: "Conquistas",       icon: AchievementIcon },
   { path: "integrations",    label: "Integrações",      icon: HubIcon },
-  { path: "crm-auditor",     label: "Auditor CRM",      icon: AuditorIcon },
   { path: "crm-audit",       label: "Auditoria CRM",    icon: AuditorIcon },
-  { path: "settings",        label: "White Label",      icon: SettingsIcon },
 ];
 
 const ClientLayout = () => {
   const { orgId } = useParams();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { organization, isLoading } = useOrganizationBranding();
   const { profile, signOut, isPlatformAdmin } = useAuth();
   const navigate = useNavigate();
@@ -81,11 +82,51 @@ const ClientLayout = () => {
   }
 
   const orgInitial = organization?.name?.charAt(0)?.toUpperCase() || "O";
+  const closeMobileNav = () => setMobileNavOpen(false);
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+      {/* ── AppBar mobile (apenas <md) ── */}
+      {isMobile && (
+        <AppBar
+          position="fixed"
+          elevation={0}
+          sx={{
+            bgcolor: "background.paper",
+            color: "text.primary",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            zIndex: (t) => t.zIndex.drawer + 1,
+          }}
+        >
+          <Toolbar variant="dense" sx={{ minHeight: MOBILE_APPBAR_HEIGHT, gap: 1.5, px: 2 }}>
+            <IconButton
+              edge="start"
+              size="small"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Abrir menu"
+              sx={{ color: "text.primary" }}
+            >
+              <MenuIcon />
+            </IconButton>
+            {organization?.logo_url ? (
+              <Box component="img" src={organization.logo_url} alt={organization.name} sx={{ height: 22, maxWidth: 110, objectFit: "contain" }} />
+            ) : (
+              <Box component="img" src="/pinn-logo.svg" alt="Pinn" sx={{ height: 22, width: "auto" }} />
+            )}
+            <Box sx={{ flex: 1 }} />
+            <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }} noWrap>
+              {organization?.name || "Pinn BAI"}
+            </Typography>
+          </Toolbar>
+        </AppBar>
+      )}
+
       <Drawer
-        variant="permanent"
+        variant={isMobile ? "temporary" : "permanent"}
+        open={isMobile ? mobileNavOpen : true}
+        onClose={closeMobileNav}
+        ModalProps={{ keepMounted: true }}
         sx={{
           width: DRAWER_WIDTH,
           flexShrink: 0,
@@ -152,7 +193,10 @@ const ClientLayout = () => {
               fullWidth
               size="small"
               startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
-              onClick={() => navigate("/admin/hq")}
+              onClick={() => {
+                closeMobileNav();
+                navigate("/admin/hq");
+              }}
               variant="outlined"
               sx={{
                 justifyContent: "flex-start",
@@ -181,6 +225,7 @@ const ClientLayout = () => {
                 component={RouterLink}
                 to={`/client/${orgId}/${path}`}
                 selected={active}
+                onClick={isMobile ? closeMobileNav : undefined}
                 sx={{
                   borderRadius: 1,
                   mb: 0.25,
@@ -233,7 +278,17 @@ const ClientLayout = () => {
         </Box>
       </Drawer>
 
-      <Box component="main" sx={{ flex: 1, minHeight: "100vh", minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          minHeight: "100vh",
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          pt: isMobile ? `${MOBILE_APPBAR_HEIGHT}px` : 0,
+        }}
+      >
         <GlobalFilterBar />
         <Outlet />
       </Box>

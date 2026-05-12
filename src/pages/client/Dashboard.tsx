@@ -31,7 +31,8 @@ import { useToast } from '@/hooks/use-toast';
 import DashboardEngine from '@/components/dashboard/DashboardEngine';
 import { ReportGenerator } from '@/lib/report-generator';
 import { useDashboardNarrative } from '@/hooks/useDashboardNarrative';
-import { isRfmChurnEnabledForOrg, isDemoOrg } from '@/lib/featureFlags';
+import { isRfmChurnEnabledForOrg, isDemoOrg, isDemoSlug } from '@/lib/featureFlags';
+import { useOrganizationBranding } from '@/contexts/OrganizationBrandingContext';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { useKpiComparison, type IsoRange } from '@/hooks/useKpiComparison';
 
@@ -167,13 +168,7 @@ function KpiRow({ orgId }: { orgId: string }) {
 
 const Dashboard = () => {
   const { orgId } = useParams();
-
-  // Orgs em modo demo (ex.: Arguto) recebem a tela /arguto dedicada como
-  // landing — evita session restaurada cair em /dashboard zerado.
-  if (isDemoOrg(orgId)) {
-    return <Navigate to={`/client/${orgId}/arguto`} replace />;
-  }
-
+  const { organization, isLoading: brandingLoading } = useOrganizationBranding();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isVoiceActive, setIsVoiceActive] = useState(false);
@@ -182,6 +177,10 @@ const Dashboard = () => {
   const [showShare, setShowShare] = useState(false);
   const [isEditingLayout, setIsEditingLayout] = useState(false);
   const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
+
+  // Detecção demo precisa rodar ANTES de qualquer query/fetch da org real,
+  // mas DEPOIS dos hooks (regra de hooks: chamada consistente entre renders).
+  const isDemo = isDemoSlug(organization?.slug) || isDemoOrg(orgId);
 
   const { data: dashboards, isLoading: isLoadingDashes } = useQuery({
     queryKey: ['org-dashboards', orgId],
@@ -196,7 +195,7 @@ const Dashboard = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!orgId,
+    enabled: !!orgId && !isDemo && !brandingLoading,
   });
 
   const activeDash = dashboards?.find(d => d.id === selectedDashId)
@@ -204,6 +203,23 @@ const Dashboard = () => {
     || dashboards?.[0];
 
   const { narrative, isLoading: isLoadingNarrative } = useDashboardNarrative(activeDash?.id, orgId);
+
+  // Orgs em modo demo (ex.: Arguto) recebem a tela /arguto dedicada como
+  // landing — evita session restaurada cair em /dashboard zerado.
+  // Detecta por slug (estável entre ambientes) ou por id hardcoded (fallback).
+  if (isDemo) {
+    return <Navigate to={`/client/${orgId}/arguto`} replace />;
+  }
+
+  // Branding ainda carregando — espera pra evitar piscar o dashboard zerado
+  // antes do redirect demo disparar pra orgs cujo id não bate o hardcoded.
+  if (brandingLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   const handleExportPDF = async () => {
     if (!activeDash) return;

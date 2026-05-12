@@ -95,7 +95,7 @@ const Login = () => {
       </div>
 
       {/* ── Right panel — form ── */}
-      <div className="flex-1 flex items-center justify-center p-8 lg:p-16 relative bg-background">
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-16 relative bg-background">
         {/* Divider */}
         <div className="absolute top-0 left-0 w-px h-full bg-border hidden lg:block" />
 
