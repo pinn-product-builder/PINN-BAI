@@ -27,3 +27,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code local config
+.claude/
+
+# Material de design fonte (assets/fontes/specs — não vai pra produção)
+Pinn Design System/
+Nova pasta/

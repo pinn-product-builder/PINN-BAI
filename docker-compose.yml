@@ -47,6 +47,8 @@ services:
         # Supabase do projeto Mari (mesmo URL/key que o backend Mari usa — idealmente anon com RLS ou service role só em rede fechada)
         VITE_MARI_SUPABASE_URL: ${VITE_MARI_SUPABASE_URL:-}
         VITE_MARI_SUPABASE_KEY: ${VITE_MARI_SUPABASE_KEY:-}
+        # Google Maps JS API (demo Arguto / pinn-bai → /client/:orgId/arguto)
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
     # Bind opcional (ex.: 127.0.0.1:18080 na VPS); Traefik usa a rede Docker.
     ports:
       - "${WEB_HOST_PORT:-127.0.0.1:8080}:80"
