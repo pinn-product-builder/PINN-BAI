@@ -78,115 +78,72 @@ export default function UnitEconomics() {
       LTV: Math.round(c.ltv),
     })) ?? [];
 
-  // ─── KPIs em 2 linhas de 4 (w:3 cada → 12 cols por linha) ───
-  // Linha 1: CAC · LTV · LTV:CAC · Payback
-  // Linha 2: Ticket Médio · Verba Total · Receita Total · Retenção Média
-  // Widgets maiores embaixo, todos full-width (w:12 = 1 por linha).
+  // ─── KPIs: grid estático Tailwind, 4 colunas no md+ (sempre lado a lado) ───
+  // Sai do EditableCardGrid pra evitar que breakpoints do react-grid-layout
+  // empilhem as cards em telas médias. Drag/drop continua nos widgets maiores.
+  const kpiCards = ue ? (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <KpiCard
+        label="CAC"
+        value={ue.cac > 0 ? BRL.format(ue.cac) : 'N/A'}
+        sub="Custo por cliente pago"
+        icon={DollarSign}
+        health={ue.cac > 0 ? (ue.ltvCacRatio >= 3 ? 'good' : ue.ltvCacRatio >= 1 ? 'warn' : 'bad') : 'neutral'}
+      />
+      <KpiCard
+        label="LTV"
+        value={BRL.format(ue.ltv)}
+        sub={`${ue.avgRetentionMonths} meses ret. est.`}
+        icon={Repeat}
+        health="neutral"
+      />
+      <KpiCard
+        label="LTV:CAC"
+        value={ue.cac > 0 ? `${NUM.format(ue.ltvCacRatio)}x` : '∞'}
+        sub={ue.ltvCacRatio >= 3 ? 'Meta: ≥ 3x ✓' : 'Meta: ≥ 3x'}
+        icon={Target}
+        health={ltvHealth}
+      />
+      <KpiCard
+        label="Payback"
+        value={ue.paybackMonths > 0 ? `${NUM.format(ue.paybackMonths)} meses` : '—'}
+        sub="Para recuperar o CAC"
+        icon={Clock}
+        health={ue.paybackMonths > 0 ? (ue.paybackMonths <= 6 ? 'good' : ue.paybackMonths <= 12 ? 'warn' : 'bad') : 'neutral'}
+      />
+      <KpiCard
+        label="Ticket Médio"
+        value={BRL.format(ue.avgTicket)}
+        sub={`${ue.totalConversions} conversões`}
+        icon={DollarSign}
+        health="neutral"
+      />
+      <KpiCard
+        label="Verba Total"
+        value={BRL.format(ue.totalSpend)}
+        sub={`${ue.paidConversions} conv. pagas`}
+        icon={Wallet}
+        health="neutral"
+      />
+      <KpiCard
+        label="Receita Total"
+        value={BRL.format(ue.totalRevenue)}
+        sub={`${ue.totalConversions} clientes convertidos`}
+        icon={Users}
+        health="neutral"
+      />
+      <KpiCard
+        label="Retenção Média"
+        value={`${ue.avgRetentionMonths} meses`}
+        sub="Janela usada no LTV"
+        icon={CalendarDays}
+        health="neutral"
+      />
+    </div>
+  ) : null;
+
+  // ─── Widgets maiores (full-width, drag/drop opcional) ───
   const widgets: CardWidget[] = ue ? [
-    {
-      id: 'ue:kpi:cac',
-      size: { w: 3, h: 4 },
-      render: () => (
-        <KpiCard
-          label="CAC"
-          value={ue.cac > 0 ? BRL.format(ue.cac) : 'N/A'}
-          sub="Custo por cliente pago"
-          icon={DollarSign}
-          health={ue.cac > 0 ? (ue.ltvCacRatio >= 3 ? 'good' : ue.ltvCacRatio >= 1 ? 'warn' : 'bad') : 'neutral'}
-        />
-      ),
-    },
-    {
-      id: 'ue:kpi:ltv',
-      size: { w: 3, h: 4 },
-      render: () => (
-        <KpiCard
-          label="LTV"
-          value={BRL.format(ue.ltv)}
-          sub={`${ue.avgRetentionMonths} meses ret. est.`}
-          icon={Repeat}
-          health="neutral"
-        />
-      ),
-    },
-    {
-      id: 'ue:kpi:ltv-cac',
-      size: { w: 3, h: 4 },
-      render: () => (
-        <KpiCard
-          label="LTV:CAC"
-          value={ue.cac > 0 ? `${NUM.format(ue.ltvCacRatio)}x` : '∞'}
-          sub={ue.ltvCacRatio >= 3 ? 'Meta: ≥ 3x ✓' : 'Meta: ≥ 3x'}
-          icon={Target}
-          health={ltvHealth}
-        />
-      ),
-    },
-    {
-      id: 'ue:kpi:payback',
-      size: { w: 3, h: 4 },
-      render: () => (
-        <KpiCard
-          label="Payback"
-          value={ue.paybackMonths > 0 ? `${NUM.format(ue.paybackMonths)} meses` : '—'}
-          sub="Para recuperar o CAC"
-          icon={Clock}
-          health={ue.paybackMonths > 0 ? (ue.paybackMonths <= 6 ? 'good' : ue.paybackMonths <= 12 ? 'warn' : 'bad') : 'neutral'}
-        />
-      ),
-    },
-    {
-      id: 'ue:kpi:ticket',
-      size: { w: 3, h: 4 },
-      render: () => (
-        <KpiCard
-          label="Ticket Médio"
-          value={BRL.format(ue.avgTicket)}
-          sub={`${ue.totalConversions} conversões`}
-          icon={DollarSign}
-          health="neutral"
-        />
-      ),
-    },
-    {
-      id: 'ue:kpi:verba',
-      size: { w: 3, h: 4 },
-      render: () => (
-        <KpiCard
-          label="Verba Total"
-          value={BRL.format(ue.totalSpend)}
-          sub={`${ue.paidConversions} conv. pagas`}
-          icon={Wallet}
-          health="neutral"
-        />
-      ),
-    },
-    {
-      id: 'ue:kpi:revenue',
-      size: { w: 3, h: 4 },
-      render: () => (
-        <KpiCard
-          label="Receita Total"
-          value={BRL.format(ue.totalRevenue)}
-          sub={`${ue.totalConversions} clientes convertidos`}
-          icon={Users}
-          health="neutral"
-        />
-      ),
-    },
-    {
-      id: 'ue:kpi:retention',
-      size: { w: 3, h: 4 },
-      render: () => (
-        <KpiCard
-          label="Retenção Média"
-          value={`${ue.avgRetentionMonths} meses`}
-          sub="Janela usada no LTV"
-          icon={CalendarDays}
-          health="neutral"
-        />
-      ),
-    },
     {
       id: 'ue:ltv-cac-health',
       size: { w: 12, h: 4 },
@@ -336,12 +293,15 @@ export default function UnitEconomics() {
           <p className="text-sm mt-1">Conecte Meta Ads ou Google Ads e importe clientes convertidos.</p>
         </div>
       ) : (
-        <EditableCardGrid
-          pageKey="unit-economics-v3"
-          orgId={orgId}
-          widgets={widgets}
-          isEditing={isEditingLayout}
-        />
+        <div className="space-y-4">
+          {kpiCards}
+          <EditableCardGrid
+            pageKey="unit-economics-v4"
+            orgId={orgId}
+            widgets={widgets}
+            isEditing={isEditingLayout}
+          />
+        </div>
       )}
     </div>
   );
