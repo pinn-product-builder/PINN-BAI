@@ -1,18 +1,16 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LayoutDashboard, ListChecks, Calculator, ShieldAlert, Move, Check } from 'lucide-react';
+import { LayoutDashboard, ListChecks, Calculator, ShieldAlert } from 'lucide-react';
 import ExecutiveSnapshot from '@/components/arguto/ExecutiveSnapshot';
 import Operacao from '@/components/arguto/Operacao';
 import RoiSimulator from '@/components/arguto/RoiSimulator';
 import RfmChurnModule from '@/components/analytics/RfmChurnModule';
 import { isRfmChurnEnabledForOrg } from '@/lib/featureFlags';
-import { cn } from '@/lib/utils';
 
 const Arguto = () => {
   const { orgId } = useParams();
   const [tab, setTab] = useState('snapshot');
-  const [isEditingLayout, setIsEditingLayout] = useState(false);
   const churnEnabled = isRfmChurnEnabledForOrg(orgId);
 
   return (
@@ -37,22 +35,8 @@ const Arguto = () => {
           </p>
         </div>
 
-        {/* Botão Editar Layout — aparece só no tab Snapshot */}
-        {tab === 'snapshot' && (
-          <button
-            type="button"
-            onClick={() => setIsEditingLayout((v) => !v)}
-            className={cn(
-              'shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition-all',
-              isEditingLayout
-                ? 'border-primary/50 bg-primary text-primary-foreground shadow-sm'
-                : 'border-border/60 bg-card text-foreground hover:border-primary/40 hover:text-primary'
-            )}
-          >
-            {isEditingLayout ? <Check className="w-3.5 h-3.5" /> : <Move className="w-3.5 h-3.5" />}
-            {isEditingLayout ? 'Concluir edição' : 'Editar layout'}
-          </button>
-        )}
+        {/* Botão Editar Layout removido — Snapshot agora usa grid Tailwind
+            estático (sempre 4 colunas lado a lado, sem drag/drop). */}
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
@@ -88,7 +72,6 @@ const Arguto = () => {
         <TabsContent value="snapshot" className="mt-6">
           <ExecutiveSnapshot
             onOpenChurn={churnEnabled ? () => setTab('churn') : undefined}
-            isEditing={isEditingLayout}
           />
         </TabsContent>
         <TabsContent value="operacao" className="mt-6">

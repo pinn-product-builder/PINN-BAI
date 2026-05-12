@@ -12,7 +12,7 @@ import {
 } from '@/data/arguto-demo';
 import { isRfmChurnEnabledForOrg } from '@/lib/featureFlags';
 import MetricExplanationDialog from './MetricExplanationDialog';
-import { EditableCardGrid, type CardWidget } from '@/components/dashboard/EditableCardGrid';
+import type { CardWidget } from '@/components/dashboard/EditableCardGrid';
 
 interface ExecutiveSnapshotProps {
   onOpenChurn?: () => void;
@@ -244,8 +244,6 @@ export default function ExecutiveSnapshot({ onOpenChurn, isEditing = false }: Ex
     }),
   ];
 
-  const pageKey = 'arguto:snapshot';
-
   return (
     <div className="space-y-6">
       {/* Header narrativo */}
@@ -256,29 +254,28 @@ export default function ExecutiveSnapshot({ onOpenChurn, isEditing = false }: Ex
         <p className="text-sm text-muted-foreground">
           A dor da Arguto em números — quanto está em jogo hoje, e o que o Pinn BAI desbloqueia.
           <span className="ml-2 text-[11px] italic text-muted-foreground/70">
-            {isEditing
-              ? 'Modo edição ativo — arraste pra reposicionar, redimensione pelos cantos.'
-              : 'Clique em qualquer card para ver o detalhamento completo.'}
+            Clique em qualquer card para ver o detalhamento completo.
           </span>
         </p>
       </div>
 
-      {/* Banner de alertas (rótulo acima do grid, fica fora dos widgets) */}
+      {/* Banner */}
       <div className="flex items-center gap-2">
         <AlertTriangle className="w-4 h-4 text-primary" />
         <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
           KPIs e alertas operacionais
         </h3>
-        <span className="text-[11px] text-muted-foreground">— arraste os cards pra montar sua visão</span>
       </div>
 
-      {/* Grid editável (cards) */}
-      <EditableCardGrid
-        pageKey={pageKey}
-        orgId={orgId}
-        widgets={widgets}
-        isEditing={isEditing}
-      />
+      {/* Grid estático Tailwind — sempre 4 colunas lado a lado em md+ */}
+      {/* (Linha 1: 4 KPIs hero · Linha 2: 4 alertas operacionais) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 auto-rows-fr">
+        {widgets.map((w) => (
+          <div key={w.id} className="h-full">
+            {w.render()}
+          </div>
+        ))}
+      </div>
 
       {/* Footnote */}
       <p className="text-[10px] text-muted-foreground/60 text-center pt-4 border-t border-border/30">

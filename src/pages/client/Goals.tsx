@@ -432,7 +432,7 @@ export default function Goals() {
               <p className="text-sm mt-1">Crie metas por KPI para acompanhar o progresso do time.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {goals.map(goal => (
                 <GoalCard
                   key={goal.id}

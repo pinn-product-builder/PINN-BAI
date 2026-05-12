@@ -127,7 +127,7 @@ function KpiRow({ orgId }: { orgId: string }) {
   const periodLabel = totalLeads.periodLabel;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <KpiCard
         title="Total de Leads"
         value={totalLeads.current ?? 0}
@@ -414,7 +414,7 @@ const Dashboard = () => {
         {activeDash?.id ? (
           <DashboardEngine dashboardId={activeDash.id} isEditing={isEditingLayout} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="h-[140px] rounded-xl bg-muted/20 animate-pulse border border-dashed border-border/40" />
             ))}
