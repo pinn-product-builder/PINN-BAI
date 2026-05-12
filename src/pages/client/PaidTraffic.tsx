@@ -135,7 +135,7 @@ export default function PaidTraffic() {
   const platformEntries = Object.entries(summary?.byPlatform ?? {});
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-6 space-y-6 pb-24 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>

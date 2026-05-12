@@ -128,7 +128,7 @@ const CRMPage = () => {
     if (!orgId) return null;
 
     return (
-        <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        <div className="p-6 space-y-6 pb-24 max-w-7xl mx-auto">
 
             {/* ── Page header ──────────────────────────────────────────────── */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

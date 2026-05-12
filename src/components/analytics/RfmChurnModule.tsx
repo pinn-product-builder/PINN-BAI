@@ -164,7 +164,13 @@ const RfmChurnModule = ({
         </TabsContent>
 
         <TabsContent value="churn" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Total avaliados</CardDescription>
+                <CardTitle className="text-xl text-foreground">{summary.customers}</CardTitle>
+              </CardHeader>
+            </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Risco Alto</CardDescription>

@@ -172,7 +172,7 @@ export default function PaidTrafficConnect() {
   });
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-6 space-y-6 pb-24 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => navigate(`/client/${orgId}/paid-traffic`)}>
           <ArrowLeft className="w-4 h-4 mr-1" /> Voltar

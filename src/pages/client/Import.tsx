@@ -418,7 +418,7 @@ const ClientImport = () => {
 
   if (providerForm) {
     return (
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-6 space-y-6 pb-24 max-w-7xl mx-auto">
         <Button
           variant="ghost"
           className="mb-4"
@@ -492,7 +492,7 @@ const ClientImport = () => {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-6 space-y-6 pb-24 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <Button

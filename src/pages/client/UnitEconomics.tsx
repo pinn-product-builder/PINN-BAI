@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFilters } from '@/hooks/useFilters';
 import { useUnitEconomics } from '@/hooks/useUnitEconomics';
@@ -8,9 +7,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { Loader2, TrendingUp, DollarSign, Users, Target, Clock, Repeat, Move, Check, CalendarDays, Wallet } from 'lucide-react';
+import { Loader2, TrendingUp, DollarSign, Users, Target, Clock, Repeat, CalendarDays, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EditableCardGrid, type CardWidget } from '@/components/dashboard/EditableCardGrid';
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const NUM = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
@@ -63,7 +61,6 @@ export default function UnitEconomics() {
   const { orgId } = useParams<{ orgId: string }>();
   const { dateRangeISO } = useFilters();
   const { data: ue, isLoading } = useUnitEconomics(orgId, dateRangeISO);
-  const [isEditingLayout, setIsEditingLayout] = useState(false);
 
   const ltvHealth = !ue ? 'neutral'
     : ue.ltvCacRatio >= 3 ? 'good'
@@ -142,39 +139,32 @@ export default function UnitEconomics() {
     </div>
   ) : null;
 
-  // ─── Widgets maiores (full-width, drag/drop opcional) ───
-  const widgets: CardWidget[] = ue ? [
-    {
-      id: 'ue:ltv-cac-health',
-      size: { w: 12, h: 4 },
-      render: () => (
-        <Card className={cn(
-          'border h-full',
-          ltvHealth === 'good' ? 'border-emerald-500/30 bg-emerald-500/5' :
-          ltvHealth === 'warn' ? 'border-amber-500/30 bg-amber-500/5' :
-          ltvHealth === 'bad' ? 'border-destructive/30 bg-destructive/5' : '',
-        )}>
-          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4 h-full">
-            <div className="flex-1">
-              <p className="font-semibold text-sm">Saúde do Ratio LTV:CAC</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {ltvHealth === 'good'
-                  ? 'Excelente. Para cada R$ 1 investido em aquisição, você recupera ' + NUM.format(ue.ltvCacRatio) + 'x.'
-                  : ltvHealth === 'warn'
-                  ? 'Atenção. O retorno está abaixo do ideal (3x). Revise o ticket médio ou reduza o CAC.'
-                  : 'Crítico. O custo de aquisição é maior que o valor gerado pelo cliente. Intervenção urgente necessária.'}
-              </p>
-            </div>
-            <LtvCacBadge ratio={ue.ltvCacRatio} />
-          </CardContent>
-        </Card>
-      ),
-    },
-    ...(ue.byChannel.length > 0 ? [{
-      id: 'ue:channels-table',
-      size: { w: 12, h: 7 },
-      render: () => (
-        <Card className="h-full">
+  // ─── Cards maiores (stack full-width, igual ao Arguto) ───
+  const largeCards = ue ? (
+    <>
+      <Card className={cn(
+        'border',
+        ltvHealth === 'good' ? 'border-emerald-500/30 bg-emerald-500/5' :
+        ltvHealth === 'warn' ? 'border-amber-500/30 bg-amber-500/5' :
+        ltvHealth === 'bad' ? 'border-destructive/30 bg-destructive/5' : '',
+      )}>
+        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1">
+            <p className="font-semibold text-sm">Saúde do Ratio LTV:CAC</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {ltvHealth === 'good'
+                ? 'Excelente. Para cada R$ 1 investido em aquisição, você recupera ' + NUM.format(ue.ltvCacRatio) + 'x.'
+                : ltvHealth === 'warn'
+                ? 'Atenção. O retorno está abaixo do ideal (3x). Revise o ticket médio ou reduza o CAC.'
+                : 'Crítico. O custo de aquisição é maior que o valor gerado pelo cliente. Intervenção urgente necessária.'}
+            </p>
+          </div>
+          <LtvCacBadge ratio={ue.ltvCacRatio} />
+        </CardContent>
+      </Card>
+
+      {ue.byChannel.length > 0 && (
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">Comparativo por Canal</CardTitle>
           </CardHeader>
@@ -197,18 +187,15 @@ export default function UnitEconomics() {
             </div>
           </CardContent>
         </Card>
-      ),
-    } as CardWidget] : []),
-    ...(channelChartData.length > 0 ? [{
-      id: 'ue:channels-chart',
-      size: { w: 12, h: 8 },
-      render: () => (
-        <Card className="h-full">
+      )}
+
+      {channelChartData.length > 0 && (
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">CAC vs LTV por Canal</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={channelChartData} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
@@ -224,35 +211,31 @@ export default function UnitEconomics() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      ),
-    } as CardWidget] : []),
-    {
-      id: 'ue:origem',
-      size: { w: 12, h: 5 },
-      render: () => (
-        <Card className="h-full">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Conversões por Origem</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {[
-              { label: 'Pagas (ads)', value: ue.paidConversions, color: 'text-primary' },
-              { label: 'Orgânicas', value: ue.organicConversions, color: 'text-emerald-500' },
-              { label: 'Total', value: ue.totalConversions, color: 'text-foreground' },
-            ].map((item) => (
-              <div key={item.label} className="text-center p-3 rounded-lg bg-muted/50">
-                <p className={cn('text-2xl font-bold', item.color)}>{item.value}</p>
-                <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ),
-    },
-  ] : [];
+      )}
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Conversões por Origem</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Pagas (ads)', value: ue.paidConversions, color: 'text-primary' },
+            { label: 'Orgânicas', value: ue.organicConversions, color: 'text-emerald-500' },
+            { label: 'Convertidos', value: ue.totalConversions, color: 'text-foreground' },
+            { label: 'Retenção (m)', value: ue.avgRetentionMonths, color: 'text-amber-500' },
+          ].map((item) => (
+            <div key={item.label} className="text-center p-3 rounded-lg bg-muted/50">
+              <p className={cn('text-2xl font-bold', item.color)}>{item.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </>
+  ) : null;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-6 space-y-6 pb-24 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -264,22 +247,6 @@ export default function UnitEconomics() {
             CAC, LTV e payback cruzando CRM com investimento em mídia paga.
           </p>
         </div>
-
-        {ue && (
-          <button
-            type="button"
-            onClick={() => setIsEditingLayout((v) => !v)}
-            className={cn(
-              'shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold border transition-all',
-              isEditingLayout
-                ? 'border-primary/50 bg-primary text-primary-foreground shadow-sm'
-                : 'border-border/60 bg-card text-foreground hover:border-primary/40 hover:text-primary',
-            )}
-          >
-            {isEditingLayout ? <Check className="w-3.5 h-3.5" /> : <Move className="w-3.5 h-3.5" />}
-            {isEditingLayout ? 'Concluir edição' : 'Editar layout'}
-          </button>
-        )}
       </div>
 
       {isLoading ? (
@@ -293,15 +260,10 @@ export default function UnitEconomics() {
           <p className="text-sm mt-1">Conecte Meta Ads ou Google Ads e importe clientes convertidos.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <>
           {kpiCards}
-          <EditableCardGrid
-            pageKey="unit-economics-v4"
-            orgId={orgId}
-            widgets={widgets}
-            isEditing={isEditingLayout}
-          />
-        </div>
+          {largeCards}
+        </>
       )}
     </div>
   );
