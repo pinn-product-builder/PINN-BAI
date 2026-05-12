@@ -195,7 +195,7 @@ export default function PaidTraffic() {
       ) : (
         <>
           {/* KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KpiTile
               label="Investimento"
               value={BRL.format(t?.spend ?? 0)}
@@ -227,7 +227,7 @@ export default function PaidTraffic() {
 
           {/* Por plataforma */}
           {platformEntries.length > 1 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {platformEntries.map(([slug, m]) => {
                 const pl = PLATFORM_LABELS[slug] ?? { label: slug, color: '#888', emoji: '📢' };
                 return (

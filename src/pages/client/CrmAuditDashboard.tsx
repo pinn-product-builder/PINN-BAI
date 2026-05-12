@@ -665,7 +665,7 @@ export default function CrmAuditDashboard() {
               <Section id="scoreboard" title="Maturidade da operação comercial" subtitle="Seis pilares calculados sobre este snapshot. Acompanhe a evolução histórica para tendências comparativas." accent>
                 <Grid container spacing={2}>
                   {PILLARS.map(p => (
-                    <Grid item xs={12} sm={6} md={4} key={p.key}>
+                    <Grid item xs={6} md={3} key={p.key}>
                       <PillarCard title={p.title} hint={p.hint} score={execResolved.scores?.[p.key] ?? 0} />
                     </Grid>
                   ))}
@@ -686,7 +686,7 @@ export default function CrmAuditDashboard() {
                     { title: "Pontos fortes", items: brief.opportunities, color: CHART_COLORS.green },
                     { title: "Prioridades da semana", items: brief.weeklyActions, color: ORANGE },
                   ].map(col => (
-                    <Grid item xs={12} sm={6} md={3} key={col.title}>
+                    <Grid item xs={6} md={3} key={col.title}>
                       <Box sx={{ p: 2, borderRadius: "10px", border: "1px solid", borderColor: "divider", bgcolor: "action.hover", height: "100%", borderLeft: `3px solid ${col.color}` }}>
                         <Typography variant="caption" sx={{ fontSize: "0.63rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "text.secondary", display: "block", mb: 1 }}>
                           {col.title}
@@ -934,7 +934,7 @@ export default function CrmAuditDashboard() {
                     { label: "Vencidas (com data)", value: fmtNum(taskM.overdue as number), warn: (taskM.overdue as number) > 0 },
                     { label: "Atraso médio (dias)", value: taskM.avg_overdue_days != null ? fmtNum(taskM.avg_overdue_days as number) : "—" },
                   ].map((m, i) => (
-                    <Grid item xs={6} sm={4} md={2.4} key={i}><MetricCard label={m.label} value={m.value} warn={m.warn} /></Grid>
+                    <Grid item xs={6} md={3} key={i}><MetricCard label={m.label} value={m.value} warn={m.warn} /></Grid>
                   ))}
                 </Grid>
 
@@ -1012,7 +1012,7 @@ export default function CrmAuditDashboard() {
                     { label: "Valor perdido", value: fmtMoney(fin.lost_pipeline_value as number) },
                     { label: "Perdas sem motivo", value: fmtNum(lossM.lost_without_reason_count as number), warn: (lossM.lost_without_reason_count as number) > 0 },
                   ].map((m, i) => (
-                    <Grid item xs={6} sm={3} key={i}><MetricCard label={m.label} value={m.value} warn={m.warn} /></Grid>
+                    <Grid item xs={6} md={3} key={i}><MetricCard label={m.label} value={m.value} warn={m.warn} /></Grid>
                   ))}
                 </Grid>
 
@@ -1065,7 +1065,7 @@ export default function CrmAuditDashboard() {
                     { label: "Abertas sem valor", value: fmtNum(ov.open_leads_without_value), warn: (ov.open_leads_without_value ?? 0) > 0 },
                     { label: "Concentração top 3 deals", value: fmtPct(fin.open_value_concentration_top3_pct as number, 2) },
                   ].map((m, i) => (
-                    <Grid item xs={6} sm={3} key={i}><MetricCard label={m.label} value={m.value} highlight={m.highlight} warn={m.warn} /></Grid>
+                    <Grid item xs={6} md={3} key={i}><MetricCard label={m.label} value={m.value} highlight={m.highlight} warn={m.warn} /></Grid>
                   ))}
                 </Grid>
 

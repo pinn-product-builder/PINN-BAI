@@ -418,7 +418,7 @@ const ClientImport = () => {
 
   if (providerForm) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="p-6 space-y-6 max-w-7xl mx-auto">
         <Button
           variant="ghost"
           className="mb-4"
@@ -492,7 +492,7 @@ const ClientImport = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <Button
@@ -511,7 +511,7 @@ const ClientImport = () => {
 
       {/* Progress steps */}
       <div className="mb-8">
-        <div className="flex items-center justify-between max-w-2xl">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
           {steps.map((step, index) => {
             const Icon = step.icon;
             const isCompleted = index < currentStepIndex;
@@ -549,7 +549,7 @@ const ClientImport = () => {
       </div>
 
       {/* Step content */}
-      <div className="max-w-4xl">
+      <div className="max-w-4xl mx-auto">
         {/* Upload step */}
         {currentStep === 'upload' && (
           <Card>
