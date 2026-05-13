@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DashboardGrid } from './DashboardGrid';
+import { DashboardGrid, normalizeLayouts, layoutsDifferMaterially } from './DashboardGrid';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams } from 'react-router-dom';
@@ -1231,11 +1231,32 @@ function DashboardEngineGrid({
       if (cancelled) return;
       const layout = (data?.layout as any) ?? null;
       if (layout && typeof layout === 'object' && Object.keys(layout).length > 0) {
-        setSavedLayouts(layout);
+        // Auto-cura: se o layout salvo está quebrado (KPIs apertados,
+        // widgets stackados, charts espremidos), o normalizeLayouts
+        // regenera os defaults limpos. Quando isso acontece, persistimos
+        // a versão limpa no Supabase imediatamente — caso contrário o
+        // user veria o layout bom na tela mas o broken voltaria em
+        // qualquer re-render que dependesse do dado salvo.
+        const widgetMeta = widgets.map((w) => ({ id: w.id, type: w.type as string }));
+        const cleaned = normalizeLayouts(layout, widgetMeta);
+        const layoutWasBroken = layoutsDifferMaterially(layout, cleaned);
+        setSavedLayouts(layoutWasBroken ? cleaned : layout);
+        if (layoutWasBroken) {
+          console.log('[DashboardEngineGrid] Layout salvo estava quebrado, persistindo versão regenerada');
+          // Fire-and-forget: não bloqueia render. Se falhar, próxima
+          // visualização reaplica o normalize e tenta de novo.
+          supabase
+            .from('dashboards')
+            .update({ layout: cleaned, updated_at: new Date().toISOString() })
+            .eq('id', dashboardId)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+            });
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, [dashboardId]);
+  }, [dashboardId, widgets, queryClient]);
 
   // Auto-save (debounce) durante edição
   useEffect(() => {

@@ -666,7 +666,7 @@ export default function CrmAuditDashboard() {
       </Box>
 
       {/* Content */}
-      <Box sx={{ px: 3, py: 3, maxWidth: 1280, mx: "auto" }}>
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 3, maxWidth: 1480, mx: "auto" }}>
         {/* Loading */}
         {loading && !data && (
           <Stack alignItems="center" spacing={2} sx={{ py: 10 }}>

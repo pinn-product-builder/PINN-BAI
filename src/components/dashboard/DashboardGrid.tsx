@@ -97,22 +97,76 @@ function generateInitialLayout(widgets: GridWidget[], cols: number): Layout[] {
 }
 
 /**
- * Detecta layout salvo quebrado: metric_cards com w grande demais, ou
- * widgets todos empilhados em x=0 (sintoma reportado na BF Company —
- * "1 em cima do outro de forma totalmente desorganizada").
+ * Detecta layout salvo quebrado e força regeneração com defaults limpos.
+ *
+ * Sintomas conhecidos (todos vistos em produção, principalmente BF Company):
+ *  1. metric_card com w > 4: KPIs viram 1-2 por linha, ocupando tela inteira.
+ *  2. metric_card com w < 3: KPIs ficam minúsculos no canto, deixando metade
+ *     da viewport vazia ("widgets pequenos e centralizados demais").
+ *  3. Charts (area/line/bar/pie/funnel) com w < 4: gráficos espremidos sem
+ *     espaço pros eixos.
+ *  4. Tables com w < 8: tabelas viram colunas estreitas com scroll horizontal.
+ *  5. Altura < minH efetiva (h < 2 pra cards, h < 4 pra charts): widget cortado.
+ *  6. Maioria dos widgets stackados em x=0: layout 100% vertical, sem flow.
+ *  7. KPIs deixando >25% da linha vazia (ex.: 4 KPIs de w:2 = 8/12 cols).
  */
-function isLayoutBroken(layout: Layout[], widgets: GridWidget[]): boolean {
+function isLayoutBroken(layout: Layout[], widgets: GridWidget[], cols: number): boolean {
   if (layout.length === 0) return false;
   const typeById = new Map(widgets.map((w) => [w.id, w.type]));
-  // Sintoma 1: metric_card com largura grande (>4) → vira 1 KPI por linha.
-  const hasFatMetricCard = layout.some((l) => {
-    const t = typeById.get(l.i);
-    return t === 'metric_card' && l.w > 4;
-  });
-  if (hasFatMetricCard) return true;
-  // Sintoma 2: maioria dos widgets stackados em x=0 (sem horizontal flow).
+
+  // Em mobile (xxs = 6 cols) os checks de largura mínima não fazem sentido —
+  // KPIs já ficam 2-up por design. Só validamos sintomas estruturais lá.
+  const isWideBp = cols >= 12;
+
+  if (isWideBp) {
+    // Sintoma 1+2+5: metric_cards fora do range saudável (3-4 cols, 2+ rows).
+    const badMetricCard = layout.some((l) => {
+      const t = typeById.get(l.i);
+      if (t !== 'metric_card') return false;
+      return l.w > 4 || l.w < 3 || l.h < 2;
+    });
+    if (badMetricCard) return true;
+
+    // Sintoma 3: charts/insights espremidos (w<4) ou cortados (h<4).
+    const badChart = layout.some((l) => {
+      const t = typeById.get(l.i);
+      if (!t) return false;
+      const isChart = ['area_chart', 'line_chart', 'bar_chart', 'pie_chart', 'funnel', 'rfm_matrix', 'churn_prediction', 'insight_card'].includes(t);
+      if (!isChart) return false;
+      return l.w < 4 || l.h < 4;
+    });
+    if (badChart) return true;
+
+    // Sintoma 4: tabela estreita demais (precisa de pelo menos 8 cols).
+    const badTable = layout.some((l) => {
+      const t = typeById.get(l.i);
+      return t === 'table' && (l.w < 8 || l.h < 4);
+    });
+    if (badTable) return true;
+  }
+
+  // Sintoma 6: maioria dos widgets stackados em x=0 (sem horizontal flow).
   const atX0 = layout.filter((l) => l.x === 0).length;
   if (atX0 > Math.max(3, layout.length * 0.6)) return true;
+
+  // Sintoma 7: linhas com 2+ widgets ocupando menos de ~75% da largura
+  // disponível — sinal de "widgets pequenos e centralizados" reportado
+  // pelo cliente. Calculado em proporção ao breakpoint atual.
+  if (isWideBp) {
+    const fillThreshold = Math.floor(cols * 0.75); // 12 cols → 9; 6 → 4
+    const byRow = new Map<number, Layout[]>();
+    layout.forEach((l) => {
+      const arr = byRow.get(l.y) || [];
+      arr.push(l);
+      byRow.set(l.y, arr);
+    });
+    for (const items of byRow.values()) {
+      if (items.length < 2) continue;
+      const used = items.reduce((sum, l) => sum + l.w, 0);
+      if (used < fillThreshold) return true;
+    }
+  }
+
   return false;
 }
 
@@ -125,7 +179,7 @@ function normalizeLayout(layout: Layout[], widgets: GridWidget[], cols: number):
 
   // Se o layout salvo está quebrado, regenera completamente do zero com base
   // nos widgets (defaults limpos: KPIs 4-up, charts 2-up, table full width).
-  if (isLayoutBroken(layout, widgets)) {
+  if (isLayoutBroken(layout, widgets, cols)) {
     return generateInitialLayout(widgets, cols);
   }
 
@@ -141,13 +195,35 @@ function normalizeLayout(layout: Layout[], widgets: GridWidget[], cols: number):
   });
 }
 
-function normalizeLayouts(layouts: Layouts, widgets: GridWidget[]): Layouts {
+export function normalizeLayouts(layouts: Layouts, widgets: GridWidget[]): Layouts {
   const next: Layouts = { ...layouts };
   (Object.keys(COLS) as Array<keyof typeof COLS>).forEach((bp) => {
     const arr = layouts[bp];
     if (Array.isArray(arr)) next[bp] = normalizeLayout(arr, widgets, COLS[bp]);
   });
   return next;
+}
+
+/**
+ * Indica se o layout salvo difere significativamente do layout normalizado.
+ * Usado pelo DashboardEngineGrid pra persistir automaticamente a versão
+ * regenerada quando detecta um saved layout quebrado — assim o user vê
+ * o grid limpo sem precisar entrar em modo de edição.
+ */
+export function layoutsDifferMaterially(a: Layouts, b: Layouts): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const bp of keys) {
+    const arrA = (a as Record<string, Layout[]>)[bp] ?? [];
+    const arrB = (b as Record<string, Layout[]>)[bp] ?? [];
+    if (arrA.length !== arrB.length) return true;
+    const mapA = new Map(arrA.map((l) => [l.i, l] as const));
+    for (const lb of arrB) {
+      const la = mapA.get(lb.i);
+      if (!la) return true;
+      if (la.x !== lb.x || la.y !== lb.y || la.w !== lb.w || la.h !== lb.h) return true;
+    }
+  }
+  return false;
 }
 
 export function DashboardGrid({
