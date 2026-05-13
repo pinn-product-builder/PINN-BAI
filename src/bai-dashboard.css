@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BAI CRM Auditor — camada visual executiva (layout + componentes).
  * Tokens de marca: ./pinn-tokens.css
  * Escopo: apenas apresentação; não altera dados.
@@ -33,7 +33,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  box-shadow: inset -1px 0 0 rgba(255, 107, 0, 0.04);
+  box-shadow: inset -1px 0 0 rgba(255,$1107,$253, 0.04);
 }
 
 .bai-aside-brand {
@@ -74,7 +74,7 @@
   font-weight: 600;
   background: var(--pinn-primary-soft);
   border-color: var(--pinn-border-active);
-  box-shadow: 0 0 0 1px rgba(255, 107, 0, 0.1);
+  box-shadow: 0 0 0 1px rgba(255,$1107,$253, 0.1);
 }
 
 .bai-nav-dot {
@@ -87,7 +87,7 @@
 
 .bai-nav-link--active .bai-nav-dot {
   background: var(--pinn-gradient-primary);
-  box-shadow: 0 0 12px rgba(255, 107, 0, 0.45);
+  box-shadow: 0 0 12px rgba(255,$1107,$253, 0.45);
 }
 
 /* -------- Main column -------- */
@@ -145,9 +145,9 @@
 
 /* -------- Seções (SectionCard complementar) -------- */
 .bai-section[data-accent="executive"] {
-  border-color: rgba(255, 107, 0, 0.22);
-  background: linear-gradient(155deg, rgba(255, 107, 0, 0.08) 0%, rgba(22, 21, 19, 0.9) 42%, rgba(10, 10, 9, 0.98) 100%);
-  box-shadow: var(--pinn-shadow-card), 0 0 0 1px rgba(255, 107, 0, 0.06);
+  border-color: rgba(255,$1107,$253, 0.22);
+  background: linear-gradient(155deg, rgba(255,$1107,$253, 0.08) 0%, rgba(22, 21, 19, 0.9) 42%, rgba(10, 10, 9, 0.98) 100%);
+  box-shadow: var(--pinn-shadow-card), 0 0 0 1px rgba(255,$1107,$253, 0.06);
 }
 
 .bai-section[data-accent="risk"] {
@@ -297,12 +297,12 @@
 }
 
 .bai-metric--highlight {
-  border-color: rgba(255, 107, 0, 0.35);
+  border-color: rgba(255,$1107,$253, 0.35);
   background: var(--pinn-metric-bg-highlight);
 }
 
 .bai-dashboard-root[data-theme="light"] .bai-metric--highlight {
-  border-color: rgba(255, 107, 0, 0.28);
+  border-color: rgba(255,$1107,$253, 0.28);
 }
 
 .bai-metric--warn {
@@ -537,7 +537,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, rgba(255, 107, 0, 0.35), rgba(255, 133, 51, 0.95));
+  background: linear-gradient(90deg, rgba(255,$1107,$253, 0.35), rgba(255, 133, 51, 0.95));
   opacity: 0.95;
 }
 
@@ -647,7 +647,7 @@
 
 .bai-btn-primary:hover:not(:disabled) {
   filter: brightness(1.05);
-  box-shadow: 0 10px 32px rgba(255, 107, 0, 0.28);
+  box-shadow: 0 10px 32px rgba(255,$1107,$253, 0.28);
 }
 
 .bai-btn-outline {
@@ -657,9 +657,9 @@
 }
 
 .bai-btn-outline:hover:not(:disabled) {
-  border-color: rgba(255, 107, 0, 0.35);
+  border-color: rgba(255,$1107,$253, 0.35);
   color: var(--pinn-text-primary);
-  background: rgba(255, 107, 0, 0.06);
+  background: rgba(255,$1107,$253, 0.06);
 }
 
 .bai-header-actions {
@@ -701,7 +701,7 @@
 }
 
 .bai-evidence-jump-link:hover {
-  background: rgba(255, 107, 0, 0.12);
+  background: rgba(255,$1107,$253, 0.12);
   color: #ffb380;
 }
 
@@ -811,8 +811,8 @@
   margin-top: 1rem;
   padding: 1rem 1.05rem;
   border-radius: var(--bai-radius-md);
-  background: rgba(255, 107, 0, 0.06);
-  border: 1px solid rgba(255, 107, 0, 0.22);
+  background: rgba(255,$1107,$253, 0.06);
+  border: 1px solid rgba(255,$1107,$253, 0.22);
 }
 
 .bai-reco-box h4 {
@@ -920,8 +920,8 @@
 
 .bai-evidence-search:focus {
   outline: none;
-  border-color: rgba(255, 107, 0, 0.5);
-  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.12);
+  border-color: rgba(255,$1107,$253, 0.5);
+  box-shadow: 0 0 0 3px rgba(255,$1107,$253, 0.12);
 }
 
 .bai-evidence-select {
@@ -946,8 +946,8 @@
 .bai-evidence-more {
   padding: 0.5rem 1.1rem;
   border-radius: 10px;
-  border: 1px solid rgba(255, 107, 0, 0.38);
-  background: rgba(255, 107, 0, 0.1);
+  border: 1px solid rgba(255,$1107,$253, 0.38);
+  background: rgba(255,$1107,$253, 0.1);
   color: #ffd4b8;
   font-weight: 600;
   font-size: 0.82rem;
@@ -955,7 +955,7 @@
 }
 
 .bai-evidence-more:hover {
-  background: rgba(255, 107, 0, 0.18);
+  background: rgba(255,$1107,$253, 0.18);
 }
 
 .bai-evidence-empty {
@@ -1027,9 +1027,9 @@
 }
 
 .bai-tier-badge--excellent {
-  background: rgba(255, 107, 0, 0.16);
+  background: rgba(255,$1107,$253, 0.16);
   color: #ffd4b8;
-  border-color: rgba(255, 107, 0, 0.28);
+  border-color: rgba(255,$1107,$253, 0.28);
 }
 
 /* -------- Status header (conexão / coleta) -------- */
@@ -1083,16 +1083,16 @@
 
 /* -------- Destaque: Parecer IA (PINN) -------- */
 #sec-parecer.bai-section {
-  border-color: rgba(255, 107, 0, 0.26);
-  box-shadow: var(--pinn-shadow-card), 0 0 60px rgba(255, 107, 0, 0.05);
+  border-color: rgba(255,$1107,$253, 0.26);
+  box-shadow: var(--pinn-shadow-card), 0 0 60px rgba(255,$1107,$253, 0.05);
 }
 
 #sec-parecer .bai-prose-block {
   position: relative;
   padding: 1.15rem 1.2rem;
   border-radius: var(--pinn-radius-md);
-  border: 1px solid rgba(255, 107, 0, 0.15);
-  background: linear-gradient(165deg, rgba(255, 107, 0, 0.05), rgba(18, 17, 16, 0.65));
+  border: 1px solid rgba(255,$1107,$253, 0.15);
+  background: linear-gradient(165deg, rgba(255,$1107,$253, 0.05), rgba(18, 17, 16, 0.65));
 }
 
 /* -------- Plano de ação: horizontes -------- */
@@ -1126,9 +1126,9 @@
 
 /* -------- Modo claro — gradientes de seção e blocos especiais -------- */
 .bai-dashboard-root[data-theme="light"] .bai-section[data-accent="executive"] {
-  border-color: rgba(255, 107, 0, 0.2);
-  background: linear-gradient(155deg, rgba(255, 107, 0, 0.05) 0%, rgba(255, 255, 255, 0.98) 45%, #fafaf9 100%);
-  box-shadow: var(--pinn-shadow-card), 0 0 0 1px rgba(255, 107, 0, 0.05);
+  border-color: rgba(255,$1107,$253, 0.2);
+  background: linear-gradient(155deg, rgba(255,$1107,$253, 0.05) 0%, rgba(255, 255, 255, 0.98) 45%, #fafaf9 100%);
+  box-shadow: var(--pinn-shadow-card), 0 0 0 1px rgba(255,$1107,$253, 0.05);
 }
 
 .bai-dashboard-root[data-theme="light"] .bai-section[data-accent="risk"] {
@@ -1142,8 +1142,8 @@
 }
 
 .bai-dashboard-root[data-theme="light"] #sec-parecer .bai-prose-block {
-  border-color: rgba(255, 107, 0, 0.18);
-  background: linear-gradient(165deg, rgba(255, 107, 0, 0.04), rgba(255, 255, 255, 0.98));
+  border-color: rgba(255,$1107,$253, 0.18);
+  background: linear-gradient(165deg, rgba(255,$1107,$253, 0.04), rgba(255, 255, 255, 0.98));
 }
 
 .bai-dashboard-root[data-theme="light"] #sec-plano.bai-section {

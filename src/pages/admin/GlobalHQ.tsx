@@ -35,7 +35,7 @@ const GlobalHQ = () => {
     const widgets: CardWidget[] = [
         {
             id: 'hq:empresas',
-            size: { w: 3, h: 5 },
+            size: { w: 4, h: 7 },
             render: () => (
                 <Card className="border border-border bg-card shadow-2xl overflow-hidden group rounded-2xl h-full">
                     <CardContent className="pt-8 flex flex-col justify-between h-full">
@@ -132,7 +132,7 @@ const GlobalHQ = () => {
         },
         {
             id: 'hq:atividade',
-            size: { w: 4, h: 6 },
+            size: { w: 4, h: 7 },
             render: () => (
                 <Card className="border border-border bg-card shadow-2xl rounded-2xl h-full">
                     <CardHeader>
@@ -202,7 +202,7 @@ const GlobalHQ = () => {
             </div>
 
             <EditableCardGrid
-                pageKey="admin:global-hq"
+                pageKey="admin:global-hq-v2"
                 orgId={null}
                 widgets={widgets}
                 isEditing={isEditingLayout}

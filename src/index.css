@@ -70,8 +70,8 @@
     --popover:           0 0% 100%;
     --popover-foreground: 0 0% 10%;
 
-    /* Primary — Pinn Orange #FF6B35 */
-    --primary:           16 100% 60%;
+    /* Primary — Pinn Orange #FF6B35 (HSL 16 100% 60.4% = exato) */
+    --primary:           16 100% 60.4%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary — surface warm */
@@ -99,21 +99,21 @@
     /* Bordas */
     --border:            36 18% 89%;          /* #E6E4E0 rule */
     --input:             36 18% 89%;
-    --ring:              16 100% 60%;         /* #FF6B35 focus */
+    --ring:              16 100% 60.4%;       /* #FF6B35 focus */
     --radius: 0.5rem;                          /* 8px DS */
 
     /* ── Sidebar — paper-warm, não cinza-azul ── */
     --sidebar-background:         36 25% 96%;   /* ≈ #F4F1EA */
     --sidebar-foreground:         0 0% 17%;
-    --sidebar-primary:            16 100% 60%;  /* orange — ativo */
+    --sidebar-primary:            16 100% 60.4%;  /* orange #FF6B35 — ativo */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent:             36 18% 91%;
     --sidebar-accent-foreground:  0 0% 10%;
     --sidebar-border:             36 18% 89%;
-    --sidebar-ring:               16 100% 60%;
+    --sidebar-ring:               16 100% 60.4%;
 
     /* ── Charts — paleta DS oficial ── */
-    --chart-1:  16 100% 60%;    /* #FF6B35 orange */
+    --chart-1:  16 100% 60.4%;  /* #FF6B35 orange */
     --chart-2:  122 44% 33%;    /* #2E7D32 success */
     --chart-3:  221 83% 53%;    /* #2563EB info */
     --chart-4:  29 100% 48%;    /* #F57C00 warning */
