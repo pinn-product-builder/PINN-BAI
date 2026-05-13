@@ -32,6 +32,8 @@ import {
   ArrowBack as ArrowBackIcon,
   Menu as MenuIcon,
   Settings as SettingsIcon,
+  Bolt as BoltIcon,
+  LinkedIn as LinkedInIcon,
 } from "@mui/icons-material";
 import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +41,7 @@ import AIChat from "@/components/ai/AIChat";
 import { GlobalFilterBar } from "@/components/GlobalFilterBar";
 import { useState } from "react";
 import { isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
+import { useIsPinnProductBuilderOrg } from "@/hooks/useIsPinnProductBuilderOrg";
 
 const DRAWER_WIDTH = 220;
 const MOBILE_APPBAR_HEIGHT = 56;
@@ -67,6 +70,13 @@ const baseNavItems: Array<{
   // Integrações migrou pro footer do drawer (ícone de engrenagem ao lado do usuário).
 ];
 
+// Itens exclusivos da org Pinn Product Builder. Aparecem como abas internas
+// (lugar de viverem em /admin, ficam dentro de /client/:orgId/...).
+const pinnPBNavItems: Array<{ path: string; label: string; icon: typeof DashboardIcon }> = [
+  { path: "pinn-sdr",     label: "Pinn SDR",     icon: BoltIcon },
+  { path: "linkedin-sdr", label: "LinkedIn SDR", icon: LinkedInIcon },
+];
+
 const ClientLayout = () => {
   const { orgId } = useParams();
   const location = useLocation();
@@ -79,21 +89,27 @@ const ClientLayout = () => {
   const navigate = useNavigate();
   const showRfmChurn = isRfmChurnEnabledForOrg(orgId);
   const orgSlug = organization?.slug;
-  const navItems = baseNavItems.filter((item) => {
-    // RFM atrás de feature flag global
-    if (item.path === "rfm-churn" && !showRfmChurn) return false;
-    // Items slug-gated: só aparecem pra orgs cujo slug autoriza (ou pra
-    // platform admin, que precisa enxergar tudo quando impersona qualquer org).
-    if (item.onlyForSlugs && !isPlatformAdmin) {
-      if (!orgSlug || !item.onlyForSlugs.includes(orgSlug)) return false;
-    }
-    // Items que devem sumir pra certas orgs (ex.: Dashboard duplica /arguto
-    // pra slug "arguto", então fica oculto).
-    if (item.hideForSlugs && orgSlug && item.hideForSlugs.includes(orgSlug)) {
-      return false;
-    }
-    return true;
-  });
+  const { isPinnPB } = useIsPinnProductBuilderOrg(orgId);
+  const navItems = [
+    ...baseNavItems.filter((item) => {
+      // RFM atrás de feature flag global
+      if (item.path === "rfm-churn" && !showRfmChurn) return false;
+      // Items slug-gated: só aparecem pra orgs cujo slug autoriza.
+      // Aplica até pra platform_admin — não faz sentido o painel da org X
+      // exibir o item dedicado da org Y (ex.: "Arguto · BAI" dentro do painel
+      // da BF Company). Quem quer enxergar Arguto deve impersonar Arguto direto.
+      if (item.onlyForSlugs) {
+        if (!orgSlug || !item.onlyForSlugs.includes(orgSlug)) return false;
+      }
+      // Items que devem sumir pra certas orgs (ex.: Dashboard duplica /arguto
+      // pra slug "arguto", então fica oculto).
+      if (item.hideForSlugs && orgSlug && item.hideForSlugs.includes(orgSlug)) {
+        return false;
+      }
+      return true;
+    }),
+    ...(isPinnPB ? pinnPBNavItems : []),
+  ];
   const currentPath = location.pathname.split("/").pop();
 
   if (isLoading) {

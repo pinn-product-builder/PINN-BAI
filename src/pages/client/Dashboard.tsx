@@ -4,13 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { ShareDashboardDialog } from '@/components/dashboard/ShareDashboardDialog';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Download,
   Share2,
   Loader2,
@@ -25,6 +18,7 @@ import {
   LayoutDashboard,
   Move,
   Check,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -44,8 +38,22 @@ const DASH_ICONS: Record<string, React.ReactNode> = {
 };
 
 // ─── Query functions (fora do componente = referência estável) ─────────────────
+//
+// Mock pra modo demo: Arguto (e equivalentes) não tem leads reais no Supabase,
+// entao retornamos valores hardcoded coerentes com a narrativa do ExecutiveSnapshot.
+const DEMO_KPI = {
+  totalLeads:     1_247,
+  totalLeadsPrev: 1_086,
+  conversions:    476,
+  conversionsPrev: 392,
+  conversionRate: 38.2,
+  conversionRatePrev: 36.1,
+  revenue:        32_400_000,
+  revenuePrev:    27_800_000,
+};
 
 async function fetchLeadsCount(orgId: string, range: IsoRange): Promise<number> {
+  if (isDemoOrg(orgId)) return DEMO_KPI.totalLeads;
   const { count, error } = await supabase
     .from('leads')
     .select('id', { count: 'exact', head: true })
@@ -57,6 +65,7 @@ async function fetchLeadsCount(orgId: string, range: IsoRange): Promise<number> 
 }
 
 async function fetchConversionsCount(orgId: string, range: IsoRange): Promise<number> {
+  if (isDemoOrg(orgId)) return DEMO_KPI.conversions;
   const { count, error } = await supabase
     .from('leads')
     .select('id', { count: 'exact', head: true })
@@ -69,6 +78,7 @@ async function fetchConversionsCount(orgId: string, range: IsoRange): Promise<nu
 }
 
 async function fetchConversionRate(orgId: string, range: IsoRange): Promise<number> {
+  if (isDemoOrg(orgId)) return DEMO_KPI.conversionRate;
   const { data, error } = await supabase
     .from('leads')
     .select('status')
@@ -83,6 +93,7 @@ async function fetchConversionRate(orgId: string, range: IsoRange): Promise<numb
 }
 
 async function fetchRevenue(orgId: string, range: IsoRange): Promise<number> {
+  if (isDemoOrg(orgId)) return DEMO_KPI.revenue;
   const { data, error } = await supabase
     .from('leads')
     .select('value')
@@ -251,32 +262,36 @@ const Dashboard = () => {
     }, 1500);
   };
 
+  // Restaura o grid pro layout-padrão (4 cards por linha, charts 2-up). Útil
+  // quando o usuário arrastou widgets pra posições ruins e quer voltar à
+  // disposição calculada automaticamente pelo DashboardEngine.
+  const handleResetLayout = async () => {
+    if (!activeDash) return;
+    const ok = window.confirm(
+      "Restaurar a organização padrão dos widgets? Suas customizações de posição serão perdidas.",
+    );
+    if (!ok) return;
+    const { error } = await supabase
+      .from('dashboards')
+      .update({ layout: null, updated_at: new Date().toISOString() })
+      .eq('id', activeDash.id);
+    if (error) {
+      toast({ title: "Não foi possível restaurar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Layout restaurado", description: "Recarregando..." });
+    setTimeout(() => window.location.reload(), 400);
+  };
+
   return (
     <div className="p-6 space-y-6 pb-24 max-w-7xl mx-auto">
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2 min-w-0">
-          <Select value={activeDash?.id || ''} onValueChange={(id) => setSelectedDashId(id)}>
-            <SelectTrigger
-              className="w-auto h-9 gap-2 border-border/40 bg-transparent text-foreground font-semibold text-base pl-0 pr-3 hover:bg-card/60 transition-colors focus:ring-0"
-            >
-              <div className="flex items-center gap-2">
-                {activeDash && DASH_ICONS[activeDash.name]}
-                <SelectValue placeholder="Selecionar dashboard" />
-              </div>
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border z-50">
-              {dashboards?.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  <div className="flex items-center gap-2">
-                    {DASH_ICONS[d.name] || <LayoutDashboard className="w-4 h-4" />}
-                    <span>{d.name}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground/60 pl-0.5">
+          <h1 className="text-base font-semibold text-foreground">
+            {activeDash?.name || 'Dashboard'}
+          </h1>
+          <p className="text-xs text-muted-foreground/60">
             {activeDash?.description || 'Performance dos últimos 30 dias'}
           </p>
         </div>
@@ -295,6 +310,17 @@ const Dashboard = () => {
             >
               {isEditingLayout ? <Check className="w-3.5 h-3.5" /> : <Move className="w-3.5 h-3.5" />}
               {isEditingLayout ? 'Concluir' : 'Editar layout'}
+            </button>
+          )}
+          {activeDash && isEditingLayout && (
+            <button
+              type="button"
+              onClick={handleResetLayout}
+              title="Volta os widgets ao grid padrão (4 KPIs por linha)"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Restaurar grid
             </button>
           )}
           {showRfmChurn && (
@@ -346,6 +372,50 @@ const Dashboard = () => {
           </button>
         </div>
       </div>
+
+      {/* ── Dashboards (cards lado-a-lado com descrição) ── */}
+      {dashboards && dashboards.length > 1 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {dashboards.map((d) => {
+            const isActive = activeDash?.id === d.id;
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setSelectedDashId(d.id)}
+                className={cn(
+                  "group flex flex-col items-start gap-1.5 rounded-xl border p-3 text-left transition-all",
+                  isActive
+                    ? "border-primary/50 bg-primary/[0.06] shadow-[0_0_0_1px_rgba(255,107,53,0.18),0_4px_18px_rgba(255,107,53,0.08)]"
+                    : "border-border/40 bg-card/40 hover:border-border/80 hover:bg-card/70",
+                )}
+              >
+                <div className="flex items-center gap-2 w-full min-w-0">
+                  <div
+                    className={cn(
+                      "w-7 h-7 rounded-md flex items-center justify-center shrink-0 transition-colors",
+                      isActive ? "bg-primary/15 text-primary" : "bg-muted/50 text-muted-foreground group-hover:bg-muted",
+                    )}
+                  >
+                    {DASH_ICONS[d.name] || <LayoutDashboard className="w-3.5 h-3.5" />}
+                  </div>
+                  <span
+                    className={cn(
+                      "text-sm font-semibold truncate flex-1 min-w-0",
+                      isActive ? "text-foreground" : "text-foreground/85",
+                    )}
+                  >
+                    {d.name}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-snug">
+                  {d.description || "Visão executiva do período."}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── AI Narrative ── */}
       <div

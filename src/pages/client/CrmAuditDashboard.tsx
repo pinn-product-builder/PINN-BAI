@@ -32,8 +32,12 @@ import { resolveEvidenceTables } from "@/bai/evidenceFallback";
 import { buildExecutiveBrief, splitActionHorizons, fmtMoney, fmtNum, fmtPct, tierFromScore, tierLabelPt } from "@/bai/helpers";
 import { isDemoOrg } from "@/lib/featureFlags";
 import { DEMO_CRM_AUDIT_DASHBOARD, DEMO_CRM_AI_REPORT } from "@/data/arguto-extra-demo";
+import { fetchCrmAuditDashboard, buildDeterministicAnalysisReport } from "@/lib/crmAuditFromViews";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
+// Backend Python legado (`/crm/audit/dashboard`) foi descomissionado. Hoje o
+// dashboard monta o payload direto das views Supabase (`vw_pipeline_health`,
+// `vw_owner_performance`, etc.) via `fetchCrmAuditDashboard`.
 const BACKEND = import.meta.env.VITE_BACKEND_URL ?? "https://bai.srv879715.hstgr.cloud";
 
 const ORANGE = "#F97316";
@@ -59,11 +63,10 @@ const TOOLTIP_STYLE = {
 
 // ─── Data fetch ───────────────────────────────────────────────────────────────
 async function fetchDashboard(tenantId: string) {
-  // Modo demo (Arguto): retorna snapshot pré-curado sem chamar o backend.
+  // Modo demo (Arguto): retorna snapshot pré-curado sem tocar o banco.
   if (isDemoOrg(tenantId)) return DEMO_CRM_AUDIT_DASHBOARD;
-  const r = await fetch(`${BACKEND}/crm/audit/dashboard?tenant_id=${encodeURIComponent(tenantId)}`);
-  if (!r.ok) throw new Error(`Erro ${r.status}: ${await r.text()}`);
-  return r.json();
+  // Snapshot real: assembla a partir das views agregadas no Supabase.
+  return await fetchCrmAuditDashboard(tenantId);
 }
 
 // ─── Severity helpers ─────────────────────────────────────────────────────────
@@ -447,11 +450,18 @@ export default function CrmAuditDashboard() {
   const handleRefresh = useCallback(async () => {
     setSyncing(true);
     try {
-      await fetch(`${BACKEND}/crm/kommo/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: tenantId }),
-      });
+      // Best-effort: dispara sync no backend legado se existir; do contrário
+      // só revalida o snapshot a partir das views Supabase. O re-sync real do
+      // Kommo agora é feito pelo módulo /crm-auditor (Hono + Composio).
+      try {
+        await fetch(`${BACKEND}/crm/kommo/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tenant_id: tenantId }),
+        });
+      } catch {
+        // ignora — não temos mais backend Python
+      }
     } finally {
       setSyncing(false);
     }
@@ -461,20 +471,34 @@ export default function CrmAuditDashboard() {
   const handleAnalyze = useCallback(async () => {
     setAnalyzing(true);
     try {
-      // Modo demo (Arguto): parecer pre-gerado, com pequeno delay pra simular
-      // geracao real. Garante que a aba "Parecer IA" e 100% executavel sem
-      // depender do backend.
+      // Modo demo (Arguto): parecer pré-gerado.
       if (isDemoOrg(tenantId)) {
-        await new Promise((res) => setTimeout(res, 1500));
+        await new Promise((res) => setTimeout(res, 1200));
         setAnalysis(DEMO_CRM_AI_REPORT);
         return;
       }
-      const r = await fetch(`${BACKEND}/crm/analysis/generate?tenant_id=${encodeURIComponent(tenantId)}`, { method: "POST" });
-      if (r.ok) setAnalysis(await r.json());
+      // Tenta backend de IA primeiro; se indisponível, usa parecer determinístico
+      // baseado no payload já carregado (data). Garante que a aba sempre tem conteúdo.
+      try {
+        const r = await fetch(`${BACKEND}/crm/analysis/generate?tenant_id=${encodeURIComponent(tenantId)}`, { method: "POST" });
+        if (r.ok) {
+          const ct = r.headers.get("content-type") ?? "";
+          if (ct.includes("application/json")) {
+            setAnalysis(await r.json());
+            return;
+          }
+        }
+      } catch {
+        // ignora — cai no fallback determinístico
+      }
+      if (data) {
+        await new Promise((res) => setTimeout(res, 600));
+        setAnalysis(buildDeterministicAnalysisReport(data));
+      }
     } finally {
       setAnalyzing(false);
     }
-  }, [tenantId]);
+  }, [tenantId, data]);
 
   // ── Data extraction ──
   const loading = isFetching || syncing || analyzing;
