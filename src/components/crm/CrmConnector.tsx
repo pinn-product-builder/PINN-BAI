@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CrmConnector — plug-and-play CRM connection UI.
  *
  * Fluxo:
@@ -72,8 +72,8 @@ const CRM_CATALOGUE: CrmDefinition[] = [
       },
       {
         key: 'access_token',
-        label: 'Access Token',
-        placeholder: 'Bearer token OAuth2',
+        label: 'Token de Acesso',
+        placeholder: 'Token Bearer OAuth2',
         type: 'password',
       },
     ],

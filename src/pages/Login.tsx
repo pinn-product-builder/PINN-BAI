@@ -66,7 +66,7 @@ const Login = () => {
         <div className="relative z-10 space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#FF6B35]/40 bg-[#FF6B35]/15 text-[#FF6B35] text-[11px] font-semibold uppercase tracking-widest">
             <Zap className="w-3 h-3 fill-current" />
-            Business AI Intelligence
+            Inteligência de Negócio com IA
           </div>
           <h1 className="text-5xl xl:text-[3.5rem] font-bold leading-[1.05] tracking-tight text-white">
             Dados que
@@ -79,7 +79,7 @@ const Login = () => {
 
           {/* Feature pills */}
           <div className="flex flex-wrap gap-2">
-            {['IA Preditiva', 'Tempo real', 'Multi-tenant', 'White-label'].map(f => (
+            {['IA Preditiva', 'Tempo real', 'Multi-cliente', 'Marca Branca'].map(f => (
               <span key={f} className="px-3 py-1 rounded-lg border border-white/10 bg-white/5 text-white/40 text-xs font-medium">{f}</span>
             ))}
           </div>
@@ -87,7 +87,7 @@ const Login = () => {
 
         {/* Bottom metrics */}
         <div className="relative z-10 flex gap-8">
-          {[['98%', 'Uptime'], ['< 2s', 'Load'], ['100%', 'White-label']].map(([val, label]) => (
+          {[['98%', 'Disponibilidade'], ['< 2s', 'Carregamento'], ['100%', 'Marca Branca']].map(([val, label]) => (
             <div key={label}>
               <p className="text-xl font-bold" style={{ color: '#FF6B35' }}>{val}</p>
               <p className="text-[10px] text-white/30 uppercase tracking-widest mt-0.5">{label}</p>
@@ -119,7 +119,7 @@ const Login = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Email</Label>
+              <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">E-mail</Label>
               <Input
                 type="email"
                 placeholder="voce@empresa.com"
@@ -176,7 +176,7 @@ const Login = () => {
           </form>
 
           <p className="text-center text-[10px] text-muted-foreground/40 uppercase tracking-[0.2em]">
-            Secured by Pinn Protocol · v2
+            Protegido por Pinn Protocol · v2
           </p>
         </div>
       </div>

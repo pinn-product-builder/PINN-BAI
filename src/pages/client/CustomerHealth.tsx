@@ -32,7 +32,7 @@ const BAND_CONFIG: Record<HealthBand, { label: string; color: string; bg: string
 const SEVERITY_CONFIG: Record<AlertSeverity, { label: string; color: string; icon: React.ElementType }> = {
   critical: { label: 'Crítico', color: 'text-destructive',  icon: AlertTriangle },
   warning:  { label: 'Alerta',  color: 'text-amber-500',    icon: AlertTriangle },
-  info:     { label: 'Info',    color: 'text-blue-500',     icon: Bell },
+  info:     { label: 'Informativo', color: 'text-blue-500',     icon: Bell },
 };
 
 const TREND_ICONS = {
@@ -93,7 +93,7 @@ function HealthCard({ score }: { score: ReturnType<typeof useHealthScores>['data
         <div className="space-y-1.5 pt-1">
           <ScoreBar value={score.engagement_score} label="Engajamento" />
           <ScoreBar value={score.revenue_score}    label="Receita" />
-          <ScoreBar value={score.momentum_score}   label="Momentum" />
+          <ScoreBar value={score.momentum_score}   label="Tendência" />
           <ScoreBar value={score.loyalty_score}    label="Lealdade" />
         </div>
 
@@ -199,9 +199,9 @@ export default function CustomerHealth() {
     if (!orgId) return;
     try {
       const result = await computeHealth.mutateAsync(orgId);
-      toast({ title: `Health calculado: ${result.computed} clientes, ${result.alerts} alertas gerados.` });
+      toast({ title: `Saúde calculada: ${result.computed} clientes, ${result.alerts} alertas gerados.` });
     } catch {
-      toast({ variant: 'destructive', title: 'Falha ao calcular health scores.' });
+      toast({ variant: 'destructive', title: 'Falha ao calcular pontuações de saúde.' });
     }
   };
 
@@ -230,7 +230,7 @@ export default function CustomerHealth() {
             ? <Loader2 className="w-4 h-4 animate-spin" />
             : <RefreshCw className="w-4 h-4" />
           }
-          Recalcular Scores
+          Recalcular Pontuações
         </Button>
       </div>
 
@@ -286,7 +286,7 @@ export default function CustomerHealth() {
             <div className="text-center py-12 text-muted-foreground">
               <Heart className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="font-medium">Nenhum dado de saúde ainda</p>
-              <p className="text-sm mt-1">Clique em "Recalcular Scores" para gerar os health scores.</p>
+              <p className="text-sm mt-1">Clique em "Recalcular Pontuações" para gerar as pontuações de saúde.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -129,7 +129,7 @@ export function ShareDashboardDialog({ orgId, dashboardId, dashboardName, onClos
                       </Badge>
                     )}
                     <Badge variant="outline" className="text-[9px] px-1 text-muted-foreground">
-                      {share.view_count} views
+                      {share.view_count} visualizações
                     </Badge>
                   </div>
                 </div>

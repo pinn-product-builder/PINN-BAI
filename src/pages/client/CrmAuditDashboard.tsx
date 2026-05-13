@@ -659,7 +659,7 @@ export default function CrmAuditDashboard() {
 
         {/* Tabs nav */}
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mt: 1.5, minHeight: 36, "& .MuiTab-root": { minHeight: 36, fontSize: "0.8rem", fontWeight: 500, textTransform: "none", py: 0.75 }, "& .Mui-selected": { fontWeight: 700, color: ORANGE }, "& .MuiTabs-indicator": { bgcolor: ORANGE, height: 2 } }}>
-          {["Scoreboard", "Operação", "Gráficos", "Funil", "Higiene", "Tarefas", "Equipe", "Perdas", "Forecast", "Evidências", "Parecer IA"].map((t, i) => (
+          {["Placar", "Operação", "Gráficos", "Funil", "Higiene", "Tarefas", "Equipe", "Perdas", "Previsão", "Evidências", "Parecer IA"].map((t, i) => (
             <Tab key={t} label={t} value={i} />
           ))}
         </Tabs>
@@ -744,7 +744,7 @@ export default function CrmAuditDashboard() {
               <Section title="Panorama do pipeline" subtitle="Volume, valores e indicadores de atrito detectados neste snapshot Kommo." accent>
                 <GroupLabel>Volume de oportunidades</GroupLabel>
                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.75, mb: 3 }}>
-                  <MetricCard label="Total leads" value={fmtNum(ov.total_leads_all_status)} />
+                  <MetricCard label="Total de leads" value={fmtNum(ov.total_leads_all_status)} />
                   <MetricCard label="Abertas" value={fmtNum(ov.total_active_leads)} highlight />
                   <MetricCard label="Ganhas" value={fmtNum(ov.total_won_leads)} />
                   <MetricCard label="Perdidas" value={fmtNum(ov.total_lost_leads)} />

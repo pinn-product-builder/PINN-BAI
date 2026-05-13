@@ -49,8 +49,8 @@ const Arguto = () => {
           >
             <TabsTrigger value="snapshot" className="gap-1.5 text-xs px-2 whitespace-nowrap shrink-0 sm:shrink sm:min-w-0">
               <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
-              <span className="lg:hidden">Snapshot</span>
-              <span className="hidden lg:inline truncate">Executive Snapshot</span>
+              <span className="lg:hidden">Resumo</span>
+              <span className="hidden lg:inline truncate">Resumo Executivo</span>
             </TabsTrigger>
             <TabsTrigger value="operacao" className="gap-1.5 text-xs px-2 whitespace-nowrap shrink-0 sm:shrink sm:min-w-0">
               <ListChecks className="w-3.5 h-3.5 shrink-0" />
@@ -83,8 +83,8 @@ const Arguto = () => {
           <TabsContent value="churn" className="mt-6">
             <RfmChurnModule
               orgId={orgId}
-              title="Predição de Churn · BAI Engine"
-              description="Engine de scoring que alimenta os alertas operacionais — recência, frequência, monetário, razões detectadas e probabilidade por cliente."
+              title="Predição de Churn · Motor BAI"
+              description="Motor de pontuação que alimenta os alertas operacionais — recência, frequência, monetário, razões detectadas e probabilidade por cliente."
             />
           </TabsContent>
         )}

@@ -37,9 +37,9 @@ const METRIC_OPTIONS = [
   { value: 'cpl',               label: 'CPL (Custo por Lead)',  unit: 'currency' as const },
   { value: 'roas',              label: 'ROAS',                  unit: 'number' as const },
   { value: 'cac',               label: 'CAC',                   unit: 'currency' as const },
-  { value: 'ltv_cac_ratio',     label: 'LTV:CAC Ratio',         unit: 'number' as const },
+  { value: 'ltv_cac_ratio',     label: 'Razão LTV:CAC',         unit: 'number' as const },
   { value: 'churn_rate',        label: 'Taxa de Churn (%)',      unit: 'percent' as const },
-  { value: 'health_score_avg',  label: 'Health Score Médio',    unit: 'number' as const },
+  { value: 'health_score_avg',  label: 'Pontuação de Saúde Média', unit: 'number' as const },
 ];
 
 const OPERATOR_LABELS: Record<string, string> = {
@@ -47,9 +47,9 @@ const OPERATOR_LABELS: Record<string, string> = {
 };
 
 const SEVERITY_CONFIG = {
-  info:     { label: 'Info',    color: 'bg-blue-500/10 text-blue-500' },
-  warning:  { label: 'Aviso',   color: 'bg-amber-500/10 text-amber-500' },
-  critical: { label: 'Crítico', color: 'bg-destructive/10 text-destructive' },
+  info:     { label: 'Informativo', color: 'bg-blue-500/10 text-blue-500' },
+  warning:  { label: 'Aviso',       color: 'bg-amber-500/10 text-amber-500' },
+  critical: { label: 'Crítico',     color: 'bg-destructive/10 text-destructive' },
 };
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -281,7 +281,7 @@ function CreateAlertDialog({ orgId, onClose }: { orgId: string; onClose: () => v
               <Select value={severity} onValueChange={(v) => setSeverity(v as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="info">Info</SelectItem>
+                  <SelectItem value="info">Informativo</SelectItem>
                   <SelectItem value="warning">Aviso</SelectItem>
                   <SelectItem value="critical">Crítico</SelectItem>
                 </SelectContent>
@@ -328,7 +328,7 @@ export default function Goals() {
       const result = await checkThresholds.mutateAsync(orgId);
       toast({ title: `Verificação concluída: ${result.triggered} alerta(s) disparado(s).` });
     } catch {
-      toast({ variant: 'destructive', title: 'Erro ao verificar thresholds.' });
+      toast({ variant: 'destructive', title: 'Erro ao verificar limites das metas.' });
     }
   };
 

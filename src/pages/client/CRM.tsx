@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -135,7 +135,7 @@ const CRMPage = () => {
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-tight">
                         <Zap className="w-3 h-3 fill-current" />
-                        Smart Sales Pipeline
+                        Funil Inteligente de Vendas
                     </div>
                     <h1 className="text-4xl font-extrabold tracking-tight text-foreground">
                         CRM & Vendas

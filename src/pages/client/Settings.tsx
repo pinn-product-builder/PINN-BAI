@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -141,7 +141,7 @@ const ClientSettings = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">White Label</h1>
+          <h1 className="text-3xl font-bold text-foreground">Marca Branca</h1>
           <p className="text-muted-foreground mt-1">Personalize a identidade visual do seu dashboard</p>
         </div>
         <Button
@@ -158,7 +158,7 @@ const ClientSettings = () => {
         <TabsList>
           <TabsTrigger value="brand" className="gap-2"><Image className="w-4 h-4" />Marca</TabsTrigger>
           <TabsTrigger value="colors" className="gap-2"><Palette className="w-4 h-4" />Cores</TabsTrigger>
-          <TabsTrigger value="preview" className="gap-2"><Eye className="w-4 h-4" />Preview</TabsTrigger>
+          <TabsTrigger value="preview" className="gap-2"><Eye className="w-4 h-4" />Pré-visualização</TabsTrigger>
         </TabsList>
 
         {/* Brand Tab */}
@@ -232,7 +232,7 @@ const ClientSettings = () => {
                     <>
                       <img
                         src={logoUrl}
-                        alt="Logo preview"
+                        alt="Pré-visualização do logo"
                         className="max-h-full max-w-full object-contain"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
@@ -247,7 +247,7 @@ const ClientSettings = () => {
                     <span className="text-xs text-muted-foreground">Sem logo</span>
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground">Preview do logo no menu</span>
+                <span className="text-xs text-muted-foreground">Pré-visualização do logo no menu</span>
               </div>
             </CardContent>
           </Card>
@@ -348,7 +348,7 @@ const ClientSettings = () => {
                     <div className="w-4 h-4 rounded bg-white/20" />
                     Centro de Comando
                   </div>
-                  {['Conector de Dados', 'Inteligência IA', 'White Label'].map((label) => (
+                  {['Conector de Dados', 'Inteligência IA', 'Marca Branca'].map((label) => (
                     <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-sidebar-foreground/60">
                       <div className="w-4 h-4 rounded bg-sidebar-accent/50" />
                       {label}

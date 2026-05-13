@@ -227,7 +227,7 @@ const ClientLayout = () => {
                 {organization?.name || "Organização"}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Enterprise
+                Plano Empresarial
               </Typography>
             </Box>
           </Stack>
@@ -314,7 +314,7 @@ const ClientLayout = () => {
                 {profile?.full_name || "Usuário"}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Dashboard
+                Painel
               </Typography>
             </Box>
             <IconButton

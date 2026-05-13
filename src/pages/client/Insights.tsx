@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFilters } from '@/hooks/useFilters';
 import { useQuery } from '@tanstack/react-query';
@@ -144,7 +144,7 @@ const Insights = () => {
         <div>
           <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-tight mb-1">
             <Sparkles className="w-3 h-3 fill-current" />
-            Powered by AI
+            Com tecnologia de IA
           </div>
           <h1 className="text-3xl font-bold text-foreground">Inteligência IA</h1>
           <p className="text-muted-foreground mt-1">
