@@ -52,6 +52,27 @@ interface ClientLeadStats {
   source: "kommo_leads" | "leads";
 }
 
+interface LeadRow {
+  name?: string | null;
+  email?: string | null;
+  company?: string | null;
+  status?: string | null;
+  source?: string | null;
+  value?: number | null;
+  created_at?: string | null;
+  converted_at?: string | null;
+}
+
+function brDate(iso?: string | null): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR");
+  } catch {
+    return "—";
+  }
+}
+
 // Quando a org tem integração Supabase conectada (ex.: BF Company), os leads ficam
 // no projeto externo do cliente em `kommo_leads` — não na tabela interna `leads`.
 // Esta função tenta ler de lá; retorna null se a org não tiver integração ou se a
@@ -157,15 +178,25 @@ async function buildDataContext(
     healthCriticalRes,
     alertsRes,
     paidTrafficRes,
+    // ── Configuração e dados detalhados da org ──
+    integrationsRes,
+    paidConnectionsRes,
+    paidCampaignsRes,
+    dashboardsRes,
+    widgetsRes,
+    goalsRes,
+    alertRulesRes,
+    topLeadsByValueRes,
+    recentLeadsRes,
   ] = await Promise.all([
-    supabase.from("organizations").select("name, plan").eq("id", orgId).single(),
+    supabase.from("organizations").select("name, plan, status, slug, trial_ends_at, created_at").eq("id", orgId).single(),
 
     // Total leads in period
     (() => {
       let q = supabase.from("leads").select("id, status, value, source, created_at").eq("org_id", orgId);
       if (start) q = q.gte("created_at", start);
       if (end) q = q.lte("created_at", end + "T23:59:59");
-      return q.limit(500);
+      return q.limit(2000);
     })(),
 
     // Converted in period
@@ -173,11 +204,11 @@ async function buildDataContext(
       let q = supabase.from("leads").select("id, value").eq("org_id", orgId).eq("status", "converted");
       if (start) q = q.gte("created_at", start);
       if (end) q = q.lte("created_at", end + "T23:59:59");
-      return q.limit(500);
+      return q.limit(2000);
     })(),
 
-    // Source distribution
-    supabase.from("leads").select("source").eq("org_id", orgId).limit(1000),
+    // Source distribution (sem janela de período pra distribuição agregada)
+    supabase.from("leads").select("source").eq("org_id", orgId).limit(2000),
 
     // RFM latest run
     supabase
@@ -185,7 +216,7 @@ async function buildDataContext(
       .select("rfm_score, rfm_segment, recency_days, frequency, monetary")
       .eq("org_id", orgId)
       .order("calculated_at", { ascending: false })
-      .limit(200),
+      .limit(500),
 
     // Churn predictions
     supabase
@@ -193,14 +224,14 @@ async function buildDataContext(
       .select("churn_probability, risk_level")
       .eq("org_id", orgId)
       .order("predicted_at", { ascending: false })
-      .limit(200),
+      .limit(500),
 
     // Customer health summary (counts by band)
     supabase
       .from("customer_health_scores")
       .select("health_band, health_score, trend")
       .eq("org_id", orgId)
-      .limit(500),
+      .limit(1000),
 
     // Critical health scores
     supabase
@@ -209,7 +240,7 @@ async function buildDataContext(
       .eq("org_id", orgId)
       .eq("health_band", "critico")
       .order("health_score", { ascending: true })
-      .limit(5),
+      .limit(10),
 
     // Active unresolved alerts
     supabase
@@ -218,7 +249,7 @@ async function buildDataContext(
       .eq("org_id", orgId)
       .eq("resolved", false)
       .order("created_at", { ascending: false })
-      .limit(20),
+      .limit(30),
 
     // Paid traffic metrics in period
     (() => {
@@ -228,8 +259,80 @@ async function buildDataContext(
         .eq("org_id", orgId);
       if (start) q = q.gte("date", start);
       if (end) q = q.lte("date", end);
-      return q.limit(200);
+      return q.limit(500);
     })(),
+
+    // Integrações ativas configuradas pra org
+    supabase
+      .from("integrations")
+      .select("name, type, status, last_sync_at, sync_error")
+      .eq("org_id", orgId)
+      .order("updated_at", { ascending: false })
+      .limit(20),
+
+    // Conexões de tráfego pago
+    supabase
+      .from("paid_traffic_connections")
+      .select("platform_slug, account_id, account_name, sync_status, last_sync_at, sync_error")
+      .eq("org_id", orgId)
+      .limit(20),
+
+    // Top campanhas de tráfego pago (por status)
+    supabase
+      .from("paid_traffic_campaigns")
+      .select("platform_slug, name, status, objective, daily_budget, lifetime_budget")
+      .eq("org_id", orgId)
+      .order("synced_at", { ascending: false })
+      .limit(30),
+
+    // Dashboards configurados pra org
+    supabase
+      .from("dashboards")
+      .select("id, name, description, is_default, created_at, updated_at")
+      .eq("org_id", orgId)
+      .order("is_default", { ascending: false })
+      .order("name")
+      .limit(20),
+
+    // Widgets de TODOS os dashboards da org (filtramos depois)
+    supabase
+      .from("dashboard_widgets")
+      .select("dashboard_id, type, title, description, is_visible")
+      .eq("is_visible", true)
+      .limit(200),
+
+    // Metas configuradas
+    supabase
+      .from("kpi_goals")
+      .select("name, metric_key, target_value, current_value, unit, period_type, period_start, period_end")
+      .eq("org_id", orgId)
+      .order("period_start", { ascending: false })
+      .limit(30),
+
+    // Regras de alerta configuradas
+    supabase
+      .from("kpi_alert_rules")
+      .select("name, metric_key, operator, threshold, severity, channel, enabled, last_triggered_at")
+      .eq("org_id", orgId)
+      .order("updated_at", { ascending: false })
+      .limit(30),
+
+    // Top 15 leads convertidos por valor (lista nominal)
+    supabase
+      .from("leads")
+      .select("name, email, company, status, source, value, created_at, converted_at")
+      .eq("org_id", orgId)
+      .eq("status", "converted")
+      .order("value", { ascending: false, nullsFirst: false })
+      .limit(15),
+
+    // 15 leads mais recentes (lista nominal)
+    supabase
+      .from("leads")
+      .select("name, email, company, status, source, value, created_at, converted_at")
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: false })
+      .limit(15),
   ]);
 
   const org = orgRes.data;
@@ -242,6 +345,15 @@ async function buildDataContext(
   const criticalCustomers = healthCriticalRes.data ?? [];
   const alerts = alertsRes.data ?? [];
   const paidRows = paidTrafficRes.data ?? [];
+  const integrations = integrationsRes.data ?? [];
+  const paidConnections = paidConnectionsRes.data ?? [];
+  const paidCampaigns = paidCampaignsRes.data ?? [];
+  const dashboards = dashboardsRes.data ?? [];
+  const widgetsAll = widgetsRes.data ?? [];
+  const goals = goalsRes.data ?? [];
+  const alertRules = alertRulesRes.data ?? [];
+  const topLeadsByValue = (topLeadsByValueRes.data ?? []) as LeadRow[];
+  const recentLeads = (recentLeadsRes.data ?? []) as LeadRow[];
 
   // ── Leads summary ──────────────────────────────────────────────────────────
   // Prefere fonte externa (kommo_leads via integração) quando disponível.
@@ -420,8 +532,94 @@ async function buildDataContext(
     },
   ];
 
+  // ── Listagens nominais e configuração da org ──────────────────────────────
+  const dashIdToName = new Map<string, string>();
+  for (const d of dashboards) dashIdToName.set(String(d.id), String(d.name));
+
+  const widgetsByDash: Record<string, Array<{ type: string; title: string }>> = {};
+  for (const w of widgetsAll) {
+    const dashId = String(w.dashboard_id);
+    if (!dashIdToName.has(dashId)) continue;
+    if (!widgetsByDash[dashId]) widgetsByDash[dashId] = [];
+    widgetsByDash[dashId].push({ type: String(w.type ?? ""), title: String(w.title ?? "") });
+  }
+
+  const dashboardLines = dashboards.length > 0
+    ? dashboards.map((d) => {
+        const ws = widgetsByDash[String(d.id)] ?? [];
+        const wList = ws.slice(0, 8).map((w) => `${w.title} (${w.type})`).join(", ");
+        const moreCount = ws.length > 8 ? ` (+${ws.length - 8} widgets)` : "";
+        return `  - "${d.name}"${d.is_default ? " [padrão]" : ""}${d.description ? ` — ${d.description}` : ""}\n    Widgets: ${wList || "nenhum configurado"}${moreCount}`;
+      }).join("\n")
+    : "  Nenhum dashboard configurado.";
+
+  const integrationsLines = integrations.length > 0
+    ? integrations.map((i) => `  - ${i.name} (${i.type}) — status: ${i.status}${i.last_sync_at ? `, última sync: ${brDate(i.last_sync_at as string)}` : ""}${i.sync_error ? ` ⚠️ erro: ${i.sync_error}` : ""}`).join("\n")
+    : "  Nenhuma integração configurada.";
+
+  const paidConnLines = paidConnections.length > 0
+    ? paidConnections.map((c) => `  - ${c.platform_slug}: ${c.account_name ?? c.account_id ?? "—"} — status: ${c.sync_status}${c.last_sync_at ? `, última sync: ${brDate(c.last_sync_at as string)}` : ""}${c.sync_error ? ` ⚠️ ${c.sync_error}` : ""}`).join("\n")
+    : "  Nenhuma conta de tráfego pago conectada.";
+
+  const activeCampaigns = paidCampaigns.filter((c) => String(c.status).toUpperCase() === "ACTIVE");
+  const campaignLines = paidCampaigns.length > 0
+    ? paidCampaigns.slice(0, 15).map((c) => `  - [${c.platform_slug}] "${c.name}" — ${c.status}${c.objective ? ` · ${c.objective}` : ""}${c.daily_budget ? ` · diário ${brl(safeNum(c.daily_budget))}` : ""}${c.lifetime_budget ? ` · vitalício ${brl(safeNum(c.lifetime_budget))}` : ""}`).join("\n")
+    : "  Nenhuma campanha sincronizada.";
+
+  const goalsLines = goals.length > 0
+    ? goals.slice(0, 10).map((g) => {
+        const target = safeNum(g.target_value);
+        const cur = safeNum(g.current_value);
+        const progress = target > 0 ? Math.round((cur / target) * 100) : 0;
+        const fmt = g.unit === "currency" ? brl : (n: number) => `${n}${g.unit === "percent" ? "%" : ""}`;
+        return `  - "${g.name}" (${g.metric_key}) — atual ${fmt(cur)} / alvo ${fmt(target)} (${progress}%) · ${g.period_type} ${g.period_start}→${g.period_end}`;
+      }).join("\n")
+    : "  Nenhuma meta configurada.";
+
+  const alertRulesLines = alertRules.length > 0
+    ? alertRules.slice(0, 10).map((r) => `  - "${r.name}" (${r.metric_key} ${r.operator} ${r.threshold}) — severidade: ${r.severity} · ${r.enabled ? "ativa" : "desativada"}${r.last_triggered_at ? `, último disparo: ${brDate(r.last_triggered_at as string)}` : ""}`).join("\n")
+    : "  Nenhuma regra de alerta configurada.";
+
+  const formatLeadLine = (l: LeadRow): string => {
+    const name = l.name ?? "—";
+    const company = l.company ? ` (${l.company})` : "";
+    const valueStr = l.value && safeNum(l.value) > 0 ? ` · ${brl(safeNum(l.value))}` : "";
+    const status = l.status ? ` · ${l.status}` : "";
+    const src = l.source ? ` · fonte: ${l.source}` : "";
+    const date = l.converted_at ? ` · convertido em ${brDate(l.converted_at)}` : ` · criado em ${brDate(l.created_at)}`;
+    return `  - ${name}${company}${valueStr}${status}${src}${date}`;
+  };
+
+  const topLeadsLines = topLeadsByValue.length > 0
+    ? topLeadsByValue.map(formatLeadLine).join("\n")
+    : "  Sem leads convertidos para ranquear.";
+
+  const recentLeadsLines = recentLeads.length > 0
+    ? recentLeads.map(formatLeadLine).join("\n")
+    : "  Sem leads cadastrados ainda.";
+
   const text = `
 ## Dados da Organização: "${org?.name ?? "Cliente"}" | Período: ${periodStr}
+
+### 0.A Identidade da Organização
+- Nome: ${org?.name ?? "—"}
+- Slug: ${org?.slug ?? "—"} | Plano: ${org?.plan ?? "—"} | Status: ${org?.status ?? "—"}${org?.trial_ends_at ? ` | Trial termina em ${brDate(org.trial_ends_at as string)}` : ""}
+- Criada em: ${brDate(org?.created_at as string | null | undefined)}
+
+### 0.B Integrações Ativas
+${integrationsLines}
+
+### 0.C Contas de Tráfego Pago Conectadas
+${paidConnLines}
+
+### 0.D Dashboards Configurados
+${dashboardLines}
+
+### 0.E Metas Ativas
+${goalsLines}
+
+### 0.F Regras de Alerta Configuradas
+${alertRulesLines}
 
 ### 1. Funil de Vendas (CRM)
 - Leads no período: ${totalLeads}
@@ -430,6 +628,12 @@ async function buildDataContext(
 - Ticket médio: ${brl(avgTicket)}
 - Distribuição por status: ${Object.entries(statusDist).map(([k, v]) => `${k}: ${v}`).join(", ") || "sem dados"}
 - Top fontes de leads: ${topSources || "sem dados"}
+
+### 1.A Top 15 Leads Convertidos (por valor)
+${topLeadsLines}
+
+### 1.B 15 Leads Mais Recentes
+${recentLeadsLines}
 
 ### 2. Tráfego Pago
 ${
@@ -443,6 +647,10 @@ ${
 ${paidPlatformLines || "  (sem dados por plataforma)"}`
     : "- Sem dados de tráfego pago para o período"
 }
+
+### 2.A Campanhas (top 15 por sincronização recente)
+- Campanhas ativas: ${activeCampaigns.length} de ${paidCampaigns.length}
+${campaignLines}
 
 ### 3. Saúde dos Clientes (Customer Health)
 ${
@@ -815,25 +1023,47 @@ ${dataContextText}`;
 
     // ── Chat mode (streaming) ─────────────────────────────────────────────────
 
-    const systemPrompt = `Você é o Pinn AI — analista sênior de Revenue Operations com rigor estatístico.
+    const systemPrompt = `Você é o **BAI Copilot** — analista sênior de Revenue Operations da Pinn, dedicado a esta organização.
 
-REGRAS DE PRECISÃO (não negociáveis):
-- Use APENAS números que aparecem literalmente no contexto abaixo. Se não estiver lá, responda "não tenho esse dado".
+ESCOPO DE ACESSO (importante esclarecer ao usuário se perguntado):
+Você TEM ACESSO AO BANCO COMPLETO DA ORGANIZAÇÃO desta sessão. Não está limitado ao que está visível na tela. Os dados disponíveis abaixo cobrem:
+- Identidade da org (nome, plano, status, slug, datas)
+- TODAS as integrações configuradas (CRM, Supabase externo, Kommo, etc.)
+- TODAS as conexões de tráfego pago (Meta Ads, Google Ads) e suas campanhas
+- TODOS os dashboards configurados e seus widgets visíveis
+- TODAS as metas (KPI goals) e regras de alerta configuradas
+- Funil de vendas completo do período (com top 15 leads convertidos por valor + 15 mais recentes — nome, empresa, fonte, status, valor, data)
+- Métricas de tráfego pago agregadas e por plataforma + lista de campanhas
+- Saúde dos clientes (health score, bandas, tendência, clientes críticos)
+- Alertas ativos não resolvidos
+- Segmentação RFM
+- Predições de churn
+- Cruzamentos pré-calculados (CAC via Ads, ROAS, CPL, margem por lead, etc.)
+
+NUNCA diga ao usuário que "só tem acesso aos dados da tela atual". Você tem acesso a TUDO listado acima.
+Se uma informação específica não estiver no contexto (ex.: dado de um lead não citado nominalmente), explique que o contexto traz amostras (top 15 / 15 mais recentes) e que você pode aprofundar se ele perguntar por filtros ou métricas específicas.
+
+REGRAS DE PRECISÃO NUMÉRICA (não negociáveis):
+- Use APENAS números que aparecem literalmente no contexto. Se um número específico não estiver lá, responda honestamente "não vejo esse número específico no recorte atual".
 - NUNCA invente comparações temporais ("aumentou 20%") a menos que ambos os pontos estejam no contexto.
 - Sempre cite o número exato (ex: "ROAS de 2.34x", "47 leads convertidos", "R$ 12.300 de receita").
-- Se uma seção do contexto disser "sem dados", reconheça explicitamente a lacuna em vez de inferir.
+- Se uma seção do contexto disser "sem dados" / "Nenhum X configurado", reconheça explicitamente a lacuna em vez de inferir.
 - Cálculos derivados permitidos: taxa de conversão, CAC (gasto/convertidos), margem (ticket - CPL), ROAS por canal.
 
-CAPACIDADES:
+CAPACIDADES QUALITATIVAS (use também quando perguntado):
+- Descrever a estrutura da org (quais integrações estão ativas, quais dashboards existem, quais metas e alertas estão configurados).
 - Cruzar fontes (CRM × Ads × Health × RFM × Churn) para revelar causas raiz com evidência numérica.
+- Listar leads nominalmente quando o usuário pedir (use as listas Top Convertidos / Mais Recentes).
+- Diagnosticar falhas de integração (ex.: integração com erro de sync, conta de tráfego pago desconectada).
 - Recomendar ações concretas com impacto financeiro estimável a partir dos dados reais.
 
-FORMATO:
+ESTILO:
 - Português brasileiro, Markdown.
-- Cada afirmação quantitativa deve vir acompanhada do número fonte.
+- Direto, sem rodeios. Sem desculpas defensivas.
+- Cada afirmação quantitativa vem com o número fonte.
 - Termine com "Próxima ação recomendada:" quando a pergunta pedir decisão.
 
-DADOS REAIS DA ORGANIZAÇÃO:
+DADOS REAIS DA ORGANIZAÇÃO (banco completo desta org):
 ${dataContextText}`;
 
     const response = await fetch(aiEndpoint, {
