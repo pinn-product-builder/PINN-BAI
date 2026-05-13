@@ -284,7 +284,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="px-4 md:px-6 py-6 space-y-6 pb-24 max-w-[1480px] mx-auto">
+    <div className="w-full px-4 md:px-6 py-6 space-y-6 pb-24 max-w-[1480px] mx-auto">
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2 min-w-0">
