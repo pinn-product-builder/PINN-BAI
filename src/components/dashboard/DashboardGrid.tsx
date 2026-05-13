@@ -18,7 +18,12 @@ interface DashboardGridProps {
   renderWidget: (widget: GridWidget) => React.ReactNode;
 }
 
-const COLS = { lg: 12, md: 12, sm: 12, xs: 4, xxs: 2 };
+// Todos os breakpoints "úteis" (>= 480px) usam 12 cols pra manter o padrão
+// 4-up dos KPIs (metric_card w=3). Antes xs/xxs tinham 4/2 cols, o que
+// forçava os KPIs a empilharem 1 por linha em qualquer container <768px
+// (sintoma reportado na BF Company quando a janela do browser não estava
+// fullscreen). xxs vira 6 cols para celulares — 2 KPIs por linha.
+const COLS = { lg: 12, md: 12, sm: 12, xs: 12, xxs: 6 };
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const ROW_HEIGHT = 60;
 
