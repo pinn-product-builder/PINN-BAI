@@ -7,11 +7,6 @@ import {
   Download,
   Share2,
   Loader2,
-  TrendingDown,
-  Volume2,
-  Play,
-  Sparkles,
-  Mic2,
   BarChart3,
   MessageSquare,
   Phone,
@@ -24,7 +19,6 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import DashboardEngine from '@/components/dashboard/DashboardEngine';
 import { ReportGenerator } from '@/lib/report-generator';
-import { useDashboardNarrative } from '@/hooks/useDashboardNarrative';
 import { isRfmChurnEnabledForOrg, isDemoOrg, isDemoSlug } from '@/lib/featureFlags';
 import { useOrganizationBranding } from '@/contexts/OrganizationBrandingContext';
 import { KpiCard } from '@/components/ui/KpiCard';
@@ -182,7 +176,6 @@ const Dashboard = () => {
   const { organization, isLoading: brandingLoading } = useOrganizationBranding();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedDashId, setSelectedDashId] = useState<string | null>(null);
   const [showShare, setShowShare] = useState(false);
@@ -213,8 +206,6 @@ const Dashboard = () => {
     || dashboards?.find(d => d.is_default)
     || dashboards?.[0];
 
-  const { narrative, isLoading: isLoadingNarrative } = useDashboardNarrative(activeDash?.id, orgId);
-
   // Orgs em modo demo (ex.: Arguto) recebem a tela /arguto dedicada como
   // landing — evita session restaurada cair em /dashboard zerado.
   // Detecta por slug (estável entre ambientes) ou por id hardcoded (fallback).
@@ -240,7 +231,7 @@ const Dashboard = () => {
       await ReportGenerator.generateDashboardPDF('dashboard-content', {
         title: activeDash.name || 'Dashboard',
         organizationName: 'Sua Organização',
-        aiSnapshot: narrative?.text || '',
+        aiSnapshot: '',
       });
       toast({ title: "Relatório Concluído", description: "O PDF foi gerado com sucesso." });
     } catch {
@@ -248,18 +239,6 @@ const Dashboard = () => {
     } finally {
       setIsExporting(false);
     }
-  };
-
-  const handleVoiceBriefing = () => {
-    setIsVoiceActive(true);
-    toast({ title: "CEO Voice Mode Ativado", description: "A IA está preparando seu resumo executivo em áudio..." });
-    const textToSpeak = narrative?.text || "Nenhum insight disponível no momento.";
-    setTimeout(() => {
-      setIsVoiceActive(false);
-      const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      utterance.lang = 'pt-BR';
-      window.speechSynthesis.speak(utterance);
-    }, 1500);
   };
 
   // Restaura o grid pro layout-padrão (4 cards por linha, charts 2-up). Útil
@@ -292,7 +271,7 @@ const Dashboard = () => {
             {activeDash?.name || 'Dashboard'}
           </h1>
           <p className="text-xs text-muted-foreground/60">
-            {activeDash?.description || 'Performance dos últimos 30 dias'}
+            {activeDash?.description || 'Desempenho dos últimos 30 dias'}
           </p>
         </div>
 
@@ -350,26 +329,6 @@ const Dashboard = () => {
             {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
             PDF
           </button>
-          <button
-            onClick={handleVoiceBriefing}
-            disabled={isVoiceActive}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50"
-            style={{
-              borderColor: 'rgba(255,107,53,0.3)',
-              color: '#FF6B35',
-              background: 'rgba(255,107,53,0.06)',
-            }}
-          >
-            {isVoiceActive ? (
-              <span className="flex gap-0.5 items-end">
-                {[2, 3, 2.5].map((h, i) => (
-                  <span key={i} className="w-0.5 rounded-full animate-bounce bg-primary"
-                    style={{ height: `${h * 4}px`, animationDelay: `${i * 80}ms` }} />
-                ))}
-              </span>
-            ) : <Volume2 className="w-3.5 h-3.5" />}
-            CEO Briefing
-          </button>
         </div>
       </div>
 
@@ -420,68 +379,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ── AI Narrative ── */}
-      <div
-        className="rounded-xl border border-border/30 p-4 relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, rgba(255,105,0,0.04) 0%, hsl(var(--card)) 60%)' }}
-      >
-        <Sparkles className="absolute top-3 right-3 w-20 h-20 text-primary/[0.04]" />
-
-        <div className="flex gap-3 items-start relative z-10">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: 'rgba(255,105,0,0.12)', border: '1px solid rgba(255,105,0,0.2)' }}
-          >
-            <Mic2 className="w-4 h-4 text-primary" />
-          </div>
-
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                Resumo Executivo
-              </h3>
-              {narrative?.trend && (
-                <span className={cn(
-                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
-                  narrative.trend === 'up'     && "bg-emerald-500/10 text-emerald-400",
-                  narrative.trend === 'down'   && "bg-red-500/10 text-red-400",
-                  narrative.trend === 'stable' && "bg-muted text-muted-foreground"
-                )}>
-                  {narrative.trend === 'up'   && <TrendingUpIcon className="w-2.5 h-2.5" />}
-                  {narrative.trend === 'down' && <TrendingDown className="w-2.5 h-2.5" />}
-                  {narrative.trend === 'up' && 'Alta'}{narrative.trend === 'down' && 'Baixa'}{narrative.trend === 'stable' && 'Estável'}
-                </span>
-              )}
-            </div>
-
-            {isLoadingNarrative ? (
-              <div className="flex items-center gap-2 text-muted-foreground/50">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span className="text-[11px]">Gerando insights...</span>
-              </div>
-            ) : (
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {narrative?.highlight ? (
-                  <>
-                    {narrative.text.split(narrative.highlight)[0]}
-                    <span className="text-foreground font-semibold">{narrative.highlight}</span>
-                    {narrative.text.split(narrative.highlight)[1]}
-                  </>
-                ) : (narrative?.text || 'Configure seus widgets para ver insights automáticos.')}
-              </p>
-            )}
-
-            <button
-              onClick={handleVoiceBriefing}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-primary/70 hover:text-primary transition-colors mt-0.5"
-            >
-              <Play className="w-3 h-3 fill-current" />
-              Ouvir
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* ── Banner de modo edição ── */}
       {isEditingLayout && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-primary/30 bg-primary/[0.05] text-xs">
@@ -518,11 +415,5 @@ const Dashboard = () => {
     </div>
   );
 };
-
-const TrendingUpIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-  </svg>
-);
 
 export default Dashboard;

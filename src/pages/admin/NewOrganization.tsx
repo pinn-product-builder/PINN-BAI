@@ -67,12 +67,12 @@ const NewOrganization = () => {
 
       if (orgError) throw orgError;
 
-      // 2. Create initial dashboard for the org (empty - widgets will be added via template in wizard)
+      // 2. Cria dashboard inicial para a org (vazio — widgets entram via template no wizard)
       const { data: dash, error: dashError } = await supabase
         .from('dashboards')
         .insert({
           org_id: org.id,
-          name: 'Main Executive View',
+          name: 'Visão Executiva',
           is_default: true
         })
         .select()
