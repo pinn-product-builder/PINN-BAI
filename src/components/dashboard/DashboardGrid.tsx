@@ -92,19 +92,43 @@ function generateInitialLayout(widgets: GridWidget[], cols: number): Layout[] {
 }
 
 /**
- * Garante que metric_cards nunca fiquem com largura grande demais (ex.: w=12
- * → 1 KPI por linha, problema reportado na BF Company). Se um saved layout
- * tem metric_card com w > 4, força para o default (3 wide). Mesmo p/ outros
- * tipos que estouram a largura do grid.
+ * Detecta layout salvo quebrado: metric_cards com w grande demais, ou
+ * widgets todos empilhados em x=0 (sintoma reportado na BF Company —
+ * "1 em cima do outro de forma totalmente desorganizada").
+ */
+function isLayoutBroken(layout: Layout[], widgets: GridWidget[]): boolean {
+  if (layout.length === 0) return false;
+  const typeById = new Map(widgets.map((w) => [w.id, w.type]));
+  // Sintoma 1: metric_card com largura grande (>4) → vira 1 KPI por linha.
+  const hasFatMetricCard = layout.some((l) => {
+    const t = typeById.get(l.i);
+    return t === 'metric_card' && l.w > 4;
+  });
+  if (hasFatMetricCard) return true;
+  // Sintoma 2: maioria dos widgets stackados em x=0 (sem horizontal flow).
+  const atX0 = layout.filter((l) => l.x === 0).length;
+  if (atX0 > Math.max(3, layout.length * 0.6)) return true;
+  return false;
+}
+
+/**
+ * Normaliza largura (cap em 4 para metric_card, cap em cols para resto) e
+ * re-flui x/y se o saved layout estiver quebrado. Mantém heights customizados.
  */
 function normalizeLayout(layout: Layout[], widgets: GridWidget[], cols: number): Layout[] {
   const typeById = new Map(widgets.map((w) => [w.id, w.type]));
+
+  // Se o layout salvo está quebrado, regenera completamente do zero com base
+  // nos widgets (defaults limpos: KPIs 4-up, charts 2-up, table full width).
+  if (isLayoutBroken(layout, widgets)) {
+    return generateInitialLayout(widgets, cols);
+  }
+
+  // Layout salvo é razoável: só corrige larguras-fora-do-budget e mantém posições.
   return layout.map((l) => {
     const type = typeById.get(l.i);
     if (!type) return l;
     const def = getDefaultSize(type);
-    // Para metric_card, sempre 3-wide (4 por linha). Outros tipos: respeita o
-    // que o usuário salvou, só limita ao máximo de colunas do breakpoint.
     let w = l.w;
     if (type === 'metric_card' && w > 4) w = def.w;
     if (w > cols) w = Math.min(def.w, cols);
