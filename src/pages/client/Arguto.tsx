@@ -40,31 +40,33 @@ const Arguto = () => {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        {/* Mobile: scroll horizontal, full width tappable. Desktop: grid fixo. */}
+        {/* Mobile: scroll horizontal, full width tappable. Desktop: grid fixo
+            com colunas de largura idêntica (min-w-0 + truncate evitam que o
+            tab com texto mais longo "Predição de Churn" estique a coluna). */}
         <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
           <TabsList
             className={`inline-flex sm:grid sm:w-full ${churnEnabled ? 'sm:max-w-3xl sm:grid-cols-4' : 'sm:max-w-2xl sm:grid-cols-3'} h-11 bg-muted/40 gap-1 sm:gap-0`}
           >
-            <TabsTrigger value="snapshot" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink">
+            <TabsTrigger value="snapshot" className="gap-1.5 text-xs px-2 whitespace-nowrap shrink-0 sm:shrink sm:min-w-0">
               <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
               <span className="lg:hidden">Snapshot</span>
-              <span className="hidden lg:inline">Executive Snapshot</span>
+              <span className="hidden lg:inline truncate">Executive Snapshot</span>
             </TabsTrigger>
-            <TabsTrigger value="operacao" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink">
+            <TabsTrigger value="operacao" className="gap-1.5 text-xs px-2 whitespace-nowrap shrink-0 sm:shrink sm:min-w-0">
               <ListChecks className="w-3.5 h-3.5 shrink-0" />
-              <span>Operação</span>
+              <span className="truncate">Operação</span>
             </TabsTrigger>
             {churnEnabled && (
-              <TabsTrigger value="churn" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink">
+              <TabsTrigger value="churn" className="gap-1.5 text-xs px-2 whitespace-nowrap shrink-0 sm:shrink sm:min-w-0">
                 <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
                 <span className="lg:hidden">Churn</span>
-                <span className="hidden lg:inline">Predição de Churn</span>
+                <span className="hidden lg:inline truncate">Predição de Churn</span>
               </TabsTrigger>
             )}
-            <TabsTrigger value="roi" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink">
+            <TabsTrigger value="roi" className="gap-1.5 text-xs px-2 whitespace-nowrap shrink-0 sm:shrink sm:min-w-0">
               <Calculator className="w-3.5 h-3.5 shrink-0" />
               <span className="lg:hidden">ROI</span>
-              <span className="hidden lg:inline">Simulação ROI</span>
+              <span className="hidden lg:inline truncate">Simulação ROI</span>
             </TabsTrigger>
           </TabsList>
         </div>

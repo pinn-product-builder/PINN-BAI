@@ -482,6 +482,19 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* ── Banner de modo edição ── */}
+      {isEditingLayout && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-primary/30 bg-primary/[0.05] text-xs">
+          <Move className="w-4 h-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-foreground">Modo edição ativo</p>
+            <p className="text-muted-foreground/80 mt-0.5">
+              Arraste qualquer widget pra reorganizar · Use o canto inferior direito (laranja) pra redimensionar · Os ajustes salvam automaticamente
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Widgets ── */}
       <div id="dashboard-content">
         {activeDash?.id ? (

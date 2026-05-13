@@ -389,10 +389,29 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, orgId, mode, dateRange } = await req.json();
+    const { messages, orgId, mode, dateRange, pathname, dashboardName } = await req.json();
 
+    // Provider selection: OpenAI preferred (when chave está configurada), Lovable como fallback.
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    if (!OPENAI_API_KEY && !LOVABLE_API_KEY) {
+      throw new Error("Neither OPENAI_API_KEY nor LOVABLE_API_KEY is configured");
+    }
+
+    const useOpenAI = !!OPENAI_API_KEY;
+    const aiEndpoint = useOpenAI
+      ? "https://api.openai.com/v1/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+    const aiAuthHeader = useOpenAI ? `Bearer ${OPENAI_API_KEY}` : `Bearer ${LOVABLE_API_KEY}`;
+
+    // Modelos: OpenAI usa gpt-4o (insights, com tool_choice) e gpt-4o-mini (chat stream barato).
+    const insightsModel = useOpenAI
+      ? (Deno.env.get("OPENAI_MODEL_INSIGHTS") ?? "gpt-4o")
+      : "google/gemini-2.5-pro";
+    const chatModel = useOpenAI
+      ? (Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini")
+      : "google/gemini-3-flash-preview";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -404,6 +423,44 @@ serve(async (req) => {
       const ctx = await buildDataContext(supabase, orgId, dateRange);
       dataContextText = ctx.text;
       calcTrail = ctx.trail;
+    }
+
+    // ── Contexto da tela atual ────────────────────────────────────────────────
+    // O frontend manda `pathname` (ex: "/client/abc/paid-traffic") e opcionalmente
+    // o nome do dashboard ativo. Isso ajuda o modelo a focar a resposta na tela
+    // que o usuário está olhando no momento (ele pode perguntar "o que tá ruim
+    // aqui?" sem especificar a métrica).
+    const ROUTE_LABELS: Record<string, string> = {
+      "dashboard":        "Dashboard principal (widgets configuráveis)",
+      "arguto":           "Arguto · BAI (demonstração — clientes, churn, ROI, mapa de visitas)",
+      "crm":              "CRM Kanban (pipeline de leads)",
+      "import":           "Dados (importação de leads / planilhas)",
+      "insights":         "Inteligência IA (insights estruturados sobre os dados)",
+      "rfm-churn":        "RFM + Churn (segmentação e predição de churn)",
+      "paid-traffic":     "Tráfego Pago (Meta Ads / Google Ads / TikTok)",
+      "customer-health":  "Saúde do Cliente (health score, NPS, sinais de risco)",
+      "unit-economics":   "CAC + LTV (unit economics e payback)",
+      "goals":            "Metas & Alertas",
+      "gamification":     "Conquistas / Gamificação",
+      "integrations":     "Integrações (Kommo, Ploomes, Meta, Google)",
+      "crm-auditor":      "Auditor CRM (análise de qualidade de dados)",
+      "crm-audit":        "Auditoria CRM (dashboard de auditoria)",
+      "pinn-sdr":         "Pinn SDR (Ploomes + LinkedIn + Cold Mail unificados)",
+      "linkedin-sdr":     "LinkedIn SDR Manager (campanhas, conversas, perfis Mari)",
+      "settings":         "White Label / Configurações",
+      "users":            "Usuários da organização",
+    };
+    const routeSlug = (pathname ?? "").split("?")[0].split("/").filter(Boolean).pop() ?? "";
+    const routeLabel = ROUTE_LABELS[routeSlug] ?? (routeSlug ? `Tela "${routeSlug}"` : "tela não identificada");
+    const screenContext = pathname
+      ? `### 0. Tela aberta agora (foque a resposta nela)
+- Rota: ${pathname}
+- Tela: ${routeLabel}${dashboardName ? `
+- Dashboard ativo: ${dashboardName}` : ""}
+`
+      : "";
+    if (screenContext) {
+      dataContextText = `${screenContext}\n${dataContextText}`;
     }
 
     // ── Insights mode (structured via tool-calling, non-streaming) ────────────
@@ -494,11 +551,11 @@ ${dataContextText}`;
         },
       };
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const response = await fetch(aiEndpoint, {
         method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: insightsModel,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: "Execute o protocolo de análise e chame emit_insights com 4 a 6 insights de máxima precisão. Cada insight deve citar um número exato do contexto." },
@@ -513,10 +570,10 @@ ${dataContextText}`;
       if (!response.ok) {
         const status = response.status;
         const txt = await response.text().catch(() => "");
-        console.error("AI gateway error (insights):", status, txt);
+        console.error("AI provider error (insights):", status, txt);
         if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         if (status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "AI provider error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const aiResult = await response.json();
@@ -675,20 +732,22 @@ FORMATO:
 DADOS REAIS DA ORGANIZAÇÃO:
 ${dataContextText}`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(aiEndpoint, {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: chatModel,
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),
     });
 
     if (!response.ok) {
+      const txt = await response.text().catch(() => "");
+      console.error("AI provider error (chat):", response.status, txt);
       if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (response.status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "AI provider error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(response.body, {

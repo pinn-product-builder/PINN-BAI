@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -11,6 +11,15 @@ interface RfmChurnModuleProps {
   orgId: string;
   title?: string;
   description?: string;
+  /**
+   * Quando `false`, o módulo NÃO renderiza o próprio header (título + descrição
+   * + botão "Atualizar"). Use quando a page pai já fornece o header padrão
+   * (ícone + h1 + descrição) — evita duplicação e mantém o recuo visual
+   * consistente com as outras telas do dashboard. Default: `true`.
+   */
+  showHeader?: boolean;
+  /** Callback exposto para que a page pai possa disparar refetch externamente. */
+  onRefetch?: (refetch: () => void, isFetching: boolean) => void;
 }
 
 const riskBadgeClass: Record<'baixo' | 'medio' | 'alto', string> = {
@@ -23,6 +32,8 @@ const RfmChurnModule = ({
   orgId,
   title = 'Matriz RFM e Predição de Churn',
   description = 'Novo módulo analítico para segmentação de clientes e risco de evasão.',
+  showHeader = true,
+  onRefetch,
 }: RfmChurnModuleProps) => {
   const { dateRangeISO } = useFilters();
   const { analysis, isLoading, isFetching, refetch } = useRfmChurnAnalysis(orgId, dateRangeISO);
@@ -34,24 +45,31 @@ const RfmChurnModule = ({
     [summary.segments],
   );
 
+  // Expõe refetch para a page pai quando ela fornece o header próprio.
+  useEffect(() => {
+    onRefetch?.(refetch, isFetching);
+  }, [onRefetch, refetch, isFetching]);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-semibold text-foreground tracking-tight">{title}</h2>
-          <p className="text-sm text-muted-foreground">{description}</p>
+      {showHeader && (
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-2xl font-semibold text-foreground tracking-tight">{title}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{description}</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 shrink-0"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Atualizar análise
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-fit gap-2 shrink-0"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          {isFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Atualizar análise
-        </Button>
-      </div>
+      )}
 
       {/* 4 KPIs do mesmo tamanho — padrao Arguto */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

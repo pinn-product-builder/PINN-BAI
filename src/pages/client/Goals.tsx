@@ -416,12 +416,17 @@ export default function Goals() {
       </div>
 
       <Tabs defaultValue="goals">
-        <TabsList>
-          <TabsTrigger value="goals" className="gap-2">
-            <Target className="w-4 h-4" /> Metas ({goals.length})
+        {/* TabsList compacta e consistente com a do Arguto (h-11 + bg-muted/40)
+            — 2 colunas de mesma largura limitadas a max-w-md para não esticar
+            em viewports largos. */}
+        <TabsList className="inline-flex sm:grid sm:w-full sm:max-w-md sm:grid-cols-2 h-11 bg-muted/40 gap-1 sm:gap-0">
+          <TabsTrigger value="goals" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink sm:min-w-0">
+            <Target className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Metas ({goals.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="alerts" className="gap-2">
-            <Bell className="w-4 h-4" /> Regras de Alerta ({rules.length})
+          <TabsTrigger value="alerts" className="gap-1.5 text-xs px-3 whitespace-nowrap shrink-0 sm:shrink sm:min-w-0">
+            <Bell className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Regras de Alerta ({rules.length})</span>
           </TabsTrigger>
         </TabsList>
 

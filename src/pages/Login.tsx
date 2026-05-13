@@ -19,7 +19,9 @@ const Login = () => {
     if (authLoading || !user) return;
     if (!profile || roles.length === 0) return;
     if (isPlatformAdmin) navigate('/admin/hq', { replace: true });
-    else if (profile.org_id) navigate(`/client/${profile.org_id}/dashboard`, { replace: true });
+    // /client/:orgId resolve o destino certo via ClientRootRedirect:
+    // Arguto → /arguto, Pinn Product Builder → /pinn-sdr, demais → /dashboard.
+    else if (profile.org_id) navigate(`/client/${profile.org_id}`, { replace: true });
   }, [authLoading, user, profile, roles, isPlatformAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {

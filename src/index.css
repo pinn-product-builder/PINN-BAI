@@ -208,23 +208,62 @@
 /* react-grid-layout customizations */
 .react-grid-item.react-grid-placeholder {
   background: hsl(var(--primary) / 0.15) !important;
-  border: 2px dashed hsl(var(--primary) / 0.5) !important;
+  border: 2px dashed hsl(var(--primary) / 0.6) !important;
   border-radius: 0.75rem !important;
   opacity: 1 !important;
+  transition-duration: 100ms !important;
 }
+
+/* ── Modo edição: outline laranja, cursor grab e handle bem visível ── */
 .layout.is-editing .react-grid-item {
-  outline: 1px dashed hsl(var(--border));
+  outline: 2px dashed hsl(var(--primary) / 0.4);
   outline-offset: -2px;
+  border-radius: 0.75rem;
   cursor: grab;
+  transition: outline-color 0.15s ease, box-shadow 0.15s ease;
 }
-.layout.is-editing .react-grid-item:active { cursor: grabbing; }
+.layout.is-editing .react-grid-item:hover {
+  outline-color: hsl(var(--primary) / 0.75);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08), 0 4px 16px hsl(var(--primary) / 0.12);
+}
+.layout.is-editing .react-grid-item.react-draggable-dragging {
+  cursor: grabbing !important;
+  z-index: 100 !important;
+  box-shadow: 0 8px 24px hsl(var(--primary) / 0.25), 0 0 0 2px hsl(var(--primary));
+}
+
+/* Handle de resize: fora do edit-mode invisível; dentro, bola laranja sólida */
 .react-grid-item > .react-resizable-handle {
   opacity: 0;
+  pointer-events: none;
   transition: opacity .15s;
 }
 .layout.is-editing .react-grid-item > .react-resizable-handle {
   opacity: 1;
+  pointer-events: auto;
+  width: 22px;
+  height: 22px;
+  background-image: none;
 }
-.react-grid-item > .react-resizable-handle::after {
-  border-color: hsl(var(--primary)) !important;
+.layout.is-editing .react-grid-item > .react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  border-right: 3px solid hsl(var(--primary));
+  border-bottom: 3px solid hsl(var(--primary));
+  border-bottom-right-radius: 4px;
+  background: transparent;
+}
+.layout.is-editing .react-grid-item > .react-resizable-handle:hover::after {
+  border-color: hsl(var(--primary));
+  border-width: 4px;
+}
+
+/* Bloqueia seleção de texto durante drag/resize pra evitar UX confuso */
+.layout.is-editing .react-grid-item {
+  user-select: none;
+  -webkit-user-select: none;
 }

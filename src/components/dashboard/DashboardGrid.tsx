@@ -97,18 +97,18 @@ function generateInitialLayout(widgets: GridWidget[], cols: number): Layout[] {
 }
 
 /**
- * Detecta layout salvo quebrado e força regeneração com defaults limpos.
+ * Detecta layout salvo CATASTROFICAMENTE quebrado e força regeneração com
+ * defaults limpos. Esta função roda na carga inicial — ela NÃO deve atropelar
+ * customizações deliberadas do user, só corrigir aberrações.
  *
- * Sintomas conhecidos (todos vistos em produção, principalmente BF Company):
- *  1. metric_card com w > 4: KPIs viram 1-2 por linha, ocupando tela inteira.
- *  2. metric_card com w < 3: KPIs ficam minúsculos no canto, deixando metade
- *     da viewport vazia ("widgets pequenos e centralizados demais").
- *  3. Charts (area/line/bar/pie/funnel) com w < 4: gráficos espremidos sem
- *     espaço pros eixos.
- *  4. Tables com w < 8: tabelas viram colunas estreitas com scroll horizontal.
- *  5. Altura < minH efetiva (h < 2 pra cards, h < 4 pra charts): widget cortado.
- *  6. Maioria dos widgets stackados em x=0: layout 100% vertical, sem flow.
- *  7. KPIs deixando >25% da linha vazia (ex.: 4 KPIs de w:2 = 8/12 cols).
+ * Heurística suave (intencional): só sinaliza broken se algum widget está em
+ * um estado realmente inutilizável (ex.: KPI ocupando viewport inteira, chart
+ * com 1-2 cols espremido). Layouts "estéticos mas válidos" — como 2 widgets
+ * de w:4 + 1 espaço vazio — são RESPEITADOS, mesmo que não preencham a linha.
+ *
+ * Esta foi a fonte do bug reportado pelo cliente: ao editar Insights IA + 
+ * Evolução de Leads pra w:4 cada, a heurística antiga marcava como broken
+ * (linha < 75% preenchida) e reescrevia no próximo reload.
  */
 function isLayoutBroken(layout: Layout[], widgets: GridWidget[], cols: number): boolean {
   if (layout.length === 0) return false;
@@ -119,53 +119,37 @@ function isLayoutBroken(layout: Layout[], widgets: GridWidget[], cols: number): 
   const isWideBp = cols >= 12;
 
   if (isWideBp) {
-    // Sintoma 1+2+5: metric_cards fora do range saudável (3-4 cols, 2+ rows).
+    // KPIs aberrantes: ocupando 5+ cols (linha inteira pra um número) ou
+    // bizarramente pequenos (1-2 cols, ilegíveis). Range saudável: 2-4 cols.
     const badMetricCard = layout.some((l) => {
       const t = typeById.get(l.i);
       if (t !== 'metric_card') return false;
-      return l.w > 4 || l.w < 3 || l.h < 2;
+      return l.w >= 5 || l.w < 2 || l.h < 2;
     });
     if (badMetricCard) return true;
 
-    // Sintoma 3: charts/insights espremidos (w<4) ou cortados (h<4).
+    // Charts/insights inutilizáveis: w<3 cols (sem espaço pra eixos) ou
+    // h<3 rows (gráfico esmagado). Aceitamos w=3 ou h=3 — user pode querer.
     const badChart = layout.some((l) => {
       const t = typeById.get(l.i);
       if (!t) return false;
       const isChart = ['area_chart', 'line_chart', 'bar_chart', 'pie_chart', 'funnel', 'rfm_matrix', 'churn_prediction', 'insight_card'].includes(t);
       if (!isChart) return false;
-      return l.w < 4 || l.h < 4;
+      return l.w < 3 || l.h < 3;
     });
     if (badChart) return true;
 
-    // Sintoma 4: tabela estreita demais (precisa de pelo menos 8 cols).
+    // Tabela inutilizável: w<4 (mostraria 1 coluna) ou h<3 (1 linha visível).
     const badTable = layout.some((l) => {
       const t = typeById.get(l.i);
-      return t === 'table' && (l.w < 8 || l.h < 4);
+      return t === 'table' && (l.w < 4 || l.h < 3);
     });
     if (badTable) return true;
   }
 
-  // Sintoma 6: maioria dos widgets stackados em x=0 (sem horizontal flow).
-  const atX0 = layout.filter((l) => l.x === 0).length;
-  if (atX0 > Math.max(3, layout.length * 0.6)) return true;
-
-  // Sintoma 7: linhas com 2+ widgets ocupando menos de ~75% da largura
-  // disponível — sinal de "widgets pequenos e centralizados" reportado
-  // pelo cliente. Calculado em proporção ao breakpoint atual.
-  if (isWideBp) {
-    const fillThreshold = Math.floor(cols * 0.75); // 12 cols → 9; 6 → 4
-    const byRow = new Map<number, Layout[]>();
-    layout.forEach((l) => {
-      const arr = byRow.get(l.y) || [];
-      arr.push(l);
-      byRow.set(l.y, arr);
-    });
-    for (const items of byRow.values()) {
-      if (items.length < 2) continue;
-      const used = items.reduce((sum, l) => sum + l.w, 0);
-      if (used < fillThreshold) return true;
-    }
-  }
+  // Sem mais heurísticas de "fill da linha" ou "stacked em x=0" — eram falsos
+  // positivos que atropelavam customizações legítimas do user. Confiamos que
+  // se o layout passa nos mínimos acima, o user sabe o que quer.
 
   return false;
 }
