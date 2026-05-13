@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,24 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Building2,
   Plus,
   Search,
@@ -22,11 +40,16 @@ import {
   TrendingUp,
   AlertCircle,
   Loader2,
-  LayoutDashboard
+  LayoutDashboard,
+  MoreHorizontal,
+  Ban,
+  CheckCircle2,
 } from 'lucide-react';
 import { usePlans } from '@/hooks/usePlans';
 import { getPlanShortName } from '@/lib/plans';
 import OrgAvatar from '@/components/admin/OrgAvatar';
+import { useToast } from '@/hooks/use-toast';
+import type { OrgStatus } from '@/lib/types';
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className: string }> = {
   active: { label: 'Ativo', variant: 'default', className: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
@@ -34,10 +57,25 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   trial: { label: 'Trial', variant: 'secondary', className: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
 };
 
+type OrgRow = {
+  id: string;
+  name: string;
+  slug: string;
+  plan: number;
+  status: OrgStatus;
+  logo_url: string | null;
+  admin_name: string | null;
+  admin_email: string | null;
+  created_at: string;
+};
+
 const Organizations = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [suspendTarget, setSuspendTarget] = useState<OrgRow | null>(null);
   const navigate = useNavigate();
   const { data: plans } = usePlans();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: organizations, isLoading } = useQuery({
     queryKey: ['admin-organizations-list'],
@@ -48,6 +86,32 @@ const Organizations = () => {
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
+    },
+  });
+
+  const setStatusMutation = useMutation({
+    mutationFn: async ({ orgId, action }: { orgId: string; action: 'suspend' | 'activate' }) => {
+      const updates = action === 'suspend'
+        ? { status: 'suspended' as OrgStatus, trial_ends_at: null }
+        : { status: 'active' as OrgStatus, trial_ends_at: null };
+      const { error } = await supabase.from('organizations').update(updates).eq('id', orgId);
+      if (error) throw error;
+      return action;
+    },
+    onSuccess: (action) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-organizations-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      toast({
+        title: action === 'suspend' ? 'Organização suspensa' : 'Organização reativada',
+        description: action === 'suspend'
+          ? 'O cliente perde acesso ao BAI imediatamente.'
+          : 'O cliente já pode entrar normalmente.',
+      });
+      setSuspendTarget(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Erro ao alterar status', description: err.message, variant: 'destructive' });
     },
   });
 
@@ -244,17 +308,56 @@ const Organizations = () => {
                         {formatDate(org.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="hover:bg-primary/10 hover:text-primary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/admin/organizations/${org.id}`);
-                          }}
-                        >
-                          <LayoutDashboard className="w-4 h-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="hover:bg-primary/10 hover:text-primary"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuLabel className="text-xs">Ações da org</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/organizations/${org.id}`);
+                              }}
+                            >
+                              <LayoutDashboard className="w-4 h-4 mr-2" />
+                              Abrir dashboard
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {org.status === 'suspended' ? (
+                              <DropdownMenuItem
+                                className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-500/10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setStatusMutation.mutate({ orgId: org.id, action: 'activate' });
+                                }}
+                                disabled={setStatusMutation.isPending}
+                              >
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                Reativar acesso
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSuspendTarget(org as OrgRow);
+                                }}
+                                disabled={setStatusMutation.isPending}
+                              >
+                                <Ban className="w-4 h-4 mr-2" />
+                                Suspender acesso
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
@@ -264,6 +367,39 @@ const Organizations = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!suspendTarget} onOpenChange={(open) => !open && setSuspendTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Suspender acesso da organização?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">{suspendTarget?.name}</span> deixará
+              de conseguir acessar o BAI imediatamente. Todos os usuários da org verão a tela de
+              bloqueio até a reativação manual. Você pode reverter a qualquer momento por esta
+              mesma tela.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={setStatusMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={setStatusMutation.isPending}
+              onClick={() => {
+                if (suspendTarget) {
+                  setStatusMutation.mutate({ orgId: suspendTarget.id, action: 'suspend' });
+                }
+              }}
+            >
+              {setStatusMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Ban className="w-4 h-4 mr-2" />
+              )}
+              Suspender acesso
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
