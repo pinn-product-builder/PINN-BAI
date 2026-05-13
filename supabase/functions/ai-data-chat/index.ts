@@ -42,6 +42,98 @@ interface DataContextResult {
   trail: CalculationTrail[];
 }
 
+interface ClientLeadStats {
+  totalLeads: number;
+  totalConverted: number;
+  totalRevenue: number;
+  avgTicket: number;
+  statusDist: Record<string, number>;
+  sourceDist: Record<string, number>;
+  source: "kommo_leads" | "leads";
+}
+
+// Quando a org tem integração Supabase conectada (ex.: BF Company), os leads ficam
+// no projeto externo do cliente em `kommo_leads` — não na tabela interna `leads`.
+// Esta função tenta ler de lá; retorna null se a org não tiver integração ou se a
+// tabela `kommo_leads` não existir no projeto remoto.
+async function fetchLeadStatsFromClientSupabase(
+  internalSupabase: ReturnType<typeof createClient>,
+  orgId: string,
+  start: string,
+  end: string,
+): Promise<ClientLeadStats | null> {
+  try {
+    const { data: integration } = await internalSupabase
+      .from("integrations")
+      .select("config")
+      .eq("org_id", orgId)
+      .eq("type", "supabase")
+      .eq("status", "connected")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const cfg = (integration?.config ?? {}) as { projectUrl?: string; anonKey?: string };
+    if (!cfg.projectUrl || !cfg.anonKey) return null;
+
+    const clientDb = createClient(cfg.projectUrl, cfg.anonKey);
+
+    let q = clientDb
+      .from("kommo_leads")
+      .select("lead_id, venda, encaminhado, atendimento_feito, reuniao_confirmada, reuniao_realizada, desqualificado, utm_source, origem, created_at_iso, won_at_iso", { count: "exact" });
+    if (start) q = q.gte("created_at_iso", start);
+    if (end) q = q.lte("created_at_iso", end + "T23:59:59");
+
+    const { data, error, count } = await q.limit(5000);
+    if (error) {
+      console.warn("[ai-data-chat] kommo_leads fetch falhou:", error.message);
+      return null;
+    }
+
+    const rows = data ?? [];
+    if (rows.length === 0 && (count ?? 0) === 0) return null;
+
+    const totalLeads = count ?? rows.length;
+    const totalConverted = rows.filter((r) => r.venda === true).length;
+    // sem coluna `value` no kommo_leads → ticket médio fica indisponível
+    const totalRevenue = 0;
+    const avgTicket = 0;
+
+    const statusDist: Record<string, number> = {};
+    for (const r of rows) {
+      const buckets: Array<[string, unknown]> = [
+        ["venda", r.venda],
+        ["reuniao_realizada", r.reuniao_realizada],
+        ["reuniao_confirmada", r.reuniao_confirmada],
+        ["atendimento_feito", r.atendimento_feito],
+        ["encaminhado", r.encaminhado],
+        ["desqualificado", r.desqualificado],
+      ];
+      const stage = buckets.find(([, v]) => v === true)?.[0] ?? "sem_status";
+      statusDist[stage] = (statusDist[stage] ?? 0) + 1;
+    }
+
+    const sourceDist: Record<string, number> = {};
+    for (const r of rows) {
+      const src = String(r.utm_source ?? r.origem ?? "desconhecido");
+      sourceDist[src] = (sourceDist[src] ?? 0) + 1;
+    }
+
+    return {
+      totalLeads,
+      totalConverted,
+      totalRevenue,
+      avgTicket,
+      statusDist,
+      sourceDist,
+      source: "kommo_leads",
+    };
+  } catch (err) {
+    console.warn("[ai-data-chat] fetchLeadStatsFromClientSupabase erro:", err);
+    return null;
+  }
+}
+
 async function buildDataContext(
   supabase: ReturnType<typeof createClient>,
   orgId: string,
@@ -49,6 +141,10 @@ async function buildDataContext(
 ): Promise<DataContextResult> {
   const start = dateRange?.start?.substring(0, 10) ?? "";
   const end = dateRange?.end?.substring(0, 10) ?? "";
+
+  // Tenta primeiro buscar leads na fonte externa do cliente (integração Supabase).
+  // Se a org não tem integração ou não tem kommo_leads, cai no fluxo interno padrão.
+  const clientLeadStats = await fetchLeadStatsFromClientSupabase(supabase, orgId, start, end);
 
   const [
     orgRes,
@@ -148,22 +244,30 @@ async function buildDataContext(
   const paidRows = paidTrafficRes.data ?? [];
 
   // ── Leads summary ──────────────────────────────────────────────────────────
-  const totalLeads = leads.length;
-  const totalConverted = converted.length;
+  // Prefere fonte externa (kommo_leads via integração) quando disponível.
+  const useClient = !!clientLeadStats;
+  const totalLeads = useClient ? clientLeadStats!.totalLeads : leads.length;
+  const totalConverted = useClient ? clientLeadStats!.totalConverted : converted.length;
   const convRate = pct(totalConverted, totalLeads);
-  const totalRevenue = converted.reduce((s, l) => s + safeNum(l.value), 0);
+  const totalRevenue = useClient
+    ? clientLeadStats!.totalRevenue
+    : converted.reduce((s, l) => s + safeNum(l.value), 0);
   const avgTicket = totalConverted > 0 ? totalRevenue / totalConverted : 0;
 
-  const statusDist: Record<string, number> = {};
-  for (const l of leads) {
-    const s = String(l.status ?? "sem_status");
-    statusDist[s] = (statusDist[s] ?? 0) + 1;
+  const statusDist: Record<string, number> = useClient ? { ...clientLeadStats!.statusDist } : {};
+  if (!useClient) {
+    for (const l of leads) {
+      const s = String(l.status ?? "sem_status");
+      statusDist[s] = (statusDist[s] ?? 0) + 1;
+    }
   }
 
-  const sourceDist: Record<string, number> = {};
-  for (const l of allLeadsForSource) {
-    const src = String(l.source ?? "desconhecido");
-    sourceDist[src] = (sourceDist[src] ?? 0) + 1;
+  const sourceDist: Record<string, number> = useClient ? { ...clientLeadStats!.sourceDist } : {};
+  if (!useClient) {
+    for (const l of allLeadsForSource) {
+      const src = String(l.source ?? "desconhecido");
+      sourceDist[src] = (sourceDist[src] ?? 0) + 1;
+    }
   }
   const topSources = Object.entries(sourceDist)
     .sort((a, b) => b[1] - a[1])
