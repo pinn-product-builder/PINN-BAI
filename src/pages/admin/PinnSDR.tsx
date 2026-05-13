@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { MariSDRTab } from './MariSDRTab';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -979,7 +979,11 @@ const ColdMailTab = ({ snapshots, syncing, onSync }: { snapshots: any; syncing: 
 const PinnSDRDashboard = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: orgId, isLoading: orgLoading } = usePinnOrgId();
+  const params = useParams();
+  // Quando montado dentro de /client/:orgId/pinn-sdr, usamos o orgId da URL;
+  // quando montado em /admin/pinn-sdr (legado), usamos o lookup `%pinn%`.
+  const { data: lookupOrgId, isLoading: orgLoading } = usePinnOrgId();
+  const orgId = params.orgId ?? lookupOrgId;
   const { data: cmhSnapshots, isLoading: cmhLoading } = useSnapshots(orgId, 'cmh_sync_snapshots');
   const { data: ploomesSnapshots, isLoading: ploomesLoading } = useSnapshots(orgId, 'ploomes_sync_snapshots');
   const { data: coldmailSnapshots, isLoading: coldmailLoading } = useSnapshots(orgId, 'smartlead_sync_snapshots');
@@ -1100,7 +1104,7 @@ const PinnSDRDashboard = () => {
         <div className="flex gap-2 flex-wrap">
           <Button
             variant="secondary"
-            onClick={() => navigate('/admin/linkedin-sdr')}
+            onClick={() => navigate(params.orgId ? `/client/${params.orgId}/linkedin-sdr` : '/admin/linkedin-sdr')}
             className="gap-2"
             size="sm"
           >

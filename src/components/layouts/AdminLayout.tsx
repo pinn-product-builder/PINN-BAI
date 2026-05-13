@@ -21,8 +21,6 @@ import {
   Business as BusinessIcon,
   Description as TemplateIcon,
   Speed as GaugeIcon,
-  Bolt as BoltIcon,
-  LinkedIn as LinkedInIcon,
   TrackChanges as TargetIcon,
   People as PeopleIcon,
   Settings as SettingsIcon,
@@ -36,13 +34,13 @@ import { isRfmChurnEnabledForAdmin } from "@/lib/featureFlags";
 const DRAWER_WIDTH = 220;
 const MOBILE_APPBAR_HEIGHT = 56;
 
+// Pinn SDR / LinkedIn SDR migraram para dentro da org Pinn Product Builder
+// (rotas /client/:orgId/pinn-sdr e /linkedin-sdr). Por isso saíram daqui.
 const baseNavItems = [
   { path: "/admin/hq", label: "Command", icon: DashboardIcon },
   { path: "/admin/organizations", label: "Organizações", icon: BusinessIcon },
   { path: "/admin/templates", label: "Templates", icon: TemplateIcon },
   { path: "/admin/custom-metrics", label: "Métricas", icon: GaugeIcon },
-  { path: "/admin/pinn-sdr", label: "Pinn SDR", icon: BoltIcon },
-  { path: "/admin/linkedin-sdr", label: "LinkedIn SDR", icon: LinkedInIcon },
   { path: "/admin/rfm-churn", label: "RFM + Churn", icon: TargetIcon },
   { path: "/admin/users", label: "Usuários", icon: PeopleIcon },
 

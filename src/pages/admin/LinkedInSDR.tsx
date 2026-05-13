@@ -31,7 +31,7 @@ import { Label } from '@/components/ui/label';
 import {
   Target, Users, Send, CheckCircle, Play, Pause, Eye, Search,
   UserCircle2, Settings2, Save, Linkedin, SlidersHorizontal, Trash2,
-  LayoutDashboard,
+  LayoutDashboard, Calendar, ExternalLink, Copy, MessageSquare, Filter,
 } from 'lucide-react';
 import { OverviewTab } from './sdr-overview/OverviewTab';
 import { toast } from 'sonner';
@@ -848,6 +848,55 @@ function CampanhasTab() {
 
 // ─── Sheet de mensagens ───────────────────────────────────────────────────────
 
+// Agrupa mensagens por dia (yyyy-mm-dd no fuso pt-BR). Retorna lista ordenada
+// do mais recente para o mais antigo, com cada grupo já ordenado cronologicamente.
+function groupMessagesByDay(messages: Array<{ id: string; created_at: string; direction: string; text: string | null; intent: string | null }>) {
+  const groups = new Map<string, typeof messages>();
+  for (const m of messages) {
+    const d = new Date(m.created_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const arr = groups.get(key);
+    if (arr) arr.push(m); else groups.set(key, [m]);
+  }
+  // ordenado do mais recente para o mais antigo
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .map(([key, msgs]) => ({ key, messages: msgs }));
+}
+
+function formatDayHeader(key: string): string {
+  const [y, m, d] = key.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(date, today))     return 'Hoje';
+  if (sameDay(date, yesterday)) return 'Ontem';
+  return date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+const DATE_PRESETS = [
+  { id: 'all',  label: 'Tudo' },
+  { id: 'today', label: 'Hoje' },
+  { id: '7d',  label: '7 dias' },
+  { id: '30d', label: '30 dias' },
+] as const;
+
+type DatePresetId = (typeof DATE_PRESETS)[number]['id'];
+
+function inDateRange(iso: string, preset: DatePresetId): boolean {
+  if (preset === 'all') return true;
+  const d = new Date(iso);
+  const now = new Date();
+  if (preset === 'today') {
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  }
+  const days = preset === '7d' ? 7 : 30;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+  return d.getTime() >= cutoff.getTime();
+}
+
 function MessagesSheet({
   session,
   onClose,
@@ -858,84 +907,164 @@ function MessagesSheet({
   const { data: messages = [], isLoading } = useSessionMessages(
     session?.session_id ?? null
   );
+  const [datePreset, setDatePreset] = useState<DatePresetId>('all');
+
+  const filtered = useMemo(
+    () => messages.filter((m) => inDateRange(m.created_at, datePreset)),
+    [messages, datePreset],
+  );
+  const grouped = useMemo(() => groupMessagesByDay(filtered), [filtered]);
+  const inboundCount  = filtered.filter((m) => m.direction === 'inbound').length;
+  const outboundCount = filtered.filter((m) => m.direction === 'outbound').length;
+
+  const handleCopyAll = () => {
+    const text = filtered
+      .map((m) => {
+        const who = m.direction === 'inbound' ? (session?.lead_name || 'Lead') : 'Mari/SDR';
+        const when = new Date(m.created_at).toLocaleString('pt-BR');
+        return `[${when}] ${who}: ${m.text ?? ''}`;
+      })
+      .join('\n');
+    navigator.clipboard?.writeText(text).then(
+      () => toast.success('Conversa copiada para a área de transferência'),
+      () => toast.error('Falha ao copiar conversa'),
+    );
+  };
+
+  const profileLabel = session?.instance ? (INSTANCE_PROFILE_MAP[session.instance] ?? '—') : '—';
 
   return (
     <Sheet open={!!session} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto flex flex-col">
-        <SheetHeader className="mb-4">
-          <SheetTitle className="flex items-center gap-2">
-            {session?.lead_name || 'Conversa'}
-            {session && <StageBadge stage={session.stage} />}
-          </SheetTitle>
-          {session && (
-            <div className="text-xs text-muted-foreground space-y-0.5">
-              <p>{session.company || '—'} · {session.role || '—'}</p>
-              {session.lead_score != null && (
-                <p>
-                  Score:{' '}
-                  <span
-                    className={
-                      (session.lead_score ?? 0) >= 68
-                        ? 'text-orange-500 font-semibold'
-                        : 'font-semibold'
-                    }
-                  >
-                    {session.lead_score}
-                  </span>
-                </p>
+      <SheetContent className="w-full sm:max-w-3xl overflow-y-auto flex flex-col">
+        <SheetHeader className="mb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="flex items-center gap-2 flex-wrap">
+                {session?.lead_name || 'Conversa'}
+                {session && <StageBadge stage={session.stage} />}
+                {session?.is_outbound && (
+                  <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-500">Outbound</Badge>
+                )}
+              </SheetTitle>
+              {session && (
+                <div className="text-xs text-muted-foreground space-y-0.5 mt-1">
+                  <p>{session.company || '—'} · {session.role || '—'}</p>
+                  <p>
+                    Perfil Mari: <span className="font-medium text-foreground">{profileLabel}</span>
+                    {session.lead_score != null && (
+                      <>
+                        {' · Score: '}
+                        <span className={(session.lead_score ?? 0) >= 68 ? 'text-orange-500 font-semibold' : 'font-semibold text-foreground'}>
+                          {session.lead_score}
+                        </span>
+                      </>
+                    )}
+                    {session.confirmed_slot && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-green-600">
+                        <CheckCircle className="w-3 h-3" /> Reunião: {session.confirmed_slot}
+                      </span>
+                    )}
+                  </p>
+                </div>
               )}
             </div>
-          )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1 shrink-0"
+              onClick={handleCopyAll}
+              disabled={filtered.length === 0}
+              title="Copiar conversa filtrada"
+            >
+              <Copy className="w-3 h-3" />
+              Copiar
+            </Button>
+          </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+        {/* Toolbar: filtros de data + contadores */}
+        <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-border">
+          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+          {DATE_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setDatePreset(p.id)}
+              className={`h-7 px-2.5 rounded-md text-xs font-medium transition-colors border ${
+                datePreset === p.id
+                  ? 'bg-primary/10 border-primary/30 text-primary'
+                  : 'border-border bg-card hover:bg-muted text-muted-foreground'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+          <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
+            <span><MessageSquare className="w-3 h-3 inline mr-1" />{filtered.length} msgs</span>
+            <span className="text-blue-500">↓ {inboundCount} recebidas</span>
+            <span className="text-foreground">↑ {outboundCount} enviadas</span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-5 pr-1">
           {isLoading ? (
             <div className="space-y-2">
               {[...Array(4)].map((_, i) => (
                 <Skeleton key={i} className="h-12 w-3/4" />
               ))}
             </div>
-          ) : messages.length === 0 ? (
+          ) : grouped.length === 0 ? (
             <p className="text-muted-foreground text-sm text-center py-8">
-              Nenhuma mensagem encontrada.
+              {datePreset === 'all'
+                ? 'Nenhuma mensagem encontrada.'
+                : 'Nenhuma mensagem no período selecionado.'}
             </p>
           ) : (
-            messages.map((msg) => {
-              const isInbound = msg.direction === 'inbound';
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${isInbound ? 'items-end' : 'items-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
-                      isInbound
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-muted text-foreground'
-                    }`}
-                  >
-                    <p className="leading-relaxed whitespace-pre-wrap">
-                      {msg.text || <span className="italic text-muted-foreground">(sem texto)</span>}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-0.5 px-1">
-                    {!isInbound && msg.intent && (
-                      <Badge variant="outline" className="text-[10px] h-4 px-1">
-                        {msg.intent}
-                      </Badge>
-                    )}
-                    <span className="text-[10px] text-muted-foreground">
-                      {new Date(msg.created_at).toLocaleString('pt-BR', {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+            grouped.map((group) => (
+              <div key={group.key} className="space-y-2">
+                <div className="sticky top-0 z-10 bg-background py-1 -mx-1 px-1 border-b border-border/60">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {formatDayHeader(group.key)}
+                    <span className="ml-2 font-normal text-muted-foreground/70 normal-case tracking-normal">
+                      ({group.messages.length} {group.messages.length === 1 ? 'mensagem' : 'mensagens'})
                     </span>
-                  </div>
+                  </p>
                 </div>
-              );
-            })
+                {group.messages.map((msg) => {
+                  const isInbound = msg.direction === 'inbound';
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${isInbound ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+                          isInbound
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-muted text-foreground'
+                        }`}
+                      >
+                        <p className="leading-relaxed whitespace-pre-wrap">
+                          {msg.text || <span className="italic text-muted-foreground">(sem texto)</span>}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5 px-1">
+                        {!isInbound && msg.intent && (
+                          <Badge variant="outline" className="text-[10px] h-4 px-1">
+                            {msg.intent}
+                          </Badge>
+                        )}
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))
           )}
         </div>
       </SheetContent>
@@ -949,7 +1078,9 @@ function ConversasTab() {
   const { data: sessions = [], isLoading } = useLinkedInConversations();
   const [filterProfile, setFilterProfile] = useState('all');
   const [filterStage, setFilterStage] = useState('all');
+  const [filterDate, setFilterDate] = useState<DatePresetId>('all');
   const [search, setSearch] = useState('');
+  const [groupByDay, setGroupByDay] = useState(true);
   const [selectedSession, setSelectedSession] = useState<LinkedInSession | null>(null);
 
   const filtered = useMemo(() => {
@@ -959,6 +1090,10 @@ function ConversasTab() {
         if (profileName.toLowerCase() !== filterProfile) return false;
       }
       if (filterStage !== 'all' && s.stage !== filterStage) return false;
+      if (filterDate !== 'all') {
+        const lastTs = s.last_inbound_at ?? s.last_outbound_at ?? s.created_at;
+        if (!lastTs || !inDateRange(lastTs, filterDate)) return false;
+      }
       if (search.trim()) {
         const q = search.toLowerCase();
         return (
@@ -968,7 +1103,22 @@ function ConversasTab() {
       }
       return true;
     });
-  }, [sessions, filterProfile, filterStage, search]);
+  }, [sessions, filterProfile, filterStage, filterDate, search]);
+
+  // Agrupa conversas pelo dia da última mensagem (inbound preferido) para visão "tipo Inbox por dia".
+  const groupedByDay = useMemo(() => {
+    if (!groupByDay) return null;
+    const map = new Map<string, typeof filtered>();
+    for (const s of filtered) {
+      const ts = s.last_inbound_at ?? s.last_outbound_at ?? s.created_at;
+      const d = new Date(ts);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const arr = map.get(key);
+      if (arr) arr.push(s); else map.set(key, [s]);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => (a < b ? 1 : -1));
+  }, [filtered, groupByDay]);
 
   if (isLoading) {
     return (
@@ -978,6 +1128,100 @@ function ConversasTab() {
       </div>
     );
   }
+
+  const renderRow = (s: LinkedInSession) => {
+    const profileLabel = INSTANCE_PROFILE_MAP[s.instance ?? ''] ?? '—';
+    const lastMsg = s.last_inbound_at ?? s.last_outbound_at;
+    const lastIsoTime = lastMsg
+      ? new Date(lastMsg).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      : null;
+    return (
+      <tr
+        key={s.session_id}
+        className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+        onClick={() => setSelectedSession(s)}
+      >
+        <td className="py-2.5 px-3 font-medium max-w-[180px] truncate">
+          {s.lead_name || (
+            <span className="text-muted-foreground italic">sem nome</span>
+          )}
+        </td>
+        <td className="py-2.5 px-3 text-muted-foreground max-w-[160px] truncate">
+          {s.company || '—'}
+        </td>
+        <td className="py-2.5 px-3 text-muted-foreground text-xs max-w-[160px] truncate">
+          {s.role || '—'}
+        </td>
+        <td className="py-2.5 px-3">
+          <StageBadge stage={s.stage} />
+        </td>
+        <td className="py-2.5 px-3">
+          <span
+            className={`font-semibold text-xs ${
+              (s.lead_score ?? 0) >= 68
+                ? 'text-orange-500'
+                : (s.lead_score ?? 0) >= 40
+                ? 'text-chart-2'
+                : 'text-muted-foreground'
+            }`}
+          >
+            {s.lead_score ?? '—'}
+          </span>
+        </td>
+        <td className="py-2.5 px-3">
+          {s.is_outbound ? (
+            <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-500">
+              Outbound
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="text-xs">
+              Inbound
+            </Badge>
+          )}
+          <span className="ml-1.5 text-xs text-muted-foreground">
+            {profileLabel}
+          </span>
+        </td>
+        <td className="py-2.5 px-3 text-muted-foreground text-xs whitespace-nowrap">
+          {lastMsg ? (
+            <>
+              {new Date(lastMsg).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+              {lastIsoTime && <span className="ml-1 text-muted-foreground/70">{lastIsoTime}</span>}
+            </>
+          ) : '—'}
+        </td>
+        <td className="py-2.5 px-3">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedSession(s);
+            }}
+          >
+            <Eye className="w-3 h-3" />
+            Abrir
+          </Button>
+        </td>
+      </tr>
+    );
+  };
+
+  const tableHead = (
+    <thead>
+      <tr className="border-b border-border">
+        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Lead</th>
+        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Empresa</th>
+        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Cargo</th>
+        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Stage</th>
+        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Score</th>
+        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Origem</th>
+        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Última msg</th>
+        <th className="py-2.5 px-3" />
+      </tr>
+    </thead>
+  );
 
   return (
     <div className="space-y-4">
@@ -1008,6 +1252,18 @@ function ConversasTab() {
           </SelectContent>
         </Select>
 
+        <Select value={filterDate} onValueChange={(v) => setFilterDate(v as DatePresetId)}>
+          <SelectTrigger className="w-40">
+            <Calendar className="w-3.5 h-3.5 mr-1" />
+            <SelectValue placeholder="Período" />
+          </SelectTrigger>
+          <SelectContent>
+            {DATE_PRESETS.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.label === 'Tudo' ? 'Todos os períodos' : p.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -1018,12 +1274,26 @@ function ConversasTab() {
           />
         </div>
 
+        <button
+          type="button"
+          onClick={() => setGroupByDay((v) => !v)}
+          className={`h-9 px-3 rounded-md text-xs font-medium border transition-colors inline-flex items-center gap-1.5 ${
+            groupByDay
+              ? 'bg-primary/10 border-primary/30 text-primary'
+              : 'border-border bg-card hover:bg-muted text-muted-foreground'
+          }`}
+          title="Agrupar conversas por dia da última mensagem"
+        >
+          <Filter className="w-3.5 h-3.5" />
+          {groupByDay ? 'Agrupado por dia' : 'Sem agrupamento'}
+        </button>
+
         <p className="text-xs text-muted-foreground ml-auto">
           {filtered.length} conversa(s)
         </p>
       </div>
 
-      {/* Tabela */}
+      {/* Lista */}
       {filtered.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-12 text-center">
@@ -1032,100 +1302,39 @@ function ConversasTab() {
             </p>
           </CardContent>
         </Card>
+      ) : groupByDay && groupedByDay ? (
+        <div className="space-y-5">
+          {groupedByDay.map(([dayKey, dayConvs]) => (
+            <div key={dayKey} className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-foreground">
+                  {formatDayHeader(dayKey)}
+                </p>
+                <span className="text-[10px] text-muted-foreground">
+                  {dayConvs.length} {dayConvs.length === 1 ? 'conversa' : 'conversas'}
+                </span>
+                <div className="flex-1 h-px bg-border/50" />
+              </div>
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      {tableHead}
+                      <tbody>{dayConvs.map(renderRow)}</tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ))}
+        </div>
       ) : (
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Lead</th>
-                    <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Empresa</th>
-                    <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Cargo</th>
-                    <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Stage</th>
-                    <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Score</th>
-                    <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Origem</th>
-                    <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Última msg</th>
-                    <th className="py-2.5 px-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((s) => {
-                    const profileLabel = INSTANCE_PROFILE_MAP[s.instance ?? ''] ?? '—';
-                    const lastMsg = s.last_inbound_at ?? s.last_outbound_at;
-                    return (
-                      <tr
-                        key={s.session_id}
-                        className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
-                        onClick={() => setSelectedSession(s)}
-                      >
-                        <td className="py-2.5 px-3 font-medium max-w-[140px] truncate">
-                          {s.lead_name || (
-                            <span className="text-muted-foreground italic">sem nome</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-muted-foreground max-w-[120px] truncate">
-                          {s.company || '—'}
-                        </td>
-                        <td className="py-2.5 px-3 text-muted-foreground text-xs max-w-[120px] truncate">
-                          {s.role || '—'}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <StageBadge stage={s.stage} />
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span
-                            className={`font-semibold text-xs ${
-                              (s.lead_score ?? 0) >= 68
-                                ? 'text-orange-500'
-                                : (s.lead_score ?? 0) >= 40
-                                ? 'text-chart-2'
-                                : 'text-muted-foreground'
-                            }`}
-                          >
-                            {s.lead_score ?? '—'}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          {s.is_outbound ? (
-                            <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-500">
-                              Outbound
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">
-                              Inbound
-                            </Badge>
-                          )}
-                          <span className="ml-1.5 text-xs text-muted-foreground">
-                            {profileLabel}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-muted-foreground text-xs whitespace-nowrap">
-                          {lastMsg
-                            ? new Date(lastMsg).toLocaleDateString('pt-BR', {
-                                day: '2-digit',
-                                month: 'short',
-                              })
-                            : '—'}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 text-xs gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedSession(s);
-                            }}
-                          >
-                            <Eye className="w-3 h-3" />
-                            Msgs
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
+                {tableHead}
+                <tbody>{filtered.map(renderRow)}</tbody>
               </table>
             </div>
           </CardContent>
