@@ -6,6 +6,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 //   - "list":           devolve todos os usuários (auth + profile + roles + status)
 //   - "reset-password": admin define nova senha de qualquer usuário
 //   - "set-active":     ativa (banned_until = null) ou desativa (ban perpétuo) usuário
+//   - "update-email":   troca o email de login de qualquer usuário
 //
 // Apenas platform_admins (verificado via RPC is_platform_admin) podem chamar.
 
@@ -35,8 +36,17 @@ interface SetActiveAction {
   userId: string;
   isActive: boolean;
 }
+interface UpdateEmailAction {
+  action: "update-email";
+  userId: string;
+  newEmail: string;
+}
 
-type ManageAction = ListAction | ResetPasswordAction | SetActiveAction;
+type ManageAction =
+  | ListAction
+  | ResetPasswordAction
+  | SetActiveAction
+  | UpdateEmailAction;
 
 // "Banir para sempre" — usado para desativar acesso. O Supabase aceita
 // qualquer string ISO; pegamos 100 anos no futuro só pra simbolizar.
@@ -177,6 +187,33 @@ serve(async (req) => {
         password: body.newPassword,
       });
       if (error) return json({ error: error.message }, 500);
+      return json({ success: true });
+    }
+
+    // ─── UPDATE EMAIL ────────────────────────────────────────────────
+    if (body.action === "update-email") {
+      if (!body.userId || !body.newEmail) {
+        return json({ error: "userId e newEmail são obrigatórios" }, 400);
+      }
+      const email = body.newEmail.trim().toLowerCase();
+      // Validação simples — Supabase já rejeita formatos inválidos, mas
+      // damos uma mensagem mais clara antes da chamada.
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return json({ error: "Formato de e-mail inválido" }, 400);
+      }
+      // email_confirm: true pra não mandar verificação — admin já validou.
+      const { error } = await admin.auth.admin.updateUserById(body.userId, {
+        email,
+        email_confirm: true,
+      });
+      if (error) return json({ error: error.message }, 500);
+
+      // Mantém profiles.email em sincronia (best-effort, não bloqueia).
+      await admin
+        .from("profiles")
+        .update({ email })
+        .eq("user_id", body.userId);
+
       return json({ success: true });
     }
 

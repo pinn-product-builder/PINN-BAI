@@ -32,6 +32,8 @@ import { usePlans } from '@/hooks/usePlans';
 import { getPlanShortName } from '@/lib/plans';
 import OrgAvatar from '@/components/admin/OrgAvatar';
 import TrialSettingsCard from '@/components/admin/TrialSettingsCard';
+import OrgIdentityCard from '@/components/admin/OrgIdentityCard';
+import OrgAdminUsersCard from '@/components/admin/OrgAdminUsersCard';
 import { isRfmChurnEnabledForAdmin } from '@/lib/featureFlags';
 import type { OrgStatus } from '@/lib/types';
 
@@ -163,6 +165,14 @@ const OrganizationDetail = () => {
                             </div>
                         </CardContent>
                     </Card>
+
+                    <OrgIdentityCard
+                        orgId={organization.id}
+                        name={organization.name}
+                        logoUrl={organization.logo_url}
+                    />
+
+                    <OrgAdminUsersCard orgId={organization.id} />
 
                     <TrialSettingsCard
                         orgId={organization.id}
