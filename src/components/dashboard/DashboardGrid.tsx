@@ -66,31 +66,99 @@ function getDefaultSize(type: string): { w: number; h: number } {
   }
 }
 
-// Gera layout inicial fluindo widgets da esquerda pra direita, agrupando por tipo
-// pra evitar widgets pequenos espalhados entre widgets grandes.
+// Categorias usadas pra calcular layout (cada uma com regra própria de "quantos por linha").
+const CHART_TYPES = ['area_chart', 'line_chart', 'bar_chart', 'pie_chart', 'funnel', 'insight_card'];
+const HEAVY_CHART_TYPES = ['rfm_matrix', 'churn_prediction'];
+
+/**
+ * Gera layout inicial com regras inteligentes de distribuição:
+ *   - metric_card  → 4 por linha (w=3)
+ *   - charts comuns (area/line/bar/pie/funnel/insight_card)
+ *        3+ widgets → 3 por linha (w=4)
+ *        2 widgets  → 2 por linha (w=6)
+ *        1 widget   → linha cheia (w=12)
+ *   - heavy charts (rfm_matrix/churn_prediction) → 2 por linha (w=6)
+ *   - table        → sempre linha cheia (w=12)
+ *
+ * Esta foi a configuração pedida pelo cliente (BF Company): Insights IA +
+ * Evolução de Leads + Pipeline de Conversão lado a lado, Lista de Leads
+ * (table) embaixo ocupando 100%. O algoritmo é genérico — funciona pra
+ * qualquer combinação de widgets, não hard-coded por org.
+ */
 function generateInitialLayout(widgets: GridWidget[], cols: number): Layout[] {
-  const sorted = [...widgets].sort((a, b) => {
-    const oa = TYPE_ORDER[a.type] ?? 99;
-    const ob = TYPE_ORDER[b.type] ?? 99;
-    return oa - ob;
-  });
+  // Mobile (cols < 12): empilha tudo full-width — caso degenerado, sem otimização.
+  if (cols < 12) {
+    let yMob = 0;
+    return widgets.map((w) => {
+      const { h } = getDefaultSize(w.type);
+      const item: Layout = { i: w.id, x: 0, y: yMob, w: cols, h, minW: 2, minH: 2 };
+      yMob += h;
+      return item;
+    });
+  }
+
+  const metrics = widgets.filter((w) => w.type === 'metric_card');
+  const heavyCharts = widgets.filter((w) => HEAVY_CHART_TYPES.includes(w.type));
+  const charts = widgets.filter((w) => CHART_TYPES.includes(w.type));
+  const tables = widgets.filter((w) => w.type === 'table');
+  const knownTypes = new Set([
+    'metric_card',
+    ...CHART_TYPES,
+    ...HEAVY_CHART_TYPES,
+    'table',
+  ]);
+  const others = widgets.filter((w) => !knownTypes.has(w.type));
 
   const layout: Layout[] = [];
-  let x = 0;
   let y = 0;
-  let rowHeight = 0;
 
-  sorted.forEach((w) => {
-    const { w: ww, h: hh } = getDefaultSize(w.type);
-    const effectiveW = Math.min(ww, cols);
-    if (x + effectiveW > cols) {
-      x = 0;
-      y += rowHeight;
-      rowHeight = 0;
+  // 1. KPIs: 4-up, w=3, h=3
+  metrics.forEach((w, idx) => {
+    const col = idx % 4;
+    if (idx > 0 && col === 0) y += 3;
+    layout.push({ i: w.id, x: col * 3, y, w: 3, h: 3, minW: 2, minH: 2 });
+  });
+  if (metrics.length > 0) y += 3;
+
+  // 2. Heavy charts: 2-up, w=6, h=7
+  heavyCharts.forEach((w, idx) => {
+    const col = idx % 2;
+    if (idx > 0 && col === 0) y += 7;
+    layout.push({ i: w.id, x: col * 6, y, w: 6, h: 7, minW: 3, minH: 4 });
+  });
+  if (heavyCharts.length > 0) y += 7;
+
+  // 3. Charts comuns: 1/2/3-up baseado em quantos
+  if (charts.length > 0) {
+    const perRow = charts.length === 1 ? 1 : charts.length === 2 ? 2 : 3;
+    const widgetW = perRow === 1 ? 12 : perRow === 2 ? 6 : 4;
+    const widgetH = 7;
+    charts.forEach((w, idx) => {
+      const col = idx % perRow;
+      if (idx > 0 && col === 0) y += widgetH;
+      layout.push({ i: w.id, x: col * widgetW, y, w: widgetW, h: widgetH, minW: 3, minH: 4 });
+    });
+    y += widgetH;
+  }
+
+  // 4. Tables: sempre full-width, empilhadas
+  tables.forEach((w) => {
+    layout.push({ i: w.id, x: 0, y, w: 12, h: 7, minW: 4, minH: 4 });
+    y += 7;
+  });
+
+  // 5. Outros (tipos desconhecidos): default 6x6 fluindo
+  let othersX = 0;
+  let othersRowH = 0;
+  others.forEach((w) => {
+    if (othersX + 6 > 12) {
+      othersX = 0;
+      y += othersRowH;
+      othersRowH = 0;
     }
-    layout.push({ i: w.id, x, y, w: effectiveW, h: hh, minW: 2, minH: 2 });
-    x += effectiveW;
-    rowHeight = Math.max(rowHeight, hh);
+    layout.push({ i: w.id, x: othersX, y, w: 6, h: 6, minW: 2, minH: 2 });
+    othersX += 6;
+    othersRowH = Math.max(othersRowH, 6);
   });
 
   return layout;
