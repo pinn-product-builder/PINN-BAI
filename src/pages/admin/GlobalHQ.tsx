@@ -228,7 +228,7 @@ const GlobalHQ = () => {
                     <CardContent>
                         <p className="text-sm font-medium text-foreground/80 leading-relaxed">
                             {organizations?.length === 0
-                                ? "Bem-vindo ao Pinn Command. Conecte sua primeira empresa para que eu possa analisar os dados e gerar insights estratégicos."
+                                ? "Bem-vindo ao Pinn BAI Command. Conecte sua primeira empresa para que eu possa analisar os dados e gerar insights estratégicos."
                                 : "Analisando seu portfólio... Detectei uma oportunidade de expansão no plano da última empresa cadastrada baseado no volume de leads."
                             }
                         </p>
@@ -270,7 +270,7 @@ const GlobalHQ = () => {
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">
                     <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                    <p className="text-sm font-medium tracking-widest uppercase text-muted-foreground">Sincronizando Pinn Command...</p>
+                    <p className="text-sm font-medium tracking-widest uppercase text-muted-foreground">Sincronizando Pinn BAI Command...</p>
                 </div>
             </div>
         );
@@ -282,10 +282,10 @@ const GlobalHQ = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="min-w-0">
                     <h1 className="text-2xl sm:text-3xl lg:text-5xl font-extrabold tracking-tight text-foreground">
-                        Pinn Command <span className="text-accent underline decoration-4 underline-offset-8">Universe Hub</span>
+                        Pinn <span className="text-accent underline decoration-4 underline-offset-8">BAI Command</span>
                     </h1>
                     <p className="text-muted-foreground mt-3 sm:mt-4 text-sm sm:text-base lg:text-lg max-w-2xl">
-                        Visão consolidada do seu portfólio de empresas. Monitore crescimento, uso de IA e saúde financeira em tempo real.
+                        Visão consolidada do portfólio de empresas. Monitore crescimento, uso de IA e saúde financeira em tempo real.
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
