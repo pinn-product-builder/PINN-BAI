@@ -14,14 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,9 +34,7 @@ import {
   AlertCircle,
   Loader2,
   LayoutDashboard,
-  MoreHorizontal,
   Ban,
-  CheckCircle2,
 } from 'lucide-react';
 import { usePlans } from '@/hooks/usePlans';
 import { getPlanShortName } from '@/lib/plans';
@@ -300,64 +291,53 @@ const Organizations = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge className={`rounded-full px-3 ${status.className}`} variant={status.variant}>
-                          {status.label}
-                        </Badge>
+                        {org.status === 'trial' ? (
+                          <Badge className={`rounded-full px-3 ${status.className} whitespace-nowrap`} variant={status.variant}>
+                            {status.label}
+                          </Badge>
+                        ) : (
+                          <div
+                            className="flex items-center gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Switch
+                              checked={org.status === 'active'}
+                              disabled={setStatusMutation.isPending}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setStatusMutation.mutate({ orgId: org.id, action: 'activate' });
+                                } else {
+                                  setSuspendTarget(org as OrgRow);
+                                }
+                              }}
+                              aria-label={org.status === 'active' ? 'Suspender acesso' : 'Reativar acesso'}
+                            />
+                            <span
+                              className={`text-xs font-medium whitespace-nowrap ${
+                                org.status === 'active' ? 'text-emerald-600' : 'text-red-600'
+                              }`}
+                            >
+                              {org.status === 'active' ? 'Ativo' : 'Suspenso'}
+                            </span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                         {formatDate(org.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="hover:bg-primary/10 hover:text-primary"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuLabel className="text-xs">Ações da org</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/admin/organizations/${org.id}`);
-                              }}
-                            >
-                              <LayoutDashboard className="w-4 h-4 mr-2" />
-                              Abrir dashboard
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {org.status === 'suspended' ? (
-                              <DropdownMenuItem
-                                className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-500/10"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setStatusMutation.mutate({ orgId: org.id, action: 'activate' });
-                                }}
-                                disabled={setStatusMutation.isPending}
-                              >
-                                <CheckCircle2 className="w-4 h-4 mr-2" />
-                                Reativar acesso
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSuspendTarget(org as OrgRow);
-                                }}
-                                disabled={setStatusMutation.isPending}
-                              >
-                                <Ban className="w-4 h-4 mr-2" />
-                                Suspender acesso
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="hover:bg-primary/10 hover:text-primary"
+                          aria-label="Abrir detalhes"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/admin/organizations/${org.id}`);
+                          }}
+                        >
+                          <LayoutDashboard className="w-4 h-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );

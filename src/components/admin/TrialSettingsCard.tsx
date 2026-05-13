@@ -132,30 +132,30 @@ const TrialSettingsCard = ({ orgId, status, trialEndsAt }: TrialSettingsCardProp
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs uppercase tracking-widest font-bold text-muted-foreground">Status atual:</span>
           {status === 'active' && (
-            <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+            <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 whitespace-nowrap">
               <CheckCircle2 className="w-3 h-3 mr-1" />
               Ativo
             </Badge>
           )}
           {status === 'trial' && trialState?.kind === 'active' && (
-            <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+            <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 whitespace-nowrap">
               <Clock className="w-3 h-3 mr-1" />
               Trial — {trialState.days} dia{trialState.days === 1 ? '' : 's'} restante{trialState.days === 1 ? '' : 's'}
             </Badge>
           )}
           {status === 'trial' && trialState?.kind === 'expired' && (
-            <Badge className="bg-red-500/10 text-red-500 border-red-500/20">
+            <Badge className="bg-red-500/10 text-red-500 border-red-500/20 whitespace-nowrap">
               <AlertTriangle className="w-3 h-3 mr-1" />
               Trial expirado há {trialState.days} dia{trialState.days === 1 ? '' : 's'} (acesso suspenso)
             </Badge>
           )}
           {status === 'trial' && trialState?.kind === 'no-deadline' && (
-            <Badge variant="outline" className="border-amber-500/30 text-amber-500">
+            <Badge variant="outline" className="border-amber-500/30 text-amber-500 whitespace-nowrap">
               Trial sem data definida
             </Badge>
           )}
           {status === 'suspended' && (
-            <Badge className="bg-red-500/10 text-red-500 border-red-500/20">Suspenso</Badge>
+            <Badge className="bg-red-500/10 text-red-500 border-red-500/20 whitespace-nowrap">Suspenso</Badge>
           )}
         </div>
 

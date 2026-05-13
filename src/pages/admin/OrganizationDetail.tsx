@@ -19,7 +19,6 @@ import {
 import {
     ArrowLeft,
     LayoutDashboard,
-    Settings,
     Database,
     ExternalLink,
     Loader2,
@@ -34,7 +33,6 @@ import OrgAvatar from '@/components/admin/OrgAvatar';
 import TrialSettingsCard from '@/components/admin/TrialSettingsCard';
 import OrgIdentityCard from '@/components/admin/OrgIdentityCard';
 import OrgAdminUsersCard from '@/components/admin/OrgAdminUsersCard';
-import { isRfmChurnEnabledForAdmin } from '@/lib/featureFlags';
 import type { OrgStatus } from '@/lib/types';
 
 const OrganizationDetail = () => {
@@ -43,7 +41,6 @@ const OrganizationDetail = () => {
     const { toast } = useToast();
     const deleteOrganization = useDeleteOrganization();
     const [isDeleting, setIsDeleting] = useState(false);
-    const showRfmChurn = isRfmChurnEnabledForAdmin();
     const { data: plans } = usePlans();
 
     const { data: organization, isLoading, error } = useQuery({
@@ -116,22 +113,6 @@ const OrganizationDetail = () => {
                         <ExternalLink className="w-4 h-4 mr-1.5 sm:mr-2" />
                         <span className="hidden sm:inline">Visualizar como Cliente</span>
                         <span className="sm:hidden">Ver Cliente</span>
-                    </Button>
-                    {showRfmChurn && (
-                        <Button
-                            variant="outline"
-                            className="h-10 sm:h-12 border-white/10 text-xs sm:text-sm"
-                            onClick={() => navigate('/admin/rfm-churn')}
-                        >
-                            <LayoutDashboard className="w-4 h-4 mr-1.5 sm:mr-2" />
-                            <span className="hidden sm:inline">RFM + Churn</span>
-                            <span className="sm:hidden">RFM</span>
-                        </Button>
-                    )}
-                    <Button className="h-10 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold group text-xs sm:text-sm">
-                        <Settings className="w-4 h-4 mr-1.5 sm:mr-2 group-hover:rotate-90 transition-transform" />
-                        <span className="hidden sm:inline">Configurar Org</span>
-                        <span className="sm:hidden">Config</span>
                     </Button>
                 </div>
             </div>
