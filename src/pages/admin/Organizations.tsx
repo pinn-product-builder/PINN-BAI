@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,7 +24,9 @@ import {
   Loader2,
   LayoutDashboard
 } from 'lucide-react';
-import { planNames } from '@/lib/mock-data';
+import { usePlans } from '@/hooks/usePlans';
+import { getPlanShortName } from '@/lib/plans';
+import OrgAvatar from '@/components/admin/OrgAvatar';
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className: string }> = {
   active: { label: 'Ativo', variant: 'default', className: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
@@ -35,6 +37,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 const Organizations = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const { data: plans } = usePlans();
 
   const { data: organizations, isLoading } = useQuery({
     queryKey: ['admin-organizations-list'],
@@ -177,7 +180,15 @@ const Organizations = () => {
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table className="min-w-[720px]">
+          <Table className="min-w-[720px] table-fixed">
+            <colgroup>
+              <col className="w-[28%]" />
+              <col className="w-[28%] max-w-0" />
+              <col className="w-[14%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              <col className="w-[8%]" />
+            </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border">
                 <TableHead className="text-muted-foreground">Organização</TableHead>
@@ -205,27 +216,23 @@ const Organizations = () => {
                       onClick={() => navigate(`/admin/organizations/${org.id}`)}
                     >
                       <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                            <span className="text-sm font-bold text-primary">
-                              {org.name.charAt(0)}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="font-bold text-foreground">{org.name}</p>
-                            <p className="text-xs text-muted-foreground">{org.slug}</p>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <OrgAvatar name={org.name} logoUrl={org.logo_url} />
+                          <div className="min-w-0">
+                            <p className="font-bold text-foreground truncate">{org.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{org.slug}</p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{org.admin_name || 'N/A'}</p>
-                          <p className="text-xs text-muted-foreground">{org.admin_email || 'n/a'}</p>
+                      <TableCell className="max-w-0">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{org.admin_name || 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground truncate">{org.admin_email || 'n/a'}</p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="border-border text-muted-foreground">
-                          {planNames[org.plan] || `Plano ${org.plan}`}
+                        <Badge variant="outline" className="border-border text-muted-foreground whitespace-nowrap">
+                          {getPlanShortName(plans, org.plan)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -233,7 +240,7 @@ const Organizations = () => {
                           {status.label}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
+                      <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                         {formatDate(org.created_at)}
                       </TableCell>
                       <TableCell className="text-right">

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,13 +14,16 @@ import {
 import { ArrowLeft, Building2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { planNames } from '@/lib/mock-data';
+import { useActivePlans } from '@/hooks/usePlans';
+import { DEFAULT_PLANS } from '@/lib/plans';
 
 const NewOrganization = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { data: activePlans } = useActivePlans();
+  const availablePlans = activePlans.length > 0 ? activePlans : DEFAULT_PLANS;
   const [formData, setFormData] = useState({
     name: '',
     adminName: '',
@@ -266,40 +269,18 @@ const NewOrganization = () => {
                   value={formData.plan}
                   onValueChange={(value) => setFormData({ ...formData, plan: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-auto min-h-[2.5rem] py-2 [&>span]:!line-clamp-none [&>span]:flex-1 [&>span]:text-left">
                     <SelectValue placeholder="Selecione o plano" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-primary">Pinn Agent Sales</span>
-                        <span className="text-xs text-muted-foreground">- Lead tracking & conversion</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-primary">Pinn Revenue OS</span>
-                        <span className="text-xs text-muted-foreground">- Revenue forecasting & pipeline</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-primary">Pinn Growth Engine</span>
-                        <span className="text-xs text-muted-foreground">- Attribution & LTV/CAC</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-primary">Pinn Process Automation Hub</span>
-                        <span className="text-xs text-muted-foreground">- Bot ROI & throughput</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-primary font-bold">Pinn MicroSaaS Studio</span>
-                        <span className="text-xs text-muted-foreground">- Universal BI & Semantic Layer</span>
-                      </div>
-                    </SelectItem>
+                  <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
+                    {availablePlans.map((plan) => (
+                      <SelectItem key={plan.id} value={String(plan.id)} className="py-2">
+                        <div className="flex flex-col items-start gap-0.5 min-w-0">
+                          <span className="font-medium text-primary truncate w-full">{plan.full_name}</span>
+                          <span className="text-xs text-muted-foreground truncate w-full">{plan.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

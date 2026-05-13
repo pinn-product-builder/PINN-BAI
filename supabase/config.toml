@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.sync-paid-traffic]
 verify_jwt = false
+
+[functions.manage-users]
+verify_jwt = false

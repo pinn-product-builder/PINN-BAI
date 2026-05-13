@@ -39,6 +39,7 @@ import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext"
 import { useAuth } from "@/contexts/AuthContext";
 import AIChat from "@/components/ai/AIChat";
 import { GlobalFilterBar } from "@/components/GlobalFilterBar";
+import OrgAccessGate from "@/components/auth/OrgAccessGate";
 import { useState } from "react";
 import { isRfmChurnEnabledForOrg } from "@/lib/featureFlags";
 import { useIsPinnProductBuilderOrg } from "@/hooks/useIsPinnProductBuilderOrg";
@@ -129,6 +130,7 @@ const ClientLayout = () => {
   const closeMobileNav = () => setMobileNavOpen(false);
 
   return (
+    <OrgAccessGate>
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
       {/* ── AppBar mobile (apenas <md) ── */}
       {isMobile && (
@@ -370,6 +372,7 @@ const ClientLayout = () => {
 
       {isChatOpen && <AIChat onClose={() => setIsChatOpen(false)} />}
     </Box>
+    </OrgAccessGate>
   );
 };
 

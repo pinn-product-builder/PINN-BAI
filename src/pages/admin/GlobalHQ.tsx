@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,10 +14,14 @@ import {
 } from 'lucide-react';
 import { EditableCardGrid, type CardWidget } from '@/components/dashboard/EditableCardGrid';
 import { cn } from '@/lib/utils';
+import OrgAvatar from '@/components/admin/OrgAvatar';
+import { usePlans } from '@/hooks/usePlans';
+import { getPlanShortName } from '@/lib/plans';
 
 const GlobalHQ = () => {
     const navigate = useNavigate();
     const [isEditingLayout, setIsEditingLayout] = useState(false);
+    const { data: plans } = usePlans();
 
     const { data: organizations, isLoading } = useQuery({
         queryKey: ['admin-organizations'],
@@ -47,9 +51,15 @@ const GlobalHQ = () => {
                             </div>
                         </div>
                         <div className="mt-8 flex -space-x-3">
-                            {organizations?.slice(0, 5).map((org, i) => (
-                                <div key={i} className="w-10 h-10 rounded-xl border-4 border-card bg-muted flex items-center justify-center text-[10px] font-extrabold shadow-lg text-foreground" title={org.name}>
-                                    {org.name.charAt(0)}
+                            {organizations?.slice(0, 5).map((org) => (
+                                <div key={org.id} className="rounded-xl border-4 border-card shadow-lg" title={org.name}>
+                                    <OrgAvatar
+                                        name={org.name}
+                                        logoUrl={org.logo_url}
+                                        sizeClassName="w-10 h-10"
+                                        textClassName="text-[10px]"
+                                        roundedClassName="rounded-lg"
+                                    />
                                 </div>
                             ))}
                             {(organizations?.length || 0) > 5 && (
@@ -91,18 +101,22 @@ const GlobalHQ = () => {
                             ) : (
                                 organizations?.slice(0, 4).map((org) => (
                                     <div key={org.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-muted/50 transition-all cursor-pointer group border border-transparent hover:border-border">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-extrabold group-hover:scale-105 transition-transform">
-                                                {org.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-foreground tracking-tight">{org.name}</h4>
-                                                <p className="text-xs text-muted-foreground">{org.admin_email || 'Sem admin configurado'}</p>
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <OrgAvatar
+                                                name={org.name}
+                                                logoUrl={org.logo_url}
+                                                sizeClassName="w-12 h-12 group-hover:scale-105 transition-transform"
+                                                textClassName="text-base"
+                                                roundedClassName="rounded-2xl"
+                                            />
+                                            <div className="min-w-0">
+                                                <h4 className="font-bold text-foreground tracking-tight truncate">{org.name}</h4>
+                                                <p className="text-xs text-muted-foreground truncate">{org.admin_email || 'Sem admin configurado'}</p>
                                             </div>
                                         </div>
-                                        <div className="hidden md:flex flex-col items-end gap-1">
+                                        <div className="hidden md:flex flex-col items-end gap-1 shrink-0 ml-3">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-bold text-foreground">Plano {org.plan}</span>
+                                                <span className="text-sm font-bold text-foreground whitespace-nowrap">{getPlanShortName(plans, org.plan)}</span>
                                                 <Badge variant="outline" className="text-[10px] bg-muted border-border text-muted-foreground uppercase">{org.status}</Badge>
                                             </div>
                                             <div className="w-32 h-1 bg-muted rounded-full overflow-hidden mt-1">
@@ -112,7 +126,7 @@ const GlobalHQ = () => {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="no-drag text-muted-foreground hover:text-foreground hover:bg-muted"
+                                            className="no-drag text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
                                             onClick={() => navigate(`/admin/organizations/${org.id}`)}
                                         >
                                             <LayoutDashboard className="w-4 h-4" />

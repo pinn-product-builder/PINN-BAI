@@ -1,11 +1,11 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Settings, Building2, Users, Shield } from 'lucide-react';
+import { Loader2, Save, Settings, Layers, Users, Shield } from 'lucide-react';
 import { mockPlatformSettings, type PlatformSettings } from '@/lib/mock-data';
 import GeneralSettingsCard from '@/components/admin/settings/GeneralSettingsCard';
-import OrganizationsSettingsCard from '@/components/admin/settings/OrganizationsSettingsCard';
+import PlansSettingsCard from '@/components/admin/settings/PlansSettingsCard';
 import UsersSettingsCard from '@/components/admin/settings/UsersSettingsCard';
 import NotificationsSettingsCard from '@/components/admin/settings/NotificationsSettingsCard';
 import SecuritySettingsCard from '@/components/admin/settings/SecuritySettingsCard';
@@ -60,9 +60,9 @@ const AdminSettings = () => {
             <Settings className="w-4 h-4" />
             Geral
           </TabsTrigger>
-          <TabsTrigger value="organizations" className="flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            Organizações
+          <TabsTrigger value="plans" className="flex items-center gap-2">
+            <Layers className="w-4 h-4" />
+            Planos
           </TabsTrigger>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
@@ -79,8 +79,8 @@ const AdminSettings = () => {
           <NotificationsSettingsCard settings={settings} onSettingsChange={setSettings} />
         </TabsContent>
 
-        <TabsContent value="organizations" className="space-y-6">
-          <OrganizationsSettingsCard />
+        <TabsContent value="plans" className="space-y-6 max-w-4xl">
+          <PlansSettingsCard />
         </TabsContent>
 
         <TabsContent value="users" className="space-y-6 max-w-4xl">

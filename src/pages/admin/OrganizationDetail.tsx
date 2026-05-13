@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,8 +28,12 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDeleteOrganization } from '@/hooks/useOrganizations';
-import { planNames } from '@/lib/mock-data';
+import { usePlans } from '@/hooks/usePlans';
+import { getPlanShortName } from '@/lib/plans';
+import OrgAvatar from '@/components/admin/OrgAvatar';
+import TrialSettingsCard from '@/components/admin/TrialSettingsCard';
 import { isRfmChurnEnabledForAdmin } from '@/lib/featureFlags';
+import type { OrgStatus } from '@/lib/types';
 
 const OrganizationDetail = () => {
     const { orgId } = useParams();
@@ -38,6 +42,7 @@ const OrganizationDetail = () => {
     const deleteOrganization = useDeleteOrganization();
     const [isDeleting, setIsDeleting] = useState(false);
     const showRfmChurn = isRfmChurnEnabledForAdmin();
+    const { data: plans } = usePlans();
 
     const { data: organization, isLoading, error } = useQuery({
         queryKey: ['admin-organization', orgId],
@@ -84,13 +89,17 @@ const OrganizationDetail = () => {
                         Voltar para organizações
                     </Link>
                     <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary text-xl sm:text-2xl font-black shrink-0">
-                            {organization.name.charAt(0)}
-                        </div>
+                        <OrgAvatar
+                            name={organization.name}
+                            logoUrl={organization.logo_url}
+                            sizeClassName="w-12 h-12 sm:w-16 sm:h-16"
+                            textClassName="text-xl sm:text-2xl"
+                            roundedClassName="rounded-2xl"
+                        />
                         <div className="min-w-0">
                             <h1 className="text-xl sm:text-3xl font-bold text-foreground truncate">{organization.name}</h1>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <Badge variant="outline">{planNames[organization.plan]}</Badge>
+                                <Badge variant="outline">{getPlanShortName(plans, organization.plan)}</Badge>
                                 <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">{organization.status}</Badge>
                             </div>
                         </div>
@@ -126,33 +135,41 @@ const OrganizationDetail = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Info Card */}
-                <Card className="lg:col-span-2 border border-border bg-card/80 backdrop-blur-xl shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="text-foreground">Visão Geral</CardTitle>
-                        <CardDescription>Dados cadastrais e técnicos</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid grid-cols-2 gap-8">
-                            <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">ID da Organização</p>
-                                <p className="font-mono text-sm text-foreground break-all">{organization.id}</p>
+                {/* Info Card + Trial */}
+                <div className="lg:col-span-2 space-y-6">
+                    <Card className="border border-border bg-card/80 backdrop-blur-xl shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="text-foreground">Visão Geral</CardTitle>
+                            <CardDescription>Dados cadastrais e técnicos</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-2 gap-8">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">ID da Organização</p>
+                                    <p className="font-mono text-sm text-foreground break-all">{organization.id}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Slug (URL)</p>
+                                    <p className="text-sm text-foreground">{organization.slug}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Administrador Responsável</p>
+                                    <p className="text-sm font-medium text-foreground">{organization.admin_name || 'Não definido'}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">E-mail de Contato</p>
+                                    <p className="text-sm text-foreground">{organization.admin_email || 'Não definido'}</p>
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Slug (URL)</p>
-                                <p className="text-sm text-foreground">{organization.slug}</p>
-                            </div>
-                            <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Administrador Responsável</p>
-                                <p className="text-sm font-medium text-foreground">{organization.admin_name || 'Não definido'}</p>
-                            </div>
-                            <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">E-mail de Contato</p>
-                                <p className="text-sm text-foreground">{organization.admin_email || 'Não definido'}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+
+                    <TrialSettingsCard
+                        orgId={organization.id}
+                        status={organization.status as OrgStatus}
+                        trialEndsAt={(organization as { trial_ends_at?: string | null }).trial_ends_at ?? null}
+                    />
+                </div>
 
                 {/* Quick Actions / Status */}
                 <div className="space-y-6">
