@@ -104,9 +104,11 @@ const LineChartWidget = ({
     );
   }
 
+  const legendHeight = dataKeys.length > 1 ? Math.max(32, Math.ceil(dataKeys.length / 2) * 24) : 0;
+
   return (
-    <Card className={cn('rounded-xl bg-card/80 backdrop-blur-sm border-border/50', !hasRealData && 'opacity-60')}>
-      <CardHeader className="pb-1">
+    <Card className={cn('rounded-xl bg-card/80 backdrop-blur-sm border-border/50 h-full flex flex-col', !hasRealData && 'opacity-60')}>
+      <CardHeader className="pb-1 shrink-0">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
@@ -129,9 +131,9 @@ const LineChartWidget = ({
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-2">
+      <CardContent className="pt-2 flex-1 flex flex-col min-h-0">
         {!hasRealData ? (
-          <div className="h-[260px] flex items-center justify-center">
+          <div className="flex-1 min-h-[200px] flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <Database className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Sem dados disponíveis</p>
@@ -139,7 +141,7 @@ const LineChartWidget = ({
             </div>
           </div>
         ) : (
-          <div className="h-[260px]">
+          <div className="flex-1 min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} strokeOpacity={0.9} vertical={false} />
@@ -161,9 +163,10 @@ const LineChartWidget = ({
                 {dataKeys.length > 1 && (
                   <Legend
                     verticalAlign="bottom"
-                    height={28}
+                    height={legendHeight}
                     iconType="line"
                     iconSize={14}
+                    wrapperStyle={{ paddingTop: 6, lineHeight: '20px' }}
                     formatter={(val: string) => (
                       <span className="text-xs text-muted-foreground ml-1">{LABEL_MAP[val] || val}</span>
                     )}

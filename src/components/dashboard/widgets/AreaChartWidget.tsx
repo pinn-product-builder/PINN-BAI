@@ -148,9 +148,16 @@ const AreaChartWidget = ({
     );
   }
 
+  // Legenda dinâmica: como o widget pode ser estreito (4-col ≈ 320px) e
+  // legendas com PT-BR ("Reunião Confirmada") são longas, assumimos ~2 séries
+  // por linha pra reservar altura suficiente sem truncar. Bug reportado em
+  // BF Company: linha "Reunião Confirmada · Reunião Realizada · Venda"
+  // saindo cortada por baixo com height=28 fixo.
+  const legendHeight = dataKeys.length > 1 ? Math.max(32, Math.ceil(dataKeys.length / 2) * 24) : 0;
+
   return (
-    <Card className={cn('rounded-xl bg-card/80 backdrop-blur-sm border-border/50', !hasRealData && 'opacity-60')}>
-      <CardHeader className="pb-1">
+    <Card className={cn('rounded-xl bg-card/80 backdrop-blur-sm border-border/50 h-full flex flex-col', !hasRealData && 'opacity-60')}>
+      <CardHeader className="pb-1 shrink-0">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
@@ -173,9 +180,9 @@ const AreaChartWidget = ({
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-2">
+      <CardContent className="pt-2 flex-1 flex flex-col min-h-0">
         {!hasRealData ? (
-          <div className="h-[260px] flex items-center justify-center">
+          <div className="flex-1 min-h-[200px] flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <Database className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Sem dados disponíveis</p>
@@ -183,7 +190,7 @@ const AreaChartWidget = ({
             </div>
           </div>
         ) : (
-          <div className="h-[280px]">
+          <div className="flex-1 min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
                 <defs>
@@ -213,9 +220,10 @@ const AreaChartWidget = ({
                 {dataKeys.length > 1 && (
                   <Legend
                     verticalAlign="bottom"
-                    height={28}
+                    height={legendHeight}
                     iconType="circle"
                     iconSize={8}
+                    wrapperStyle={{ paddingTop: 6, lineHeight: '20px' }}
                     formatter={(val: string) => (
                       <span className="text-xs text-muted-foreground ml-1">{LABEL_MAP[val] || val}</span>
                     )}
