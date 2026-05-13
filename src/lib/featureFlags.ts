@@ -1,9 +1,18 @@
 const RFM_CHURN_MODULE_ENABLED = true;
 
+// IDs / slugs das orgs especiais. Single source of truth.
+export const ARGUTO_ORG_ID = 'b72718e7-6a54-4ff8-9bbf-24d1573ddb43';
+export const ARGUTO_ORG_SLUG = 'arguto';
+
+// Pinn Product Builder hospeda as telas Pinn SDR / LinkedIn SDR como abas internas.
+// O orgId real é descoberto via lookup `ilike(name, '%pinn%')` no Supabase em runtime
+// (ver useIsPinnProductBuilderOrg) — o slug abaixo é só fallback semântico.
+export const PINN_PB_ORG_NAME_LIKE = '%pinn%';
+
 // Quando o módulo estiver pronto para rollout, manter o global true
 // e liberar apenas as organizações dessa lista.
 const RFM_CHURN_ALLOWED_ORG_IDS: string[] = [
-  'b72718e7-6a54-4ff8-9bbf-24d1573ddb43', // Arguto · Demo (Desafio 1)
+  ARGUTO_ORG_ID, // Arguto · Demo (Desafio 1)
 ];
 
 /**
@@ -16,10 +25,10 @@ const RFM_CHURN_ALLOWED_ORG_IDS: string[] = [
  * (dev/staging/prod cada um cria um id próprio via seed).
  */
 const DEMO_ORG_IDS: string[] = [
-  'b72718e7-6a54-4ff8-9bbf-24d1573ddb43', // Arguto · Demo (id local de dev)
+  ARGUTO_ORG_ID, // Arguto · Demo (id local de dev)
 ];
 
-const DEMO_ORG_SLUGS: string[] = ['arguto'];
+const DEMO_ORG_SLUGS: string[] = [ARGUTO_ORG_SLUG];
 
 export const isRfmChurnEnabledForOrg = (orgId?: string | null): boolean => {
   if (!RFM_CHURN_MODULE_ENABLED) return false;
@@ -62,4 +71,19 @@ export const isDemoOrg = (orgId?: string | null): boolean => {
 export const isDemoSlug = (slug?: string | null): boolean => {
   if (!slug) return false;
   return DEMO_ORG_SLUGS.includes(slug);
+};
+
+/**
+ * A aba "Arguto · BAI" é exclusiva do cliente Arguto. Para os demais clientes
+ * ela some do menu lateral e o landing padrão passa de `/arguto` para `/dashboard`.
+ * Usa o UUID hardcoded + fallback por slug (igual ao isDemoOrg) para sobreviver
+ * a UUIDs diferentes entre dev/staging/prod.
+ */
+export const isArgutoOrg = (orgId?: string | null): boolean => {
+  if (!orgId) return false;
+  if (orgId === ARGUTO_ORG_ID) return true;
+  if (typeof window !== 'undefined' && window.__pinnActiveOrgSlug) {
+    return window.__pinnActiveOrgSlug === ARGUTO_ORG_SLUG;
+  }
+  return false;
 };
