@@ -282,7 +282,7 @@ const GlobalHQ = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="min-w-0">
                     <h1 className="text-2xl sm:text-3xl lg:text-5xl font-extrabold tracking-tight text-foreground">
-                        Pinn <span className="text-accent underline decoration-4 underline-offset-8">BAI Command</span>
+                        Pinn BAI Command
                     </h1>
                     <p className="text-muted-foreground mt-3 sm:mt-4 text-sm sm:text-base lg:text-lg max-w-2xl">
                         Visão consolidada do portfólio de empresas. Monitore crescimento, uso de IA e saúde financeira em tempo real.
@@ -303,25 +303,8 @@ const GlobalHQ = () => {
                         <span className="hidden sm:inline">{isEditingLayout ? 'Concluir edição' : 'Editar layout'}</span>
                         <span className="sm:hidden">{isEditingLayout ? 'OK' : 'Layout'}</span>
                     </button>
-                    {showRfmChurn && (
-                        <Button
-                                variant="outline"
-                                className="h-10 sm:h-12 border-border text-xs sm:text-sm"
-                                onClick={() => navigate('/admin/rfm-churn')}
-                            >
-                                <LayoutDashboard className="w-4 h-4 mr-1.5 sm:mr-2" />
-                                <span className="hidden sm:inline">Módulo RFM + Churn</span>
-                                <span className="sm:hidden">RFM</span>
-                            </Button>
-                    )}
-                    <Button
-                        className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold px-3 sm:px-6 h-10 sm:h-12 rounded-xl shadow-xl shadow-accent/20 text-xs sm:text-sm"
-                        onClick={() => navigate('/admin/organizations/new')}
-                    >
-                        <Zap className="w-4 h-4 mr-1.5 sm:mr-2 fill-current" />
-                        <span className="hidden sm:inline">Novo Cliente VIP</span>
-                        <span className="sm:hidden">Novo</span>
-                    </Button>
+                    {/* Botões "Módulo RFM + Churn" e "Novo Cliente VIP" foram
+                        ocultados a pedido. Para reativar, restaurar do git history. */}
                 </div>
             </div>
 

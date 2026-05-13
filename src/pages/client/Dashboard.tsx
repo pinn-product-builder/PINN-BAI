@@ -373,9 +373,12 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── Dashboards (cards lado-a-lado com descrição) ── */}
+      {/* ── Dashboards (cards lado-a-lado com descrição) ──
+          Padding/altura uniformes pra match o estilo dos cards do Auditor CRM:
+          p-4 (16px), min-h fixo pra alinhar verticalmente independente do
+          tamanho da descrição, line-clamp-2 evita que cards "estourem". */}
       {dashboards && dashboards.length > 1 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-stretch">
           {dashboards.map((d) => {
             const isActive = activeDash?.id === d.id;
             return (
@@ -384,7 +387,7 @@ const Dashboard = () => {
                 type="button"
                 onClick={() => setSelectedDashId(d.id)}
                 className={cn(
-                  "group flex flex-col items-start gap-1.5 rounded-xl border p-3 text-left transition-all",
+                  "group flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all min-h-[96px] h-full",
                   isActive
                     ? "border-primary/50 bg-primary/[0.06] shadow-[0_0_0_1px_rgba(255,107,53,0.18),0_4px_18px_rgba(255,107,53,0.08)]"
                     : "border-border/40 bg-card/40 hover:border-border/80 hover:bg-card/70",
@@ -408,7 +411,7 @@ const Dashboard = () => {
                     {d.name}
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-snug">
+                <p className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-snug flex-1">
                   {d.description || "Visão executiva do período."}
                 </p>
               </button>
