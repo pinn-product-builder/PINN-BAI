@@ -100,8 +100,8 @@ const GlobalHQ = () => {
                                 </div>
                             ) : (
                                 organizations?.slice(0, 4).map((org) => (
-                                    <div key={org.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-muted/50 transition-all cursor-pointer group border border-transparent hover:border-border">
-                                        <div className="flex items-center gap-4 min-w-0">
+                                    <div key={org.id} className="flex items-center gap-4 p-4 rounded-2xl hover:bg-muted/50 transition-all cursor-pointer group border border-transparent hover:border-border">
+                                        <div className="flex items-center gap-4 min-w-0 flex-1">
                                             <OrgAvatar
                                                 name={org.name}
                                                 logoUrl={org.logo_url}
@@ -109,28 +109,30 @@ const GlobalHQ = () => {
                                                 textClassName="text-base"
                                                 roundedClassName="rounded-2xl"
                                             />
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex-1">
                                                 <h4 className="font-bold text-foreground tracking-tight truncate">{org.name}</h4>
                                                 <p className="text-xs text-muted-foreground truncate">{org.admin_email || 'Sem admin configurado'}</p>
                                             </div>
                                         </div>
-                                        <div className="hidden md:flex flex-col items-end gap-1 shrink-0 ml-3">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm font-bold text-foreground whitespace-nowrap">{getPlanShortName(plans, org.plan)}</span>
-                                                <Badge variant="outline" className="text-[10px] bg-muted border-border text-muted-foreground uppercase">{org.status}</Badge>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <div className="hidden md:flex flex-col items-end gap-1 w-32">
+                                                <div className="flex items-center gap-2 justify-end w-full">
+                                                    <span className="text-sm font-bold text-foreground whitespace-nowrap truncate">{getPlanShortName(plans, org.plan)}</span>
+                                                    <Badge variant="outline" className="text-[10px] bg-muted border-border text-muted-foreground uppercase shrink-0">{org.status}</Badge>
+                                                </div>
+                                                <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-1">
+                                                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.random() * 40 + 60}%` }} />
+                                                </div>
                                             </div>
-                                            <div className="w-32 h-1 bg-muted rounded-full overflow-hidden mt-1">
-                                                <div className="h-full bg-primary rounded-full" style={{ width: `${Math.random() * 40 + 60}%` }} />
-                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="no-drag text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+                                                onClick={() => navigate(`/admin/organizations/${org.id}`)}
+                                            >
+                                                <LayoutDashboard className="w-4 h-4" />
+                                            </Button>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="no-drag text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
-                                            onClick={() => navigate(`/admin/organizations/${org.id}`)}
-                                        >
-                                            <LayoutDashboard className="w-4 h-4" />
-                                        </Button>
                                     </div>
                                 ))
                             )}
