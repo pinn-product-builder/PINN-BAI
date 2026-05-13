@@ -49,15 +49,6 @@ const mockPlatformUsers: PlatformUser[] = [
     lastLogin: '2024-03-14T16:45:00Z',
     createdAt: '2023-06-15T00:00:00Z',
   },
-  {
-    id: '3',
-    name: 'Maria Operações',
-    email: 'maria@pinnbai.com',
-    role: 'support',
-    status: 'inactive',
-    lastLogin: '2024-02-20T09:00:00Z',
-    createdAt: '2023-09-01T00:00:00Z',
-  },
 ];
 
 const roleConfig = {

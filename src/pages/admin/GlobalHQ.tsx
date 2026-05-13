@@ -7,24 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
     Building2,
-    TrendingUp,
-    Users,
-    DollarSign,
-    ArrowUpRight,
-    Globe,
-    Zap,
     LayoutDashboard,
     Loader2,
     Move,
     Check,
 } from 'lucide-react';
-import { isRfmChurnEnabledForAdmin } from '@/lib/featureFlags';
 import { EditableCardGrid, type CardWidget } from '@/components/dashboard/EditableCardGrid';
 import { cn } from '@/lib/utils';
 
 const GlobalHQ = () => {
     const navigate = useNavigate();
-    const showRfmChurn = isRfmChurnEnabledForAdmin();
     const [isEditingLayout, setIsEditingLayout] = useState(false);
 
     const { data: organizations, isLoading } = useQuery({
@@ -40,42 +32,7 @@ const GlobalHQ = () => {
         },
     });
 
-    const { data: totalLeadsCount } = useQuery({
-        queryKey: ['admin-total-leads'],
-        queryFn: async () => {
-            const { count, error } = await supabase
-                .from('leads')
-                .select('*', { count: 'exact', head: true });
-            if (error) throw error;
-            return count || 0;
-        },
-    });
-
-    const totalRevenue = (organizations?.length || 0) * 1500;
-
     const widgets: CardWidget[] = [
-        {
-            id: 'hq:mrr',
-            size: { w: 3, h: 5 },
-            render: () => (
-                <Card className="border-none shadow-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground overflow-hidden relative group rounded-2xl h-full">
-                    <div className="absolute right-[-10%] top-[-10%] opacity-10 group-hover:scale-110 transition-transform duration-500">
-                        <DollarSign size={160} />
-                    </div>
-                    <CardContent className="pt-8 h-full">
-                        <p className="text-primary-foreground/70 text-sm font-bold uppercase tracking-wider mb-2">MRR Consolidado</p>
-                        <div className="flex items-baseline gap-2">
-                            <h2 className="text-4xl font-extrabold">R$ {(totalRevenue / 1000).toFixed(1)}k</h2>
-                            <span className="flex items-center text-xs font-bold bg-primary-foreground/15 px-2 py-0.5 rounded-full">
-                                <ArrowUpRight className="w-3 h-3 mr-1" />
-                                +12%
-                            </span>
-                        </div>
-                        <p className="mt-6 text-xs text-primary-foreground/60 font-medium">Crescimento escalável Pinn</p>
-                    </CardContent>
-                </Card>
-            ),
-        },
         {
             id: 'hq:empresas',
             size: { w: 3, h: 5 },
@@ -106,53 +63,12 @@ const GlobalHQ = () => {
             ),
         },
         {
-            id: 'hq:leads',
-            size: { w: 3, h: 5 },
-            render: () => (
-                <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group rounded-2xl h-full">
-                    <CardContent className="pt-8 h-full">
-                        <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">Total de Leads</p>
-                        <div className="flex items-baseline gap-2">
-                            <h2 className="text-4xl font-extrabold text-foreground">{((totalLeadsCount || 0) / 1000).toFixed(1)}k</h2>
-                            <span className="flex items-center text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
-                                <ArrowUpRight className="w-3 h-3 mr-1" />
-                                +8.2%
-                            </span>
-                        </div>
-                        <div className="mt-8 flex items-center gap-2">
-                            <Users className="w-4 h-4 text-muted-foreground" />
-                            <p className="text-xs text-muted-foreground">Volume de tráfego Premium</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            ),
-        },
-        {
-            id: 'hq:whitelabel',
-            size: { w: 3, h: 5 },
-            render: () => (
-                <Card className="border border-border bg-card shadow-2xl overflow-hidden relative group rounded-2xl h-full">
-                    <CardContent className="pt-8 h-full">
-                        <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">Links White-label</p>
-                        <div className="flex items-baseline gap-2">
-                            <h2 className="text-4xl font-extrabold text-foreground">{organizations?.filter((o: any) => o.custom_domain).length || 0}</h2>
-                            <Globe className="w-5 h-5 text-accent" />
-                        </div>
-                        <div className="mt-8 p-3 rounded-xl bg-accent/10 border border-accent/20 flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                            <p className="text-[10px] font-bold text-accent uppercase tracking-widest">Ativo Pinn Universe</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            ),
-        },
-        {
             id: 'hq:saude-clientes',
             size: { w: 8, h: 12 },
             render: () => (
                 <Card className="border border-border bg-card shadow-2xl rounded-2xl h-full">
                     <CardHeader>
-                        <CardTitle className="text-xl text-foreground">Saúde por Cliente</CardTitle>
+                        <CardTitle className="text-xl text-foreground">Organizações Ativas</CardTitle>
                         <CardDescription>Principais métricas de performance das orgs sob gestão</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -210,29 +126,6 @@ const GlobalHQ = () => {
                                 Ver Todas as Organizações
                             </Button>
                         )}
-                    </CardContent>
-                </Card>
-            ),
-        },
-        {
-            id: 'hq:ia-resumo',
-            size: { w: 4, h: 6 },
-            render: () => (
-                <Card className="border border-border bg-card shadow-2xl overflow-hidden rounded-2xl h-full">
-                    <CardHeader className="pb-2">
-                        <div className="flex items-center gap-2 text-accent">
-                            <Zap className="w-4 h-4 fill-current" />
-                            <CardTitle className="text-sm uppercase tracking-widest font-black">Resumo Executivo IA</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm font-medium text-foreground/80 leading-relaxed">
-                            {organizations?.length === 0
-                                ? "Bem-vindo ao Pinn BAI Command. Conecte sua primeira empresa para que eu possa analisar os dados e gerar insights estratégicos."
-                                : "Analisando seu portfólio... Detectei uma oportunidade de expansão no plano da última empresa cadastrada baseado no volume de leads."
-                            }
-                        </p>
-                        <Button size="sm" className="no-drag mt-4 bg-accent text-accent-foreground font-bold rounded-lg h-9 w-full">Sincronizar Análise</Button>
                     </CardContent>
                 </Card>
             ),
