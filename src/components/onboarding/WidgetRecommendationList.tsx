@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+﻿import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -138,7 +138,7 @@ const WidgetRecommendationList = ({
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-accent" />
+          <Sparkles className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-foreground">Recomendações Inteligentes</h3>
           <Badge variant="outline" className="text-xs">
             {stats.total} widgets sugeridos

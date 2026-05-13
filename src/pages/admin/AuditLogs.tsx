@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -46,7 +46,7 @@ const AuditLogs = () => {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold flex items-center gap-2">
-                        <Shield className="w-8 h-8 text-accent" />
+                        <Shield className="w-8 h-8 text-primary" />
                         Audit Logs
                     </h1>
                     <p className="text-muted-foreground mt-1">
@@ -99,8 +99,8 @@ const AuditLogs = () => {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center">
-                                                <User className="w-3 h-3 text-accent" />
+                                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                                                <User className="w-3 h-3 text-primary" />
                                             </div>
                                             <span className="font-medium text-sm">{log.userName}</span>
                                         </div>

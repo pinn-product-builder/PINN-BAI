@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,7 +79,7 @@ const MetricBuilder = ({ columns, onSave }: MetricBuilderProps) => {
         <Card className="w-full">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <Calculator className="w-5 h-5 text-accent" />
+                    <Calculator className="w-5 h-5 text-primary" />
                     Construtor de Métricas
                 </CardTitle>
                 <CardDescription>
@@ -119,7 +119,7 @@ const MetricBuilder = ({ columns, onSave }: MetricBuilderProps) => {
                                 <Badge
                                     key={col}
                                     variant="outline"
-                                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
                                     onClick={() => insertToken(col)}
                                 >
                                     {col}
@@ -159,7 +159,7 @@ const MetricBuilder = ({ columns, onSave }: MetricBuilderProps) => {
                             </span>
                         )}
                     </div>
-                    <Button className="bg-accent text-accent-foreground" onClick={handleSave}>
+                    <Button className="bg-primary text-primary-foreground" onClick={handleSave}>
                         <Save className="w-4 h-4 mr-2" /> Salvar Métrica
                     </Button>
                 </div>

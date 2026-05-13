@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+﻿import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -74,8 +74,8 @@ const ConfirmationStep = ({ state, isSubmitting, onSubmit }: ConfirmationStepPro
         {/* Organization Info */}
         <Card className="p-4">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-              <Building2 className="w-5 h-5 text-accent" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Building2 className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
@@ -209,7 +209,7 @@ const ConfirmationStep = ({ state, isSubmitting, onSubmit }: ConfirmationStepPro
       {/* What will be created */}
       <div className="p-4 bg-muted/50 rounded-lg border border-dashed">
         <div className="flex items-start gap-3">
-          <Sparkles className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+          <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <div>
             <h4 className="text-sm font-medium text-foreground mb-2">
               O que será criado automaticamente:
@@ -234,7 +234,7 @@ const ConfirmationStep = ({ state, isSubmitting, onSubmit }: ConfirmationStepPro
           size="lg"
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="bg-accent hover:bg-accent/90 text-accent-foreground min-w-[250px]"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[250px]"
         >
           {isSubmitting ? (
             <>

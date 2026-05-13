@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -272,31 +272,31 @@ const NewOrganization = () => {
                   <SelectContent>
                     <SelectItem value="1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-accent">Pinn Agent Sales</span>
+                        <span className="font-medium text-primary">Pinn Agent Sales</span>
                         <span className="text-xs text-muted-foreground">- Lead tracking & conversion</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="2">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-accent">Pinn Revenue OS</span>
+                        <span className="font-medium text-primary">Pinn Revenue OS</span>
                         <span className="text-xs text-muted-foreground">- Revenue forecasting & pipeline</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-accent">Pinn Growth Engine</span>
+                        <span className="font-medium text-primary">Pinn Growth Engine</span>
                         <span className="text-xs text-muted-foreground">- Attribution & LTV/CAC</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="4">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-accent">Pinn Process Automation Hub</span>
+                        <span className="font-medium text-primary">Pinn Process Automation Hub</span>
                         <span className="text-xs text-muted-foreground">- Bot ROI & throughput</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="5">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-accent font-bold">Pinn MicroSaaS Studio</span>
+                        <span className="font-medium text-primary font-bold">Pinn MicroSaaS Studio</span>
                         <span className="text-xs text-muted-foreground">- Universal BI & Semantic Layer</span>
                       </div>
                     </SelectItem>
@@ -327,7 +327,7 @@ const NewOrganization = () => {
                 </Button>
                 <Button
                   type="submit"
-                  className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
+                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                   disabled={isLoading}
                 >
                   {isLoading ? (

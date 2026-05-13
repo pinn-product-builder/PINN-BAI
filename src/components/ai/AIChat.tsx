@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Sparkles, X, Bot, Loader2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { isDemoOrg } from '@/lib/featureFlags';
 import ReactMarkdown from 'react-markdown';
@@ -40,6 +41,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-data-chat
 
 const AIChat = ({ onClose }: { onClose: () => void }) => {
   const { profile } = useAuth();
+  const location = useLocation();
   const isArgutoDemo = isDemoOrg(profile?.org_id);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -79,6 +81,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
       body: JSON.stringify({
         messages: userMessages.map(m => ({ role: m.role, content: m.content })),
         orgId: profile?.org_id || null,
+        pathname: location?.pathname || null,
       }),
     });
 
@@ -97,7 +100,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
     }
 
     return resp.body.getReader();
-  }, [profile?.org_id]);
+  }, [profile?.org_id, location?.pathname]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -197,10 +200,10 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
   };
 
   return (
-    <Card className="w-[420px] h-[650px] flex flex-col shadow-2xl border-accent/20 bg-background/95 backdrop-blur-md fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/50 bg-accent/5">
+    <Card className="w-[420px] h-[650px] flex flex-col shadow-2xl border-primary/20 bg-background/95 backdrop-blur-md fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/50 bg-primary/5">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-accent text-accent-foreground">
+          <div className="p-2 rounded-lg bg-primary text-primary-foreground">
             <Sparkles size={18} />
           </div>
           <div>
@@ -233,7 +236,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
                   `}
                 >
                   {msg.role === 'assistant' && (
-                    <div className="flex items-center gap-2 mb-2 text-xs font-bold text-accent">
+                    <div className="flex items-center gap-2 mb-2 text-xs font-bold text-primary">
                       <Bot size={12} /> BAI Copilot
                     </div>
                   )}
@@ -246,7 +249,7 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
               <div className="flex justify-start">
                 <div className="bg-muted px-4 py-2 rounded-2xl rounded-tl-none border border-border/50 flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-accent" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
                   <span className="text-xs text-muted-foreground">Analisando dados...</span>
                 </div>
               </div>
@@ -263,14 +266,14 @@ const AIChat = ({ onClose }: { onClose: () => void }) => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Pergunte sobre seus dados..."
-              className="rounded-full bg-muted/50 border-transparent focus:border-accent shadow-inner text-sm pl-4"
+              className="rounded-full bg-muted/50 border-transparent focus:border-primary shadow-inner text-sm pl-4"
               disabled={isLoading}
             />
             <Button
               type="submit"
               size="icon"
               disabled={!inputValue.trim() || isLoading}
-              className="rounded-full bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/20 w-10 h-10 shrink-0"
+              className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 w-10 h-10 shrink-0"
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send size={18} />}
             </Button>

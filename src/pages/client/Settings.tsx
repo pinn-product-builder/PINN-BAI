@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -146,7 +146,7 @@ const ClientSettings = () => {
         </div>
         <Button
           onClick={() => saveMutation.mutate()}
-          className="bg-accent hover:bg-accent/90 text-accent-foreground gap-2"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
           disabled={saveMutation.isPending}
         >
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

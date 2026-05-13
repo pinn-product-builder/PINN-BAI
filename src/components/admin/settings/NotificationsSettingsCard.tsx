@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+﻿import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
@@ -22,8 +22,8 @@ const NotificationsSettingsCard = ({ settings, onSettingsChange }: Notifications
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-            <Bell className="w-5 h-5 text-accent" />
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Bell className="w-5 h-5 text-primary" />
           </div>
           <div>
             <CardTitle>Notificações e IA</CardTitle>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -100,7 +100,7 @@ const Templates = () => {
         </div>
         <Button
           onClick={handleCreate}
-          className="bg-accent hover:bg-accent/90 text-accent-foreground"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           <Plus className="w-4 h-4 mr-2" />
           Novo Template

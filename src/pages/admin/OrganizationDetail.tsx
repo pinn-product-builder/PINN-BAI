@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -84,7 +84,7 @@ const OrganizationDetail = () => {
                         Voltar para organizações
                     </Link>
                     <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-accent text-xl sm:text-2xl font-black shrink-0">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary text-xl sm:text-2xl font-black shrink-0">
                             {organization.name.charAt(0)}
                         </div>
                         <div className="min-w-0">
@@ -117,7 +117,7 @@ const OrganizationDetail = () => {
                             <span className="sm:hidden">RFM</span>
                         </Button>
                     )}
-                    <Button className="h-10 sm:h-12 bg-accent hover:bg-accent/90 text-accent-foreground font-bold group text-xs sm:text-sm">
+                    <Button className="h-10 sm:h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold group text-xs sm:text-sm">
                         <Settings className="w-4 h-4 mr-1.5 sm:mr-2 group-hover:rotate-90 transition-transform" />
                         <span className="hidden sm:inline">Configurar Org</span>
                         <span className="sm:hidden">Config</span>
@@ -163,14 +163,14 @@ const OrganizationDetail = () => {
                         <CardContent className="space-y-4">
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
                                 <div className="flex items-center gap-3">
-                                    <LayoutDashboard className="w-4 h-4 text-accent" />
+                                    <LayoutDashboard className="w-4 h-4 text-primary" />
                                     <span className="text-sm text-foreground">Dashboards</span>
                                 </div>
                                 <span className="font-bold text-foreground">1</span>
                             </div>
                             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
                                 <div className="flex items-center gap-3">
-                                    <Database className="w-4 h-4 text-accent" />
+                                    <Database className="w-4 h-4 text-primary" />
                                     <span className="text-sm text-foreground">Integrações</span>
                                 </div>
                                 <span className="text-xs text-muted-foreground italic">Nenhuma ativa</span>

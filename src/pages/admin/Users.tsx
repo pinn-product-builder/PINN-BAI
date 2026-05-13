@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,7 +86,7 @@ const AdminUsers = () => {
             Gerencie os administradores e equipe de suporte
           </p>
         </div>
-        <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
+        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
           <Plus className="w-4 h-4 mr-2" />
           Novo Usuário
         </Button>
@@ -116,8 +116,8 @@ const AdminUsers = () => {
                   {users.filter((u) => u.role === 'platform_admin').length}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
-                <Shield className="w-6 h-6 text-accent" />
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Shield className="w-6 h-6 text-primary" />
               </div>
             </div>
           </CardContent>

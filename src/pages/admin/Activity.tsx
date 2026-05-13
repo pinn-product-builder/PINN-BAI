@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+﻿import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -101,7 +101,7 @@ const activityIcons: Record<ActivityLog['type'], React.ReactNode> = {
 const activityColors: Record<ActivityLog['type'], string> = {
   org_created: 'bg-success/10 text-success',
   user_created: 'bg-primary/10 text-primary',
-  data_imported: 'bg-accent/10 text-accent',
+  data_imported: 'bg-primary/10 text-primary',
   settings_changed: 'bg-warning/10 text-warning',
   login: 'bg-muted text-muted-foreground',
   data_deleted: 'bg-destructive/10 text-destructive',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,7 +78,7 @@ const getMockOrgUsers = (orgId: string): OrgUser[] => {
 
 const roleConfig = {
   client_admin: { label: 'Admin', icon: Shield, className: 'bg-primary/10 text-primary' },
-  analyst: { label: 'Analista', icon: BarChart, className: 'bg-accent/10 text-accent' },
+  analyst: { label: 'Analista', icon: BarChart, className: 'bg-primary/10 text-primary' },
   viewer: { label: 'Viewer', icon: Eye, className: 'bg-muted text-muted-foreground' },
 };
 
@@ -118,7 +118,7 @@ const ClientUsers = () => {
             Gerencie os usuários da sua organização
           </p>
         </div>
-        <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
+        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
           <Plus className="w-4 h-4 mr-2" />
           Convidar Usuário
         </Button>
@@ -143,7 +143,7 @@ const ClientUsers = () => {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm font-medium text-muted-foreground">Analistas</p>
-            <p className="text-3xl font-bold text-accent">
+            <p className="text-3xl font-bold text-primary">
               {users.filter((u) => u.role === 'analyst').length}
             </p>
           </CardContent>

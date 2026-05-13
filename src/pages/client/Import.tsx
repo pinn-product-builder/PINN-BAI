@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+﻿import { useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate, useParams, Outlet, useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -523,7 +523,7 @@ const ClientImport = () => {
                     className={`w-10 h-10 rounded-full flex items-center justify-center ${isCompleted
                       ? 'bg-success text-success-foreground'
                       : isCurrent
-                        ? 'bg-accent text-accent-foreground'
+                        ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground'
                       }`}
                   >
@@ -562,10 +562,10 @@ const ClientImport = () => {
             <CardContent>
               <div
                 className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${isDragging
-                  ? 'border-accent bg-accent/5'
+                  ? 'border-primary bg-primary/5'
                   : selectedFile
                     ? 'border-success bg-success/5'
-                    : 'border-muted-foreground/25 hover:border-accent'
+                    : 'border-muted-foreground/25 hover:border-primary'
                   }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -687,7 +687,7 @@ const ClientImport = () => {
 
                   <div className="flex justify-end">
                     <Button
-                      className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
                       onClick={handleAnalyze}
                       disabled={csvValidating || (csvPreview?.issues.length ?? 0) > 0}
                     >
@@ -701,7 +701,7 @@ const ClientImport = () => {
               {selectedFile && !selectedFile.name.endsWith('.csv') && (
                 <div className="mt-6 flex justify-end">
                   <Button
-                    className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={handleAnalyze}
                   >
                     Continuar
@@ -718,7 +718,7 @@ const ClientImport = () => {
           <Card>
             <CardContent className="py-12">
               <div className="text-center space-y-4">
-                <Loader2 className="w-12 h-12 mx-auto text-accent animate-spin" />
+                <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin" />
                 <div>
                   <p className="font-medium text-foreground">Analisando arquivo...</p>
                   <p className="text-sm text-muted-foreground">
@@ -796,7 +796,7 @@ const ClientImport = () => {
                   Voltar
                 </Button>
                 <Button
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                   onClick={handleImport}
                 >
                   Importar Dados
@@ -814,7 +814,7 @@ const ClientImport = () => {
               <div className="text-center space-y-4">
                 {isImporting ? (
                   <>
-                    <Loader2 className="w-12 h-12 mx-auto text-accent animate-spin" />
+                    <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin" />
                     <div>
                       <p className="font-medium text-foreground">Importando dados...</p>
                       <p className="text-sm text-muted-foreground">

@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+﻿import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -138,8 +138,8 @@ const TemplatePreviewCard = ({
     <Card
       className={cn(
         "overflow-hidden transition-all cursor-pointer group",
-        isSelected && "ring-2 ring-accent border-accent",
-        onSelect && "hover:border-accent/50",
+        isSelected && "ring-2 ring-primary border-primary",
+        onSelect && "hover:border-primary/50",
         !compact && "hover:shadow-md"
       )}
       onClick={onSelect}
@@ -175,8 +175,8 @@ const TemplatePreviewCard = ({
           </div>
           
           {isSelected && (
-            <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center shrink-0">
-              <Check className="w-4 h-4 text-accent-foreground" />
+            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+              <Check className="w-4 h-4 text-primary-foreground" />
             </div>
           )}
 

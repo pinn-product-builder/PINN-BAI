@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -55,7 +55,7 @@ const SupabaseIntegration = ({ onConnect, isConnecting }: SupabaseIntegrationPro
               href="https://supabase.com/dashboard" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-accent hover:underline inline-flex items-center gap-0.5"
+              className="text-primary hover:underline inline-flex items-center gap-0.5"
             >
               Abrir Dashboard <ExternalLink className="w-3 h-3" />
             </a>

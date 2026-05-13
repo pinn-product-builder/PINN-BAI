@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,7 +95,7 @@ const UsersSettingsCard = () => {
       case 'platform_admin':
         return <Badge className="bg-primary/10 text-primary border-primary/20">Admin Plataforma</Badge>;
       case 'client_admin':
-        return <Badge className="bg-accent/10 text-accent border-accent/20">Admin Cliente</Badge>;
+        return <Badge className="bg-primary/10 text-primary border-primary/20">Admin Cliente</Badge>;
       case 'analyst':
         return <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Analista</Badge>;
       case 'viewer':
@@ -126,7 +126,7 @@ const UsersSettingsCard = () => {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Plus className="w-4 h-4 mr-2" />
                 Novo Usuário
               </Button>
@@ -206,7 +206,7 @@ const UsersSettingsCard = () => {
                 <Button
                   onClick={handleCreateUser}
                   disabled={isCreating || !newUserData.name || !newUserData.email}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {isCreating ? (
                     <>

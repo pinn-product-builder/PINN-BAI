@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -123,14 +123,14 @@ const OrganizationStep = ({ data, onUpdate }: OrganizationStepProps) => {
                 <RadioGroupItem value={plan.toString()} className="sr-only" />
                 <Card
                   className={cn(
-                    "p-4 transition-all hover:border-accent/50",
-                    isSelected && "border-accent bg-accent/5 ring-2 ring-accent/20"
+                    "p-4 transition-all hover:border-primary/50",
+                    isSelected && "border-primary bg-primary/5 ring-2 ring-primary/20"
                   )}
                 >
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "w-10 h-10 rounded-lg flex items-center justify-center",
-                      isSelected ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
+                      isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                     )}>
                       <Icon className="w-5 h-5" />
                     </div>
@@ -145,7 +145,7 @@ const OrganizationStep = ({ data, onUpdate }: OrganizationStepProps) => {
                     <ul className="space-y-1">
                       {limits.features.slice(0, 3).map((feature, i) => (
                         <li key={i} className="text-xs text-muted-foreground flex items-center gap-1">
-                          <span className="w-1 h-1 rounded-full bg-accent" />
+                          <span className="w-1 h-1 rounded-full bg-primary" />
                           {feature}
                         </li>
                       ))}

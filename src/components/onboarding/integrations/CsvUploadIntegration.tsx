@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -83,8 +83,8 @@ const CsvUploadIntegration = ({ onConnect, isConnecting }: CsvUploadIntegrationP
         className={cn(
           "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
           isDragging 
-            ? "border-accent bg-accent/5" 
-            : "border-muted-foreground/25 hover:border-accent/50"
+            ? "border-primary bg-primary/5" 
+            : "border-muted-foreground/25 hover:border-primary/50"
         )}
       >
         <input

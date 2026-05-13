@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+﻿import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -620,14 +620,14 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
           {/* AI Mapping Tab */}
           <TabsContent value="ai" className="mt-4 space-y-4">
             {/* Status Card */}
-            <Card className="p-5 border-accent/30 bg-gradient-to-br from-accent/5 via-accent/3 to-transparent">
+            <Card className="p-5 border-primary/30 bg-gradient-to-br from-primary/5 via-primary/3 to-transparent">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 flex-1">
-                  <div className="p-3 rounded-xl bg-accent/20 shadow-lg shadow-accent/10">
+                  <div className="p-3 rounded-xl bg-primary/20 shadow-lg shadow-primary/10">
                     {isLoadingAI ? (
-                      <Loader2 className="w-6 h-6 text-accent animate-spin" />
+                      <Loader2 className="w-6 h-6 text-primary animate-spin" />
                     ) : (
-                      <Wand2 className="w-6 h-6 text-accent" />
+                      <Wand2 className="w-6 h-6 text-primary" />
                     )}
                   </div>
                   <div className="flex-1">
@@ -636,7 +636,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                         {isLoadingAI ? 'Analisando tabelas com IA...' : 'Mapeamento Automático com IA'}
                       </h3>
                       {aiSuggestions.length > 0 && (
-                        <Badge variant="outline" className="text-xs border-accent/30 bg-accent/10">
+                        <Badge variant="outline" className="text-xs border-primary/30 bg-primary/10">
                           {aiMethod === 'ai' ? 'Gemini AI' : 'Heurística'}
                         </Badge>
                       )}
@@ -666,7 +666,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                   <Button
                     onClick={() => fetchAIMappings(false)}
                     variant="outline"
-                    className="gap-2 shrink-0 border-accent/30 hover:bg-accent/10"
+                    className="gap-2 shrink-0 border-primary/30 hover:bg-primary/10"
                   >
                     <Sparkles className="w-4 h-4" />
                     {aiSuggestions.length > 0 ? 'Regerar' : 'Gerar Mapeamentos'}
@@ -677,12 +677,12 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
 
             {/* AI Suggestions List */}
             {aiSuggestions.length > 0 && (
-              <Card className="p-5 border-2 border-accent/20">
+              <Card className="p-5 border-2 border-primary/20">
                 {/* Header with counters */}
                 <div className="flex items-center justify-between flex-wrap gap-4 mb-5 pb-4 border-b">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-accent/10">
-                      <Sparkles className="w-5 h-5 text-accent" />
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Sparkles className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                       <h4 className="font-semibold text-foreground">Sugestões da IA</h4>
@@ -690,7 +690,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                         Revise e aceite as sugestões mais relevantes
                       </p>
                     </div>
-                    <Badge variant="outline" className="text-xs border-accent/30 bg-accent/10">
+                    <Badge variant="outline" className="text-xs border-primary/30 bg-primary/10">
                       {aiMethod === 'ai' ? 'Gemini AI' : 'Análise Heurística'}
                     </Badge>
                   </div>
@@ -757,7 +757,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                               "flex items-start gap-3 p-4 rounded-lg border transition-all hover:shadow-md",
                               isAccepted && "border-green-500/50 bg-green-500/5 ring-2 ring-green-500/20",
                               isRejected && "opacity-50 bg-muted/30 border-muted",
-                              !isAccepted && !isRejected && "bg-background/50 border-border hover:border-accent/30"
+                              !isAccepted && !isRejected && "bg-background/50 border-border hover:border-primary/30"
                             )}
                           >
                             {/* Confidence Badge */}
@@ -791,12 +791,12 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                                     {TARGET_METRICS.find(m => m.value === suggestion.targetMetric)?.label || suggestion.targetMetric}
                                   </span>
                                   {!TARGET_METRICS.find(m => m.value === suggestion.targetMetric) && (
-                                    <Badge variant="outline" className="text-[9px] px-1 py-0 border-accent/30 bg-accent/5">
+                                    <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 bg-primary/5">
                                       Custom
                                     </Badge>
                                   )}
                                 </div>
-                                <Badge variant="outline" className="text-[10px] shrink-0 border-accent/30">
+                                <Badge variant="outline" className="text-[10px] shrink-0 border-primary/30">
                                   {TRANSFORMATIONS.find(t => t.value === suggestion.transformation)?.label || suggestion.transformation}
                                 </Badge>
                               </div>
@@ -880,10 +880,10 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
               <Card className="p-8">
                 <div className="flex flex-col items-center justify-center gap-4 text-center">
                   <div className="relative">
-                    <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">
-                      <Loader2 className="w-8 h-8 text-accent animate-spin" />
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-primary animate-spin" />
                     </div>
-                    <Sparkles className="w-5 h-5 text-accent absolute -top-1 -right-1 animate-pulse" />
+                    <Sparkles className="w-5 h-5 text-primary absolute -top-1 -right-1 animate-pulse" />
                   </div>
                   <div>
                     <h3 className="font-medium text-foreground">A IA está analisando suas tabelas</h3>
@@ -1187,7 +1187,7 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                                           onClick={() => handleSavedMetricSelect(mapping.id, { id: m.id, metric_name: m.metric_name })}
                                           className={cn(
                                             "flex items-center justify-between w-full px-2 py-1.5 text-sm hover:bg-muted transition-colors text-left",
-                                            mapping.targetMetric === m.metric_name && "bg-accent/10"
+                                            mapping.targetMetric === m.metric_name && "bg-primary/10"
                                           )}
                                         >
                                           <span className="truncate">{m.display_label}</span>
@@ -1209,11 +1209,11 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
                                       onClick={() => updateMapping(mapping.id, { targetMetric: m.value })}
                                       className={cn(
                                         "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-muted transition-colors text-left",
-                                        mapping.targetMetric === m.value && "bg-accent/10"
+                                        mapping.targetMetric === m.value && "bg-primary/10"
                                       )}
                                     >
                                       {mapping.targetMetric === m.value && (
-                                        <Check className="w-3 h-3 text-accent" />
+                                        <Check className="w-3 h-3 text-primary" />
                                       )}
                                       <span className={cn(mapping.targetMetric !== m.value && "ml-5")}>{m.label}</span>
                                       <Tooltip>
@@ -1250,9 +1250,9 @@ const MappingStep = ({ integration, mappings, onUpdate, onPrimaryTableChange, or
             </div>
 
             {/* Tip */}
-            <div className="p-4 bg-accent/5 rounded-lg border border-accent/20">
+            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-foreground">Dica</p>
                   <p className="text-sm text-muted-foreground">

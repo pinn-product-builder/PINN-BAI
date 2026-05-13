@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+﻿import { useState, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -409,9 +409,9 @@ $$;`;
 
       {/* Discovery Method Info */}
       {discoveryMethod === 'pattern_discovery' && tables.length > 0 && (
-        <Alert className="bg-accent/5 border-accent/20">
-          <Info className="h-4 w-4 text-accent" />
-          <AlertTitle className="text-accent">Descoberta por padrões</AlertTitle>
+        <Alert className="bg-primary/5 border-primary/20">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertTitle className="text-primary">Descoberta por padrões</AlertTitle>
           <AlertDescription className="text-muted-foreground">
             Encontramos {tables.length} tabelas testando nomes comuns. Para listar TODAS as tabelas do seu banco, 
             crie a função auxiliar abaixo no SQL Editor do Supabase:
@@ -510,7 +510,7 @@ $$;`;
                     size="sm"
                     onClick={fetchAISuggestions}
                     disabled={isLoadingAI || tables.length === 0}
-                    className="gap-2 shrink-0 border-accent/50 hover:bg-accent/10"
+                    className="gap-2 shrink-0 border-primary/50 hover:bg-primary/10"
                   >
                     {isLoadingAI ? (
                       <>
@@ -519,7 +519,7 @@ $$;`;
                       </>
                     ) : (
                       <>
-                        <Wand2 className="w-4 h-4 text-accent" />
+                        <Wand2 className="w-4 h-4 text-primary" />
                         Sugestão IA
                       </>
                     )}
@@ -568,11 +568,11 @@ $$;`;
 
           {/* AI Suggestions Panel - Expanded */}
           {showSuggestions && aiSuggestions.length > 0 && (
-            <Card className="border-accent/30 bg-accent/5">
-              <div className="p-4 border-b border-accent/20">
+            <Card className="border-primary/30 bg-primary/5">
+              <div className="p-4 border-b border-primary/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-accent" />
+                    <Sparkles className="h-5 w-5 text-primary" />
                     <h4 className="font-semibold text-foreground">Sugestões da IA</h4>
                     <Badge variant="outline" className="text-xs">
                       {aiSuggestions.length} tabelas
@@ -602,7 +602,7 @@ $$;`;
                   {aiSuggestions.map((suggestion) => (
                     <div 
                       key={suggestion.tableName}
-                      className="p-3 bg-background rounded-lg border border-border/50 hover:border-accent/30 transition-colors"
+                      className="p-3 bg-background rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -611,7 +611,7 @@ $$;`;
                               variant="outline" 
                               className={cn(
                                 "text-xs shrink-0",
-                                suggestion.score >= 80 ? "border-accent/50 bg-accent/10 text-accent" :
+                                suggestion.score >= 80 ? "border-primary/50 bg-primary/10 text-primary" :
                                 suggestion.score >= 60 ? "border-primary/50 bg-primary/10 text-primary" :
                                 "border-muted-foreground/50"
                               )}
@@ -683,7 +683,7 @@ $$;`;
                 key={table.name}
                 className={cn(
                   'transition-all',
-                  isSelected && 'border-accent ring-2 ring-accent/20'
+                  isSelected && 'border-primary ring-2 ring-primary/20'
                 )}
               >
                 <Collapsible open={isExpanded}>
@@ -707,8 +707,8 @@ $$;`;
                         className="flex-1"
                       >
                         <div className="flex items-center gap-3 cursor-pointer">
-                          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                            <Database className="w-5 h-5 text-accent" />
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Database className="w-5 h-5 text-primary" />
                           </div>
                           <div className="text-left flex-1">
                             <div className="flex items-center gap-2">
@@ -719,7 +719,7 @@ $$;`;
                                 {table.name}
                               </Label>
                               {selectedTable?.isPrimary && (
-                                <Badge className="text-[10px] py-0 bg-accent text-accent-foreground">
+                                <Badge className="text-[10px] py-0 bg-primary text-primary-foreground">
                                   Principal
                                 </Badge>
                               )}
@@ -812,8 +812,8 @@ $$;`;
                                 className={cn(
                                   'flex items-center gap-2 p-2 rounded-md border transition-colors cursor-pointer',
                                   isColumnSelected
-                                    ? 'bg-accent/5 border-accent/30'
-                                    : 'bg-background border-border hover:border-accent/30'
+                                    ? 'bg-primary/5 border-primary/30'
+                                    : 'bg-background border-border hover:border-primary/30'
                                 )}
                                 onClick={() =>
                                   handleColumnToggle(
@@ -920,7 +920,7 @@ $$;`;
 
       {/* Selection Summary */}
       {selectedTables.length > 0 && (
-        <div className="p-4 bg-accent/5 rounded-lg border border-accent/20">
+        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-foreground">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -187,7 +187,7 @@ const Datasets = () => {
           </p>
         </div>
         <Button
-          className="bg-accent hover:bg-accent/90 text-accent-foreground"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
           onClick={() => setIsConnectorOpen(true)}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -225,8 +225,8 @@ const Datasets = () => {
                   {stats.totalRecords.toLocaleString('pt-BR')}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
-                <FileSpreadsheet className="w-6 h-6 text-accent" />
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <FileSpreadsheet className="w-6 h-6 text-primary" />
               </div>
             </div>
           </CardContent>

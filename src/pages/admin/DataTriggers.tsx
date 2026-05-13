@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,7 +99,7 @@ const DataTriggers = () => {
                         Transforme dados em ação. Dispare eventos quando métricas atingirem limites.
                     </p>
                 </div>
-                <Button onClick={() => setIsEditing(true)} className="bg-accent text-accent-foreground">
+                <Button onClick={() => setIsEditing(true)} className="bg-primary text-primary-foreground">
                     <Plus className="w-4 h-4 mr-2" /> Novo Gatilho
                 </Button>
             </div>
@@ -141,7 +141,7 @@ const DataTriggers = () => {
 
                 {/* Creator Panel */}
                 {isEditing && (
-                    <Card className="lg:col-span-1 border-accent bg-accent/5 h-fit sticky top-8">
+                    <Card className="lg:col-span-1 border-primary bg-primary/5 h-fit sticky top-8">
                         <CardHeader>
                             <CardTitle>Configurar Automação</CardTitle>
                             <CardDescription>Defina a regra lógica do disparo.</CardDescription>
@@ -220,7 +220,7 @@ const DataTriggers = () => {
                                 />
                             </div>
 
-                            <Button className="w-full mt-4 bg-accent text-accent-foreground" onClick={handleSave}>
+                            <Button className="w-full mt-4 bg-primary text-primary-foreground" onClick={handleSave}>
                                 <Save className="w-4 h-4 mr-2" /> Ativar Robô
                             </Button>
                         </CardContent>

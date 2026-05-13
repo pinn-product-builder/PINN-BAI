@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,7 +43,7 @@ const GlobalHQ = () => {
                             <p className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-2">Empresas Ativas</p>
                             <div className="flex items-baseline gap-2">
                                 <h2 className="text-4xl font-bold text-foreground">{organizations?.length || 0}</h2>
-                                <Building2 className="w-5 h-5 text-accent" />
+                                <Building2 className="w-5 h-5 text-primary" />
                             </div>
                         </div>
                         <div className="mt-8 flex -space-x-3">
@@ -53,7 +53,7 @@ const GlobalHQ = () => {
                                 </div>
                             ))}
                             {(organizations?.length || 0) > 5 && (
-                                <div className="w-10 h-10 rounded-xl border-4 border-card bg-accent flex items-center justify-center text-[10px] font-bold text-accent-foreground shadow-lg">
+                                <div className="w-10 h-10 rounded-xl border-4 border-card bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground shadow-lg">
                                     +{organizations!.length - 5}
                                 </div>
                             )}
@@ -82,7 +82,7 @@ const GlobalHQ = () => {
                                     <p className="text-sm text-muted-foreground mt-1 max-w-[250px] mx-auto">Nenhuma organização encontrada. Comece criando o seu primeiro cliente VIP.</p>
                                     <Button
                                         variant="outline"
-                                        className="no-drag mt-6 border-accent/50 text-accent hover:bg-accent/10"
+                                        className="no-drag mt-6 border-primary/50 text-primary hover:bg-primary/10"
                                         onClick={() => navigate('/admin/organizations/new')}
                                     >
                                         Cadastrar Empresa Real
@@ -92,7 +92,7 @@ const GlobalHQ = () => {
                                 organizations?.slice(0, 4).map((org) => (
                                     <div key={org.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-muted/50 transition-all cursor-pointer group border border-transparent hover:border-border">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent font-extrabold group-hover:scale-105 transition-transform">
+                                            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-extrabold group-hover:scale-105 transition-transform">
                                                 {org.name.charAt(0)}
                                             </div>
                                             <div>
@@ -106,7 +106,7 @@ const GlobalHQ = () => {
                                                 <Badge variant="outline" className="text-[10px] bg-muted border-border text-muted-foreground uppercase">{org.status}</Badge>
                                             </div>
                                             <div className="w-32 h-1 bg-muted rounded-full overflow-hidden mt-1">
-                                                <div className="h-full bg-accent rounded-full" style={{ width: `${Math.random() * 40 + 60}%` }} />
+                                                <div className="h-full bg-primary rounded-full" style={{ width: `${Math.random() * 40 + 60}%` }} />
                                             </div>
                                         </div>
                                         <Button
@@ -141,9 +141,9 @@ const GlobalHQ = () => {
                     <CardContent className="space-y-4">
                         {organizations?.slice(0, 3).map((org, i) => (
                             <div key={i} className="flex gap-3 text-sm">
-                                <div className="w-2 h-2 rounded-full bg-accent mt-1.5 shrink-0 animate-pulse" />
+                                <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0 animate-pulse" />
                                 <p className="text-muted-foreground">
-                                    <span className="font-bold text-foreground">{org.admin_name || 'Admin'}</span> ativou a org <span className="font-bold text-accent">{org.name}</span>
+                                    <span className="font-bold text-foreground">{org.admin_name || 'Admin'}</span> ativou a org <span className="font-bold text-primary">{org.name}</span>
                                     <br />
                                     <span className="text-[10px] opacity-50 uppercase tracking-tighter">Sincronizado via Supabase</span>
                                 </p>

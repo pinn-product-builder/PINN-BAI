@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,7 +65,7 @@ const ConnectorDialog = ({ isOpen, onOpenChange, onSuccess }: ConnectorDialogPro
             <DialogContent className="sm:max-w-[500px] border-sidebar-border bg-sidebar shadow-2xl">
                 <DialogHeader>
                     <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                        <Globe className="text-accent h-6 w-6" />
+                        <Globe className="text-primary h-6 w-6" />
                         Novo Conector de Dados
                     </DialogTitle>
                     <DialogDescription>
@@ -79,7 +79,7 @@ const ConnectorDialog = ({ isOpen, onOpenChange, onSuccess }: ConnectorDialogPro
                         <div className="grid grid-cols-3 gap-2">
                             <Button
                                 variant={sourceType === 'supabase' ? 'default' : 'outline'}
-                                className="flex flex-col gap-1 h-20 bg-accent/10 border-accent/20 hover:bg-accent/20"
+                                className="flex flex-col gap-1 h-20 bg-primary/10 border-primary/20 hover:bg-primary/20"
                                 onClick={() => setSourceType('supabase')}
                             >
                                 <Database className="h-5 w-5" />
@@ -87,7 +87,7 @@ const ConnectorDialog = ({ isOpen, onOpenChange, onSuccess }: ConnectorDialogPro
                             </Button>
                             <Button
                                 variant={sourceType === 'google_sheets' ? 'default' : 'outline'}
-                                className="flex flex-col gap-1 h-20 bg-accent/10 border-accent/20 hover:bg-accent/20"
+                                className="flex flex-col gap-1 h-20 bg-primary/10 border-primary/20 hover:bg-primary/20"
                                 onClick={() => setSourceType('google_sheets')}
                             >
                                 <FileSpreadsheet className="h-5 w-5" />
@@ -95,7 +95,7 @@ const ConnectorDialog = ({ isOpen, onOpenChange, onSuccess }: ConnectorDialogPro
                             </Button>
                             <Button
                                 variant={sourceType === 'api' ? 'default' : 'outline'}
-                                className="flex flex-col gap-1 h-20 bg-accent/10 border-accent/20 hover:bg-accent/20"
+                                className="flex flex-col gap-1 h-20 bg-primary/10 border-primary/20 hover:bg-primary/20"
                                 onClick={() => setSourceType('api')}
                             >
                                 <Globe className="h-5 w-5" />
@@ -186,7 +186,7 @@ const ConnectorDialog = ({ isOpen, onOpenChange, onSuccess }: ConnectorDialogPro
                     <Button
                         onClick={handleSave}
                         disabled={testStatus !== 'success'}
-                        className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
+                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
                     >
                         Salvar Conector
                     </Button>

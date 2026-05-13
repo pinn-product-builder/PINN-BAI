@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -496,9 +496,9 @@ const OnboardingWizard = () => {
                   className={cn(
                     "w-12 h-12 rounded-full flex items-center justify-center transition-all",
                     isCompleted
-                      ? "bg-accent text-accent-foreground"
+                      ? "bg-primary text-primary-foreground"
                       : isActive
-                        ? "bg-accent/20 text-accent border-2 border-accent"
+                        ? "bg-primary/20 text-primary border-2 border-primary"
                         : "bg-muted text-muted-foreground"
                   )}
                 >
@@ -524,7 +524,7 @@ const OnboardingWizard = () => {
                 <div 
                   className={cn(
                     "h-0.5 w-16 sm:w-24 mx-2 transition-colors",
-                    isCompleted ? "bg-accent" : "bg-muted"
+                    isCompleted ? "bg-primary" : "bg-muted"
                   )} 
                 />
               )}
@@ -553,7 +553,7 @@ const OnboardingWizard = () => {
           <Button
             onClick={handleNext}
             disabled={!canProceed()}
-            className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {state.currentStep === 5 ? 'Revisar e Finalizar' : 'Próximo'}
           </Button>

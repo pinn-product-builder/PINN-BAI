@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useFilters } from '@/hooks/useFilters';
 import { useQuery } from '@tanstack/react-query';
@@ -33,7 +33,7 @@ const insightConfig = {
   recommendation: {
     icon: Lightbulb,
     label: 'Recomendação',
-    className: 'bg-accent/10 text-accent',
+    className: 'bg-primary/10 text-primary',
     borderColor: 'border-l-accent',
   },
   alert: {
@@ -142,7 +142,7 @@ const Insights = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <div className="flex items-center gap-2 text-accent font-bold text-xs uppercase tracking-tight mb-1">
+          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-tight mb-1">
             <Sparkles className="w-3 h-3 fill-current" />
             Powered by AI
           </div>
@@ -181,7 +181,7 @@ const Insights = () => {
         />
         <KpiTile
           label="Recomendações" value={stats.recommendations} Icon={CheckCircle}
-          valueClass="text-accent" iconClass="bg-accent/10 text-accent"
+          valueClass="text-primary" iconClass="bg-primary/10 text-primary"
         />
         <KpiTile
           label="Alertas" value={stats.alerts} Icon={AlertTriangle}
@@ -197,7 +197,7 @@ const Insights = () => {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-accent" />
+            <Sparkles className="w-5 h-5 text-primary" />
             <div>
               <CardTitle>Insights Gerados por IA</CardTitle>
               <CardDescription>Análise em tempo real baseada nos seus dados</CardDescription>
@@ -207,7 +207,7 @@ const Insights = () => {
         <CardContent>
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
-              <Loader2 className="w-8 h-8 animate-spin text-accent" />
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">A IA está analisando seus dados...</p>
             </div>
           ) : (

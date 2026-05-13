@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -37,7 +37,7 @@ const AdminSettings = () => {
         </div>
         <Button
           onClick={handleSave}
-          className="bg-accent hover:bg-accent/90 text-accent-foreground"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
           disabled={isLoading}
         >
           {isLoading ? (

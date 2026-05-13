@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -88,7 +88,7 @@ const Organizations = () => {
           </p>
         </div>
         <Button
-          className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold rounded-xl shrink-0"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shrink-0"
           onClick={() => navigate('/admin/organizations/new')}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -206,8 +206,8 @@ const Organizations = () => {
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                            <span className="text-sm font-bold text-accent">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <span className="text-sm font-bold text-primary">
                               {org.name.charAt(0)}
                             </span>
                           </div>
@@ -240,7 +240,7 @@ const Organizations = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="hover:bg-accent/10 hover:text-accent"
+                          className="hover:bg-primary/10 hover:text-primary"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/admin/organizations/${org.id}`);

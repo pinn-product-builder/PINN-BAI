@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -105,20 +105,20 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate, hasTemplate, templateN
               Dashboard Pronto para Criação
             </h2>
             <p className="text-muted-foreground">
-              O template <strong className="text-accent">{templateName || 'selecionado'}</strong> será 
+              O template <strong className="text-primary">{templateName || 'selecionado'}</strong> será 
               aplicado durante a finalização. Os widgets serão criados automaticamente com base nos seus mapeamentos.
             </p>
           </div>
-          <Card className="p-6 bg-accent/5 border-accent/20">
+          <Card className="p-6 bg-primary/5 border-primary/20">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
-                <LayoutTemplate className="w-5 h-5 text-accent" />
+              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                <LayoutTemplate className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">{templateName || 'Template Premium'}</h3>
                 <p className="text-sm text-muted-foreground">Será aplicado na finalização</p>
               </div>
-              <Badge className="ml-auto bg-accent/20 text-accent border-0">Pronto</Badge>
+              <Badge className="ml-auto bg-primary/20 text-primary border-0">Pronto</Badge>
             </div>
           </Card>
         </div>
@@ -141,22 +141,22 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate, hasTemplate, templateN
             Dashboard Pronto para Criação
           </h2>
           <p className="text-muted-foreground">
-            O template <strong className="text-accent">{templateName || 'selecionado'}</strong> será 
+            O template <strong className="text-primary">{templateName || 'selecionado'}</strong> será 
             aplicado com {widgets.length} widgets, cada um conectado aos seus dados reais via mapeamento.
           </p>
         </div>
 
         {/* Template Summary Card */}
-        <Card className="p-6 bg-accent/5 border-accent/20">
+        <Card className="p-6 bg-primary/5 border-primary/20">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
-              <LayoutTemplate className="w-5 h-5 text-accent" />
+            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+              <LayoutTemplate className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h3 className="font-semibold text-foreground">{templateName || 'Template Premium'}</h3>
               <p className="text-sm text-muted-foreground">{widgets.length} widgets configurados</p>
             </div>
-            <Badge className="ml-auto bg-accent/20 text-accent border-0">Pronto</Badge>
+            <Badge className="ml-auto bg-primary/20 text-primary border-0">Pronto</Badge>
           </div>
 
           {/* Widget groups */}
@@ -377,7 +377,7 @@ const PreviewStep = ({ mappings, widgets, plan, onUpdate, hasTemplate, templateN
             <div className="border rounded-xl overflow-hidden bg-muted/30">
               <div className="p-4 border-b bg-card flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-accent" />
+                  <Sparkles className="w-5 h-5 text-primary" />
                   <span className="font-medium text-foreground">Pré-visualização do Dashboard</span>
                 </div>
                 <Badge variant="outline">{widgets.length} widgets</Badge>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -69,8 +69,8 @@ const TemplateStep = ({ plan, selectedTemplateId, selectedTemplate, onSelect }: 
         className={cn(
           "p-4 cursor-pointer transition-all border-dashed",
           selectedTemplateId === null && selectedTemplate === null
-            ? "ring-2 ring-accent border-accent bg-accent/5"
-            : "hover:border-accent/50"
+            ? "ring-2 ring-primary border-primary bg-primary/5"
+            : "hover:border-primary/50"
         )}
         onClick={handleStartFromScratch}
       >
@@ -138,9 +138,9 @@ const TemplateStep = ({ plan, selectedTemplateId, selectedTemplate, onSelect }: 
 
       {/* Selected template summary */}
       {selectedTemplate && (
-        <div className="p-4 bg-accent/10 rounded-lg border border-accent/20">
+        <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-accent" />
+            <Sparkles className="w-5 h-5 text-primary" />
             <div>
               <p className="font-medium text-foreground">
                 Template selecionado: {selectedTemplate.name}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -113,8 +113,8 @@ const OrganizationsSettingsCard = () => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-accent" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-primary" />
             </div>
             <div>
               <CardTitle>Gestão de Organizações</CardTitle>
@@ -124,7 +124,7 @@ const OrganizationsSettingsCard = () => {
           <div className="flex gap-2">
             <Button 
               onClick={() => navigate('/admin/organizations/onboarding')}
-              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <Wand2 className="w-4 h-4 mr-2" />
               Wizard Completo
@@ -199,7 +199,7 @@ const OrganizationsSettingsCard = () => {
                 <Button
                   onClick={handleCreateOrg}
                   disabled={createOrganization.isPending || !newOrgData.name || !newOrgData.adminEmail}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   {createOrganization.isPending ? (
                     <>

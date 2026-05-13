@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,8 +64,8 @@ const INTEGRATION_TYPES = [
     name: 'API Externa',
     description: 'REST API endpoint',
     icon: Globe,
-    color: 'text-accent',
-    bgColor: 'bg-accent/10',
+    color: 'text-primary',
+    bgColor: 'bg-primary/10',
   },
 ];
 
@@ -382,8 +382,8 @@ const IntegrationStep = ({ integration, onUpdate }: IntegrationStepProps) => {
               <Card
                 key={intType.type}
                 className={cn(
-                  "p-4 cursor-pointer transition-all hover:border-accent/50",
-                  isSelected && "border-accent bg-accent/5 ring-2 ring-accent/20"
+                  "p-4 cursor-pointer transition-all hover:border-primary/50",
+                  isSelected && "border-primary bg-primary/5 ring-2 ring-primary/20"
                 )}
                 onClick={() => {
                   setSelectedType(intType.type);

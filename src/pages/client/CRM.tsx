@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -71,7 +71,7 @@ const CRMKanban = ({ orgId }: { orgId: string }) => {
                             getLeadsByStatus(status.id).map((lead) => (
                                 <Card
                                     key={lead.id}
-                                    className="group border-none shadow-md hover:shadow-xl transition-all cursor-pointer bg-card/50 backdrop-blur-sm border border-transparent hover:border-accent/20 overflow-hidden relative"
+                                    className="group border-none shadow-md hover:shadow-xl transition-all cursor-pointer bg-card/50 backdrop-blur-sm border border-transparent hover:border-primary/20 overflow-hidden relative"
                                 >
                                     <div className="absolute top-0 right-0 p-2">
                                         <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center text-[10px] font-bold text-success border border-success/20">
@@ -79,7 +79,7 @@ const CRMKanban = ({ orgId }: { orgId: string }) => {
                                         </div>
                                     </div>
                                     <CardHeader className="p-4 pb-2">
-                                        <CardTitle className="text-sm font-bold truncate group-hover:text-accent transition-colors">
+                                        <CardTitle className="text-sm font-bold truncate group-hover:text-primary transition-colors">
                                             {lead.name}
                                         </CardTitle>
                                         <p className="text-[10px] text-muted-foreground truncate uppercase font-mono tracking-tighter">
@@ -99,7 +99,7 @@ const CRMKanban = ({ orgId }: { orgId: string }) => {
                                             </Badge>
                                         </div>
                                         <div className="mt-2 text-[9px] p-2 rounded-lg bg-muted/50 border border-muted text-muted-foreground italic flex gap-2 items-start">
-                                            <Sparkles size={10} className="text-accent shrink-0 mt-0.5" />
+                                            <Sparkles size={10} className="text-primary shrink-0 mt-0.5" />
                                             <p>Interagiu com email de preço há 2h.</p>
                                         </div>
                                     </CardContent>
@@ -133,7 +133,7 @@ const CRMPage = () => {
             {/* ── Page header ──────────────────────────────────────────────── */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-accent font-bold text-xs uppercase tracking-tight">
+                    <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-tight">
                         <Zap className="w-3 h-3 fill-current" />
                         Smart Sales Pipeline
                     </div>
@@ -146,11 +146,11 @@ const CRMPage = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" className="h-12 px-6 rounded-xl border-accent/20 text-accent font-bold hover:bg-accent/5 gap-2">
+                    <Button variant="outline" className="h-12 px-6 rounded-xl border-primary/20 text-primary font-bold hover:bg-primary/5 gap-2">
                         <Filter className="w-4 h-4" />
                         Filtrar
                     </Button>
-                    <Button className="h-12 px-6 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground font-bold shadow-lg shadow-accent/20 gap-2">
+                    <Button className="h-12 px-6 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 gap-2">
                         <UserPlus className="w-4 h-4" />
                         Adicionar Lead
                     </Button>
@@ -163,13 +163,13 @@ const CRMPage = () => {
             {/* ── AI Intelligence Bar ───────────────────────────────────────── */}
             <div className="bg-foreground text-background p-4 rounded-2xl flex items-center justify-between shadow-2xl">
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                        <Sparkles className="text-accent-foreground w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+                        <Sparkles className="text-primary-foreground w-5 h-5" />
                     </div>
                     <div>
                         <p className="text-sm font-bold tracking-tight">
                             IA Insight: "Leads do canal{' '}
-                            <span className="text-accent">LinkedIn</span> estão convertendo 3× mais
+                            <span className="text-primary">LinkedIn</span> estão convertendo 3× mais
                             rápido na etapa de Proposta."
                         </p>
                     </div>
@@ -182,7 +182,7 @@ const CRMPage = () => {
             {/* ── Kanban Board ──────────────────────────────────────────────── */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-accent font-bold text-xs uppercase tracking-tight">
+                    <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-tight">
                         <TrendingUp className="w-3 h-3" />
                         Pipeline de Leads
                     </div>

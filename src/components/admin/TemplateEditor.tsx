@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -291,7 +291,7 @@ const TemplateEditor = ({ open, onOpenChange, template, onSave, isLoading }: Tem
           <Button
             onClick={handleSave}
             disabled={!name.trim() || widgets.length === 0 || isLoading}
-            className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isLoading ? 'Salvando...' : template ? 'Salvar Alterações' : 'Criar Template'}
           </Button>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CrmConnector — plug-and-play CRM connection UI.
  *
  * Fluxo:
@@ -199,7 +199,7 @@ function ConnectedCard({
     <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
       {/* Header row */}
       <div className="flex items-center gap-4 p-5">
-        <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-2xl shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-2xl shrink-0">
           {def.logo}
         </div>
 
@@ -314,11 +314,11 @@ function ConnectForm({
   const filled = def.fields.every(f => (fields[f.key] ?? '').trim() !== '');
 
   return (
-    <div className="rounded-2xl border border-accent/30 bg-card/80 backdrop-blur-sm overflow-hidden">
+    <div className="rounded-2xl border border-primary/30 bg-card/80 backdrop-blur-sm overflow-hidden">
       {/* Form header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
         <div className="flex items-center gap-2">
-          <PlugZap className="w-4 h-4 text-accent" />
+          <PlugZap className="w-4 h-4 text-primary" />
           <span className="font-bold text-sm">Conectar CRM</span>
         </div>
         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose}>
@@ -339,8 +339,8 @@ function ConnectForm({
                 onClick={() => { setSelectedSlug(crm.slug); setFields({}); }}
                 className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-center transition-all text-xs font-semibold ${
                   selectedSlug === crm.slug
-                    ? 'border-accent bg-accent/10 text-accent shadow-sm shadow-accent/20'
-                    : 'border-border bg-muted/20 text-muted-foreground hover:border-accent/40 hover:bg-accent/5'
+                    ? 'border-primary bg-primary/10 text-primary shadow-sm shadow-primary/20'
+                    : 'border-border bg-muted/20 text-muted-foreground hover:border-primary/40 hover:bg-primary/5'
                 }`}
               >
                 <span className="text-xl">{crm.logo}</span>
@@ -378,7 +378,7 @@ function ConnectForm({
 
         {/* Action */}
         <Button
-          className="w-full h-10 font-bold bg-accent hover:bg-accent/90 text-accent-foreground gap-2"
+          className="w-full h-10 font-bold bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
           onClick={() => connectMutation.mutate()}
           disabled={!filled || connectMutation.isPending}
         >
@@ -431,7 +431,7 @@ export function CrmConnector({ orgId }: CrmConnectorProps) {
         {!showForm && (
           <Button
             size="sm"
-            className="gap-2 font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
+            className="gap-2 font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
             onClick={() => setShowForm(true)}
           >
             <Plus className="w-4 h-4" />
@@ -470,11 +470,11 @@ export function CrmConnector({ orgId }: CrmConnectorProps) {
       ) : !showForm ? (
         /* Empty state */
         <div
-          className="rounded-2xl border-2 border-dashed border-border/50 bg-muted/10 p-10 flex flex-col items-center gap-3 cursor-pointer hover:border-accent/30 hover:bg-accent/5 transition-all group"
+          className="rounded-2xl border-2 border-dashed border-border/50 bg-muted/10 p-10 flex flex-col items-center gap-3 cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all group"
           onClick={() => setShowForm(true)}
         >
-          <div className="w-14 h-14 rounded-2xl bg-muted/30 group-hover:bg-accent/10 flex items-center justify-center transition-colors">
-            <PlugZap className="w-6 h-6 text-muted-foreground group-hover:text-accent transition-colors" />
+          <div className="w-14 h-14 rounded-2xl bg-muted/30 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+            <PlugZap className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
           <div className="text-center">
             <p className="font-bold text-sm">Nenhum CRM conectado</p>

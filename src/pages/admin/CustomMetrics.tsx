@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -158,8 +158,8 @@ const CustomMetrics = () => {
         <Card className="border-border/50 bg-card">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-accent/10">
-                <BarChart3 className="w-6 h-6 text-accent" />
+              <div className="p-3 rounded-xl bg-primary/10">
+                <BarChart3 className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total de Métricas</p>
@@ -172,8 +172,8 @@ const CustomMetrics = () => {
         <Card className="border-border/50 bg-card">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-accent/10">
-                <TrendingUp className="w-6 h-6 text-accent" />
+              <div className="p-3 rounded-xl bg-primary/10">
+                <TrendingUp className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Uso Total</p>
@@ -186,8 +186,8 @@ const CustomMetrics = () => {
         <Card className="border-border/50 bg-card">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-accent/10">
-                <Building2 className="w-6 h-6 text-accent" />
+              <div className="p-3 rounded-xl bg-primary/10">
+                <Building2 className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Orgs com Métricas</p>

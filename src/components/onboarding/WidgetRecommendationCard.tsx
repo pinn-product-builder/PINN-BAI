@@ -1,4 +1,4 @@
-import { 
+﻿import { 
   Check, 
   X, 
   Settings, 
@@ -106,12 +106,12 @@ const WidgetRecommendationCard = ({
         <div className={cn(
           'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
           status === 'accepted' ? 'bg-success/10' : 
-          status === 'rejected' ? 'bg-muted' : 'bg-accent/10'
+          status === 'rejected' ? 'bg-muted' : 'bg-primary/10'
         )}>
           <Icon className={cn(
             'w-5 h-5',
             status === 'accepted' ? 'text-success' :
-            status === 'rejected' ? 'text-muted-foreground' : 'text-accent'
+            status === 'rejected' ? 'text-muted-foreground' : 'text-primary'
           )} />
         </div>
 
