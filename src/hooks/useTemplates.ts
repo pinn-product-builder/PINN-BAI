@@ -239,6 +239,133 @@ export const useDuplicateTemplate = () => {
   });
 };
 
+// =====================================================================
+// Apply a template to an organization's DEFAULT dashboard
+// Uso típico: admin clica num template, escolhe org, aplica.
+// O cliente depois mapeia dataSource real dos widgets via onboarding.
+// =====================================================================
+export const useApplyTemplateToOrg = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      templateId,
+      orgId,
+      overwrite,
+    }: {
+      templateId: string;
+      orgId: string;
+      overwrite: boolean;
+    }) => {
+      // 1. Buscar o template
+      const { data: template, error: tplErr } = await supabase
+        .from('dashboard_templates')
+        .select('*')
+        .eq('id', templateId)
+        .single();
+      if (tplErr || !template) throw new Error('Template não encontrado');
+      const templateWidgets = (template.widgets as unknown as TemplateWidget[]) ?? [];
+      if (templateWidgets.length === 0) {
+        throw new Error('Template não possui widgets para aplicar.');
+      }
+
+      // 2. Buscar (ou criar) o dashboard default da org
+      let { data: dashboard, error: dashErr } = await supabase
+        .from('dashboards')
+        .select('*')
+        .eq('org_id', orgId)
+        .eq('is_default', true)
+        .maybeSingle();
+      if (dashErr) throw dashErr;
+
+      if (!dashboard) {
+        const { data: created, error: createErr } = await supabase
+          .from('dashboards')
+          .insert({
+            org_id: orgId,
+            name: template.name,
+            description: template.description ?? `Aplicado a partir do template ${template.name}`,
+            is_default: true,
+          } as never)
+          .select()
+          .single();
+        if (createErr) throw createErr;
+        dashboard = created;
+      }
+      if (!dashboard) throw new Error('Falha ao garantir dashboard default da organização');
+
+      // 3. Se já houver widgets, exigir overwrite
+      const { count: existingCount, error: countErr } = await supabase
+        .from('dashboard_widgets')
+        .select('id', { count: 'exact', head: true })
+        .eq('dashboard_id', dashboard.id);
+      if (countErr) throw countErr;
+      const hasExisting = (existingCount ?? 0) > 0;
+      if (hasExisting && !overwrite) {
+        throw new Error('OVERWRITE_REQUIRED');
+      }
+
+      if (hasExisting && overwrite) {
+        const { error: delErr } = await supabase
+          .from('dashboard_widgets')
+          .delete()
+          .eq('dashboard_id', dashboard.id);
+        if (delErr) throw delErr;
+      }
+
+      // 4. Inserir widgets — só campos de layout/comportamento; dataSource
+      //    fica vazio e o onboarding/cliente conecta a fonte real depois.
+      const widgetsToInsert = templateWidgets.map((tw, index) => {
+        const cfg = (tw.config ?? {}) as Record<string, unknown>;
+        const widgetConfig: Record<string, unknown> = {
+          targetMetric: cfg.targetMetric,
+          format: cfg.format,
+          showTrend: cfg.showTrend,
+          showSparkline: cfg.showSparkline,
+          maxInsights: cfg.maxInsights,
+          includeRecommendations: cfg.includeRecommendations,
+          pageSize: cfg.pageSize,
+          aggregation: cfg.aggregation ?? 'count',
+        };
+        return {
+          dashboard_id: dashboard!.id,
+          title: tw.title,
+          type: tw.type as WidgetType,
+          position: index,
+          size: tw.size ?? 'medium',
+          config: widgetConfig,
+          description: tw.description ?? null,
+          is_visible: true,
+        };
+      });
+
+      const { error: insertErr } = await supabase
+        .from('dashboard_widgets')
+        .insert(widgetsToInsert as never[]);
+      if (insertErr) throw insertErr;
+
+      // 5. Incrementa contador de uso (best-effort)
+      await supabase
+        .from('dashboard_templates')
+        .update({ usage_count: (template.usage_count ?? 0) + 1 } as never)
+        .eq('id', templateId);
+
+      return {
+        dashboardId: dashboard.id,
+        widgetsApplied: widgetsToInsert.length,
+        overwrote: hasExisting,
+      };
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-widgets'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', variables.orgId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboards', variables.orgId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-templates-all'] });
+    },
+  });
+};
+
 export const useIncrementTemplateUsage = () => {
   const queryClient = useQueryClient();
 

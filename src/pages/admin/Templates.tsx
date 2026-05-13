@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -25,6 +25,7 @@ import {
 } from '@/hooks/useTemplates';
 import TemplateEditor from '@/components/admin/TemplateEditor';
 import TemplatePreviewCard from '@/components/admin/TemplatePreviewCard';
+import TemplateApplyDialog from '@/components/admin/TemplateApplyDialog';
 
 const Templates = () => {
   const { data: templates, isLoading, error } = useAllTemplates();
@@ -37,6 +38,7 @@ const Templates = () => {
   const [editingTemplate, setEditingTemplate] = useState<DashboardTemplate | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
+  const [applyTemplate, setApplyTemplate] = useState<DashboardTemplate | null>(null);
 
   const handleCreate = () => {
     setEditingTemplate(null);
@@ -135,6 +137,7 @@ const Templates = () => {
               key={template.id}
               template={template}
               showActions
+              onSelect={() => setApplyTemplate(template)}
               onEdit={() => handleEdit(template)}
               onDuplicate={() => handleDuplicate(template.id)}
               onDelete={() => handleDeleteClick(template.id)}
@@ -164,6 +167,15 @@ const Templates = () => {
         template={editingTemplate}
         onSave={handleSave}
         isLoading={createTemplate.isPending || updateTemplate.isPending}
+      />
+
+      {/* Template Apply Modal — preview + escolher org-alvo */}
+      <TemplateApplyDialog
+        template={applyTemplate}
+        open={!!applyTemplate}
+        onOpenChange={(open) => {
+          if (!open) setApplyTemplate(null);
+        }}
       />
 
       {/* Delete Confirmation Dialog */}
