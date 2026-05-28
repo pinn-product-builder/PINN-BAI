@@ -55,31 +55,3 @@ export function useUpdateWhatsAppCampaign() {
     onError: (err: Error) => toast.error(`Falha: ${err.message}`),
   });
 }
-
-export function useDeleteWhatsAppCampaign() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => waApi.deleteCampaign(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEY });
-      toast.success("Campanha arquivada");
-    },
-    onError: (err: Error) => toast.error(`Falha ao arquivar: ${err.message}`),
-  });
-}
-
-export function useCampaignLeads(
-  campaignId: number | null,
-  opts?: { status?: string; touchIndex?: number; offset?: number; limit?: number },
-) {
-  return useQuery({
-    queryKey: [
-      ...KEY, campaignId, "leads",
-      opts?.status ?? null, opts?.touchIndex ?? null,
-      opts?.offset ?? 0, opts?.limit ?? 100,
-    ],
-    queryFn: () => waApi.listCampaignLeads(campaignId!, opts),
-    enabled: campaignId !== null && Number.isFinite(campaignId),
-    staleTime: 15_000,
-  });
-}

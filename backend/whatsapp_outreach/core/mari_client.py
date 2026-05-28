@@ -139,26 +139,6 @@ def delete_template(template_id: int) -> dict[str, Any]:
     return _request("DELETE", f"/outbound/templates/{template_id}")
 
 
-def list_campaign_leads(campaign_id: int,
-                          status: Optional[str] = None,
-                          touch_index: Optional[int] = None,
-                          offset: int = 0,
-                          limit: int = 100) -> dict[str, Any]:
-    """Lista leads enrolados de uma campanha com counts por status.
-
-    Retorna {campaign_id, total, offset, limit, leads: [...]}. Pagina via
-    offset/limit (default 100, máx 500). Filtros opcionais: phase do lead
-    (status) ou touch_index.
-    """
-    params: dict[str, Any] = {"offset": offset, "limit": limit}
-    if status:
-        params["status"] = status
-    if touch_index is not None:
-        params["touch_index"] = touch_index
-    return _request("GET", f"/outbound/campaigns/{campaign_id}/leads",
-                       params=params, timeout=30.0)
-
-
 def enroll_leads(campaign_id: int,
                    leads: list[dict[str, Any]],
                    start_at_iso: str | None = None) -> dict[str, Any]:

@@ -13,15 +13,8 @@ import {
   Button,
   Card,
   CardContent,
-  Checkbox,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  FormControlLabel,
   IconButton,
   Stack,
   Table,
@@ -34,7 +27,6 @@ import {
 } from "@mui/material";
 import {
   Add as AddIcon,
-  Delete as DeleteIcon,
   Pause as PauseIcon,
   PlayArrow as PlayIcon,
   Visibility as ViewIcon,
@@ -42,7 +34,6 @@ import {
 
 import {
   useCreateWhatsAppCampaign,
-  useDeleteWhatsAppCampaign,
   useUpdateWhatsAppCampaign,
   useWhatsAppCampaigns,
 } from "@/modules/whatsapp-outreach/hooks/useCampaigns";
@@ -78,25 +69,14 @@ export default function WhatsAppOutreachCampaigns() {
   const { data: campaigns, isLoading, error } = useWhatsAppCampaigns();
   const createMutation = useCreateWhatsAppCampaign();
   const updateMutation = useUpdateWhatsAppCampaign();
-  const deleteMutation = useDeleteWhatsAppCampaign();
   const createTemplateMutation = useCreateTemplate();
 
   const [openCreate, setOpenCreate] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
-  const [toDelete, setToDelete] = useState<WhatsAppCampaign | null>(null);
 
   const sorted = useMemo(() => {
     if (!campaigns) return [];
-    const arr = [...campaigns].sort((a, b) => b.id - a.id);
-    // "done" é o estado pós-arquivamento (Mari não tem DELETE/archive nativo —
-    // ver backend campaigns.py:delete_campaign). Esconde por default.
-    return showArchived ? arr : arr.filter((c) => c.status !== "done");
-  }, [campaigns, showArchived]);
-
-  const archivedCount = useMemo(
-    () => (campaigns ?? []).filter((c) => c.status === "done").length,
-    [campaigns],
-  );
+    return [...campaigns].sort((a, b) => b.id - a.id);
+  }, [campaigns]);
 
   const handleCreate = async (payload: import("@/modules/whatsapp-outreach/types").CampaignCreatePayload) => {
     try {
@@ -145,11 +125,6 @@ export default function WhatsAppOutreachCampaigns() {
     updateMutation.mutate({ id: c.id, patch: { status: next } });
   };
 
-  const confirmDelete = () => {
-    if (!toDelete) return;
-    deleteMutation.mutate(toDelete.id, { onSettled: () => setToDelete(null) });
-  };
-
   return (
     <Box sx={{ p: 4 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
@@ -161,32 +136,14 @@ export default function WhatsAppOutreachCampaigns() {
             Campanhas de outbound ativo via WhatsApp. Templates 100% estáticos, cadência configurável.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={2} alignItems="center">
-          {archivedCount > 0 && (
-            <FormControlLabel
-              control={
-                <Checkbox
-                  size="small"
-                  checked={showArchived}
-                  onChange={(e) => setShowArchived(e.target.checked)}
-                />
-              }
-              label={
-                <Typography variant="caption" color="text.secondary">
-                  Mostrar {archivedCount} arquivada{archivedCount > 1 ? "s" : ""}
-                </Typography>
-              }
-            />
-          )}
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpenCreate(true)}
-            sx={{ bgcolor: GREEN, "&:hover": { bgcolor: "#1ebd5a" } }}
-          >
-            Nova campanha
-          </Button>
-        </Stack>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setOpenCreate(true)}
+          sx={{ bgcolor: GREEN, "&:hover": { bgcolor: "#1ebd5a" } }}
+        >
+          Nova campanha
+        </Button>
       </Stack>
 
       {error && (
@@ -272,15 +229,6 @@ export default function WhatsAppOutreachCampaigns() {
                         <ViewIcon />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Arquivar (some da lista)">
-                      <IconButton
-                        size="small"
-                        onClick={() => setToDelete(c)}
-                        disabled={c.status === "done"}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}
@@ -296,42 +244,6 @@ export default function WhatsAppOutreachCampaigns() {
         onSubmit={handleCreate}
         submitting={createMutation.isPending}
       />
-
-      {/* Confirmação de "delete" (soft archive). Mensagem é honesta sobre
-          o que acontece — Mari Brain não tem DELETE real, vira status=done. */}
-      <Dialog open={!!toDelete} onClose={() => setToDelete(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Arquivar campanha?</DialogTitle>
-        <DialogContent>
-          <DialogContentText component="div">
-            <strong>{toDelete?.name}</strong> vai sumir da lista. O histórico
-            de envios e respostas fica preservado pra auditoria.
-            {toDelete && toDelete.status === "active" && (
-              <Box mt={1} p={1.5} bgcolor="warning.light" borderRadius={1}>
-                <Typography variant="caption">
-                  ⚠️ Campanha <strong>ativa</strong> agora. Os {toDelete.leads_enrolled} leads enrollados
-                  não recebem mais nenhuma mensagem depois disso.
-                </Typography>
-              </Box>
-            )}
-            {toDelete && toDelete.status !== "active" && toDelete.leads_enrolled > 0 && (
-              <Typography variant="caption" color="text.secondary" mt={1} display="block">
-                {toDelete.leads_enrolled} lead{toDelete.leads_enrolled > 1 ? "s" : ""} enrolled{toDelete.leads_enrolled > 1 ? "s" : ""}.
-              </Typography>
-            )}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setToDelete(null)}>Cancelar</Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={confirmDelete}
-            disabled={deleteMutation.isPending}
-          >
-            {deleteMutation.isPending ? "Arquivando…" : "Arquivar"}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

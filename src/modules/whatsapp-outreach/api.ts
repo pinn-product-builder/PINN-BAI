@@ -3,7 +3,6 @@
 import type {
   AnalyticsDashboard,
   CampaignCreatePayload,
-  CampaignLeadsPage,
   CampaignStats,
   CampaignUpdatePayload,
   CampaignWithStats,
@@ -62,12 +61,6 @@ export const waApi = {
       body: JSON.stringify(patch),
     });
   },
-  deleteCampaign(campaignId: number) {
-    return http<{ ok: boolean; campaign_id: number; soft_deleted: boolean; new_status: string }>(
-      `/whatsapp/campaigns/${campaignId}`,
-      { method: "DELETE" }
-    );
-  },
 
   // ── Templates ───────────────────────────────────────────────────
   listTemplates(campaignId: number, opts?: { touchIndex?: number; activeOnly?: boolean }) {
@@ -104,22 +97,6 @@ export const waApi = {
       method: "POST",
       body: JSON.stringify(payload),
     });
-  },
-
-  // ── Acompanhamento lead-por-lead ────────────────────────────────
-  listCampaignLeads(
-    campaignId: number,
-    opts?: { status?: string; touchIndex?: number; offset?: number; limit?: number },
-  ) {
-    const params = new URLSearchParams();
-    if (opts?.status) params.set("status", opts.status);
-    if (opts?.touchIndex !== undefined) params.set("touch_index", String(opts.touchIndex));
-    if (opts?.offset !== undefined) params.set("offset", String(opts.offset));
-    if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
-    const q = params.toString();
-    return http<CampaignLeadsPage>(
-      `/whatsapp/campaigns/${campaignId}/leads${q ? `?${q}` : ""}`,
-    );
   },
 
   // ── Analytics ───────────────────────────────────────────────────

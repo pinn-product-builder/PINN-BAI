@@ -9,7 +9,6 @@ from whatsapp_outreach.core.mari_client import (
     MariClientError,
     create_campaign as mari_create_campaign,
     get_campaign as mari_get_campaign,
-    list_campaign_leads as mari_list_campaign_leads,
     list_campaigns as mari_list_campaigns,
     update_campaign as mari_update_campaign,
 )
@@ -71,36 +70,3 @@ def update_campaign(campaign_id: int,
     except MariClientError as e:
         raise HTTPException(status_code=502, detail=f"mari upstream: {e}")
     return WhatsAppCampaignOut(**row)
-
-
-@router.get("/{campaign_id}/leads")
-def list_campaign_leads(campaign_id: int,
-                           status: str | None = None,
-                           touch_index: int | None = None,
-                           offset: int = 0,
-                           limit: int = 100) -> dict:
-    try:
-        return mari_list_campaign_leads(
-            campaign_id, status=status, touch_index=touch_index,
-            offset=offset, limit=limit,
-        )
-    except MariClientError as e:
-        if e.status_code == 404:
-            raise HTTPException(status_code=404, detail="campaign not found")
-        raise HTTPException(status_code=502, detail=f"mari upstream: {e}")
-
-
-@router.delete("/{campaign_id}", status_code=200)
-def delete_campaign(campaign_id: int) -> dict:
-    # Mari Brain não tem DELETE de campanha — fazemos soft-archive via PATCH
-    # status=done. Mantém histórico de dispatch_log (importante pra auditoria
-    # depois do incidente de 282 msgs do dia 2026-05-26) e some da lista no
-    # frontend, que filtra status=done por default.
-    try:
-        row = mari_update_campaign(campaign_id, {"status": "done"})
-    except MariClientError as e:
-        if e.status_code == 404:
-            raise HTTPException(status_code=404, detail="campaign not found")
-        raise HTTPException(status_code=502, detail=f"mari upstream: {e}")
-    return {"ok": True, "campaign_id": campaign_id, "soft_deleted": True,
-            "new_status": row.get("status")}

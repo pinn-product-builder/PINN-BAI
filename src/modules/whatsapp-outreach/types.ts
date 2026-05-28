@@ -23,8 +23,6 @@ export interface WhatsAppCampaign {
   daily_cap: number | null;
   daily_cap_per_instance: number;
   send_window: SendWindow | null;
-  min_interval_seconds: number | null;
-  max_interval_seconds: number | null;
   leads_enrolled: number;
   leads_responded: number;
   created_at: string | null;
@@ -67,8 +65,6 @@ export interface CampaignCreatePayload {
   daily_cap?: number;
   daily_cap_per_instance?: number;
   send_window?: SendWindow;
-  min_interval_seconds?: number;
-  max_interval_seconds?: number;
   created_by?: string;
 }
 
@@ -84,8 +80,6 @@ export interface CampaignUpdatePayload {
   daily_cap?: number;
   daily_cap_per_instance?: number;
   send_window?: SendWindow;
-  min_interval_seconds?: number;
-  max_interval_seconds?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -197,37 +191,6 @@ export interface AnalyticsRecentRow {
   campaign_name: string;
   status: string;
   sent_at: string | null;
-}
-
-// ─────────────────────────────────────────────────────────────────────
-// Lead-por-lead (acompanhamento da campanha)
-// ─────────────────────────────────────────────────────────────────────
-
-export interface CampaignLeadRow {
-  phone: string;
-  instance: string;
-  phase: string;                  // prospecting / qualifying / scheduled / lost / ...
-  nome: string | null;
-  empresa: string | null;
-  cargo: string | null;
-  email: string | null;
-  touches: number;
-  sent_count: number;
-  responded_count: number;
-  failed_count: number;
-  last_sent_at: string | null;
-  last_touch_index: number | null;
-  last_reply_at: string | null;
-  next_action_at: string | null;
-  next_action: string | null;
-}
-
-export interface CampaignLeadsPage {
-  campaign_id: number;
-  total: number;
-  offset: number;
-  limit: number;
-  leads: CampaignLeadRow[];
 }
 
 export interface AnalyticsDashboard {

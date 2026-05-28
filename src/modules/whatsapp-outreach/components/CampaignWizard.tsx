@@ -49,24 +49,17 @@ export function CampaignWizard({ open, onClose, onSubmit, submitting }: WizardPr
   const [cap, setCap] = useState(30);
   const [cadenceStr, setCadenceStr] = useState("0,2,5,9");
   const [sendWindow, setSendWindow] = useState<SendWindow>(DEFAULT_WINDOW);
-  // Intervalo entre msgs individuais (em minutos no UX, convertido pra segundos no payload).
-  // Default 8-25 min ≈ ritmo humano. Mari Brain precisa respeitar pra ter efeito real.
-  const [minIntervalMin, setMinIntervalMin] = useState(8);
-  const [maxIntervalMin, setMaxIntervalMin] = useState(25);
 
   const cadence = cadenceStr
     .split(",").map((s) => parseInt(s.trim(), 10))
     .filter((n) => !isNaN(n) && n >= 0);
 
   // Validação por step
-  const intervalValid = minIntervalMin >= 0 && maxIntervalMin > minIntervalMin;
-
   const canAdvance = () => {
     if (step === 0) return name.trim().length >= 3;
     if (step === 1) return instances.length >= 1;
     if (step === 2) return cadence.length >= 1 && sendWindow.weekdays.length >= 1
-      && sendWindow.start_hour < sendWindow.end_hour
-      && intervalValid;
+      && sendWindow.start_hour < sendWindow.end_hour;
     return true;
   };
 
@@ -74,7 +67,6 @@ export function CampaignWizard({ open, onClose, onSubmit, submitting }: WizardPr
     setStep(0); setName(""); setIcp(""); setVp("");
     setInstances([]); setRotation(false); setCap(30);
     setCadenceStr("0,2,5,9"); setSendWindow(DEFAULT_WINDOW);
-    setMinIntervalMin(8); setMaxIntervalMin(25);
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -91,8 +83,6 @@ export function CampaignWizard({ open, onClose, onSubmit, submitting }: WizardPr
       instance_rotation: rotation,
       daily_cap_per_instance: cap,
       send_window: sendWindow,
-      min_interval_seconds: minIntervalMin * 60,
-      max_interval_seconds: maxIntervalMin * 60,
     };
     await onSubmit(payload);
     reset();
@@ -179,44 +169,6 @@ export function CampaignWizard({ open, onClose, onSubmit, submitting }: WizardPr
               </CardContent>
             </Card>
             <SendWindowEditor value={sendWindow} onChange={setSendWindow} />
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="subtitle1" fontWeight={700} mb={1}>
-                  Ritmo entre mensagens
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block" mb={2}>
-                  Intervalo aleatório (jitter) entre cada envio dentro da janela. Anti-ban: nunca
-                  use intervalo fixo — o WhatsApp detecta padrões. Recomendado: 8–25 min.
-                </Typography>
-                <Stack direction="row" spacing={2}>
-                  <TextField
-                    label="Mínimo (min)"
-                    type="number"
-                    value={minIntervalMin}
-                    onChange={(e) => setMinIntervalMin(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    inputProps={{ min: 0, max: 240 }}
-                    sx={{ width: 140 }}
-                    size="small"
-                    error={!intervalValid}
-                  />
-                  <TextField
-                    label="Máximo (min)"
-                    type="number"
-                    value={maxIntervalMin}
-                    onChange={(e) => setMaxIntervalMin(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    inputProps={{ min: 1, max: 480 }}
-                    sx={{ width: 140 }}
-                    size="small"
-                    error={!intervalValid}
-                    helperText={!intervalValid ? "Máximo precisa ser maior que mínimo" : ""}
-                  />
-                </Stack>
-                <Typography variant="caption" color="text.secondary" display="block" mt={1.5}>
-                  ⏱️ Cada envio espera entre {minIntervalMin}–{maxIntervalMin} min (aleatório) antes do próximo.
-                  Depende do Mari Brain respeitar — se ignorar, o ritmo fica controlado só pelo cap+janela.
-                </Typography>
-              </CardContent>
-            </Card>
           </Stack>
         )}
 
@@ -246,10 +198,6 @@ export function CampaignWizard({ open, onClose, onSubmit, submitting }: WizardPr
                 <Row
                   label="Janela"
                   value={`${sendWindow.weekdays.length}d/semana · ${sendWindow.start_hour}h-${sendWindow.end_hour}h · ${sendWindow.tz}`}
-                />
-                <Row
-                  label="Ritmo"
-                  value={`${minIntervalMin}–${maxIntervalMin} min entre msgs (aleatório)`}
                 />
               </Stack>
               <Box mt={2} p={1.5} bgcolor="info.light" borderRadius={1}>

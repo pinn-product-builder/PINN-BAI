@@ -584,7 +584,6 @@ const SignatureDialog = ({
     signature_company?: string;
     signature_phone?: string;
     signature_link?: string;
-    signature_html?: string;
   }) => Promise<void>;
   saving: boolean;
 }) => {
@@ -594,11 +593,7 @@ const SignatureDialog = ({
     signature_company: "",
     signature_phone: "",
     signature_link: "",
-    signature_html: "",
   });
-  // Modo HTML: se inbox já tem signature_html setado, abre nele; senão começa
-  // em modo estruturado (campos plain). User pode trocar via Switch.
-  const [useHtml, setUseHtml] = useState(false);
 
   // Re-hidrata o form sempre que o dialog abre com uma inbox nova.
   useMemo(() => {
@@ -609,9 +604,7 @@ const SignatureDialog = ({
       signature_company: inbox.signature_company ?? "",
       signature_phone: inbox.signature_phone ?? "",
       signature_link: inbox.signature_link ?? "",
-      signature_html: inbox.signature_html ?? "",
     });
-    setUseHtml(Boolean(inbox.signature_html));
   }, [inbox?.id]);
 
   const previewLines: string[] = [];
@@ -621,32 +614,8 @@ const SignatureDialog = ({
   if (form.signature_phone) previewLines.push(form.signature_phone);
   if (form.signature_link) previewLines.push(form.signature_link);
 
-  // No save: enviar APENAS o lado ativo. O outro lado vai como "" pra limpar
-  // (backend trata "" como reset). Evita ficar com dados duplicados.
-  const handleSave = () => {
-    if (useHtml) {
-      void onSave({
-        signature_html: form.signature_html,
-        signature_name: "",
-        signature_role: "",
-        signature_company: "",
-        signature_phone: "",
-        signature_link: "",
-      });
-    } else {
-      void onSave({
-        signature_html: "",
-        signature_name: form.signature_name,
-        signature_role: form.signature_role,
-        signature_company: form.signature_company,
-        signature_phone: form.signature_phone,
-        signature_link: form.signature_link,
-      });
-    }
-  };
-
   return (
-    <Dialog open={!!inbox} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={!!inbox} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>
         Assinatura de email
         {inbox && (
@@ -657,154 +626,82 @@ const SignatureDialog = ({
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} mt={1}>
-          {/* Modo: estruturado vs HTML custom */}
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 1 }}
-          >
-            <Box>
-              <Typography variant="body2" fontWeight={600}>
-                {useHtml ? "HTML personalizado" : "Campos estruturados (plain)"}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {useHtml
-                  ? "Você cola o HTML completo. Aceita tabelas, cores, imagens. Use com cautela: HTML pesado eleva risco de spam."
-                  : "BAI monta a assinatura a partir dos campos. Estilo 'plain-like', baixo risco de spam."}
-              </Typography>
-            </Box>
-            <Switch
-              checked={useHtml}
-              onChange={(e) => setUseHtml(e.target.checked)}
-              color="warning"
+          <Alert severity="info" variant="outlined" sx={{ fontSize: 13 }}>
+            Aplicada automaticamente no rodapé de todo email enviado a partir desta inbox.
+            Estilo "plain-like" — sem cores fortes ou imagens, pra não cair em spam.
+          </Alert>
+          <TextField
+            label="Nome"
+            placeholder="Pedro Henrique"
+            value={form.signature_name}
+            onChange={(e) => setForm({ ...form, signature_name: e.target.value })}
+            inputProps={{ maxLength: 120 }}
+            fullWidth
+            autoFocus
+          />
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Cargo"
+              placeholder="CTO"
+              value={form.signature_role}
+              onChange={(e) => setForm({ ...form, signature_role: e.target.value })}
+              inputProps={{ maxLength: 120 }}
+              fullWidth
+            />
+            <TextField
+              label="Empresa"
+              placeholder="Pinn"
+              value={form.signature_company}
+              onChange={(e) => setForm({ ...form, signature_company: e.target.value })}
+              inputProps={{ maxLength: 120 }}
+              fullWidth
             />
           </Stack>
+          <TextField
+            label="Telefone (opcional)"
+            placeholder="+55 11 99999-9999"
+            value={form.signature_phone}
+            onChange={(e) => setForm({ ...form, signature_phone: e.target.value })}
+            inputProps={{ maxLength: 60 }}
+            fullWidth
+          />
+          <TextField
+            label="Link / site (opcional)"
+            placeholder="pinnpb.com"
+            value={form.signature_link}
+            onChange={(e) => setForm({ ...form, signature_link: e.target.value })}
+            inputProps={{ maxLength: 500 }}
+            fullWidth
+          />
 
-          {!useHtml && (
-            <>
-              <Alert severity="info" variant="outlined" sx={{ fontSize: 13 }}>
-                Aplicada automaticamente no rodapé de todo email enviado a partir desta inbox.
-              </Alert>
-              <TextField
-                label="Nome"
-                placeholder="Pedro Henrique"
-                value={form.signature_name}
-                onChange={(e) => setForm({ ...form, signature_name: e.target.value })}
-                inputProps={{ maxLength: 120 }}
-                fullWidth
-                autoFocus
-              />
-              <Stack direction="row" spacing={2}>
-                <TextField
-                  label="Cargo"
-                  placeholder="CTO"
-                  value={form.signature_role}
-                  onChange={(e) => setForm({ ...form, signature_role: e.target.value })}
-                  inputProps={{ maxLength: 120 }}
-                  fullWidth
-                />
-                <TextField
-                  label="Empresa"
-                  placeholder="Pinn"
-                  value={form.signature_company}
-                  onChange={(e) => setForm({ ...form, signature_company: e.target.value })}
-                  inputProps={{ maxLength: 120 }}
-                  fullWidth
-                />
+          {previewLines.length > 0 && (
+            <Box
+              sx={{
+                mt: 1,
+                p: 2,
+                borderTop: "1px solid",
+                borderColor: "divider",
+                bgcolor: "background.default",
+              }}
+            >
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                Prévia da assinatura:
+              </Typography>
+              <Stack spacing={0.25} sx={{ fontFamily: "system-ui, sans-serif", fontSize: 14, color: "text.secondary" }}>
+                {previewLines.map((line, idx) => (
+                  <Typography
+                    key={idx}
+                    variant="body2"
+                    sx={{
+                      fontWeight: idx === 0 ? 600 : 400,
+                      color: idx === 0 ? "text.primary" : "text.secondary",
+                    }}
+                  >
+                    {line}
+                  </Typography>
+                ))}
               </Stack>
-              <TextField
-                label="Telefone (opcional)"
-                placeholder="+55 11 99999-9999"
-                value={form.signature_phone}
-                onChange={(e) => setForm({ ...form, signature_phone: e.target.value })}
-                inputProps={{ maxLength: 60 }}
-                fullWidth
-              />
-              <TextField
-                label="Link / site (opcional)"
-                placeholder="pinnpb.com"
-                value={form.signature_link}
-                onChange={(e) => setForm({ ...form, signature_link: e.target.value })}
-                inputProps={{ maxLength: 500 }}
-                fullWidth
-              />
-
-              {previewLines.length > 0 && (
-                <Box
-                  sx={{
-                    mt: 1,
-                    p: 2,
-                    borderTop: "1px solid",
-                    borderColor: "divider",
-                    bgcolor: "background.default",
-                  }}
-                >
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                    Prévia da assinatura:
-                  </Typography>
-                  <Stack spacing={0.25} sx={{ fontFamily: "system-ui, sans-serif", fontSize: 14, color: "text.secondary" }}>
-                    {previewLines.map((line, idx) => (
-                      <Typography
-                        key={idx}
-                        variant="body2"
-                        sx={{
-                          fontWeight: idx === 0 ? 600 : 400,
-                          color: idx === 0 ? "text.primary" : "text.secondary",
-                        }}
-                      >
-                        {line}
-                      </Typography>
-                    ))}
-                  </Stack>
-                </Box>
-              )}
-            </>
-          )}
-
-          {useHtml && (
-            <>
-              <Alert severity="warning" variant="outlined" sx={{ fontSize: 13 }}>
-                HTML é inserido <strong>verbatim</strong> no rodapé do email. Imagens e estilos
-                pesados podem aumentar marcação como spam — teste com sua própria caixa antes.
-              </Alert>
-              <TextField
-                label="HTML da assinatura"
-                value={form.signature_html}
-                onChange={(e) => setForm({ ...form, signature_html: e.target.value })}
-                multiline
-                rows={12}
-                fullWidth
-                placeholder={`<table cellpadding="0" cellspacing="0" style="font-family:Arial">\n  <tr>\n    <td>\n      <strong>Seu Nome</strong><br/>\n      Cargo · Empresa\n    </td>\n  </tr>\n</table>`}
-                inputProps={{
-                  maxLength: 4000,
-                  style: { fontFamily: "'JetBrains Mono', Menlo, monospace", fontSize: 12 },
-                }}
-                helperText={`${form.signature_html.length} / 4000 caracteres`}
-              />
-
-              {form.signature_html.trim() && (
-                <Box
-                  sx={{
-                    mt: 1,
-                    p: 2,
-                    border: 1,
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    bgcolor: "background.default",
-                  }}
-                >
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
-                    Prévia renderizada:
-                  </Typography>
-                  {/* HTML do próprio usuário — não vem de fontes externas, risco baixo */}
-                  <Box
-                    sx={{ bgcolor: "#ffffff", p: 2, borderRadius: 0.5, border: 1, borderColor: "divider" }}
-                    dangerouslySetInnerHTML={{ __html: form.signature_html }}
-                  />
-                </Box>
-              )}
-            </>
+            </Box>
           )}
         </Stack>
       </DialogContent>
@@ -815,7 +712,7 @@ const SignatureDialog = ({
         <Button
           variant="contained"
           startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />}
-          onClick={handleSave}
+          onClick={() => onSave(form)}
           disabled={saving}
           sx={{ bgcolor: ORANGE, "&:hover": { bgcolor: "#EA580C" } }}
         >

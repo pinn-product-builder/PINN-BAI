@@ -35,10 +35,6 @@ class WhatsAppCampaignBase(BaseModel):
     daily_cap: Optional[int] = None
     daily_cap_per_instance: int = 30
     send_window: Optional[SendWindow] = None
-    # Jitter entre mensagens individuais (depende do Mari Brain respeitar).
-    # None = Mari decide. Quando setado, valor em segundos.
-    min_interval_seconds: Optional[int] = Field(default=None, ge=0)
-    max_interval_seconds: Optional[int] = Field(default=None, ge=0)
 
 
 class WhatsAppCampaignCreate(WhatsAppCampaignBase):
@@ -58,8 +54,6 @@ class WhatsAppCampaignUpdate(BaseModel):
     daily_cap: Optional[int] = None
     daily_cap_per_instance: Optional[int] = None
     send_window: Optional[SendWindow] = None
-    min_interval_seconds: Optional[int] = Field(default=None, ge=0)
-    max_interval_seconds: Optional[int] = Field(default=None, ge=0)
 
 
 class WhatsAppCampaignOut(WhatsAppCampaignBase):

@@ -77,6 +77,89 @@ function brDate(iso?: string | null): string {
 // no projeto externo do cliente em `kommo_leads` — não na tabela interna `leads`.
 // Esta função tenta ler de lá; retorna null se a org não tiver integração ou se a
 // tabela `kommo_leads` não existir no projeto remoto.
+// Busca a lista nominal de leads no Supabase externo do cliente (kommo_leads).
+// Schema é flexível — tentamos colunas comuns (nome/name, empresa/company, etc.).
+// Retorna null se a org não tem integração ou kommo_leads não existe.
+async function fetchLeadListsFromClientSupabase(
+  internalSupabase: ReturnType<typeof createClient>,
+  orgId: string,
+): Promise<{ top: Record<string, unknown>[]; recent: Record<string, unknown>[] } | null> {
+  try {
+    const { data: integration } = await internalSupabase
+      .from("integrations")
+      .select("config")
+      .eq("org_id", orgId)
+      .eq("type", "supabase")
+      .eq("status", "connected")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const cfg = (integration?.config ?? {}) as { projectUrl?: string; anonKey?: string };
+    if (!cfg.projectUrl || !cfg.anonKey) return null;
+
+    const clientDb = createClient(cfg.projectUrl, cfg.anonKey);
+
+    // Top 15: leads ganhos (venda = true), mais recentes primeiro.
+    const topRes = await clientDb
+      .from("kommo_leads")
+      .select("*")
+      .eq("venda", true)
+      .order("won_at_iso", { ascending: false, nullsFirst: false })
+      .limit(15);
+
+    // Recent 15: qualquer status, ordenado por criação.
+    const recentRes = await clientDb
+      .from("kommo_leads")
+      .select("*")
+      .order("created_at_iso", { ascending: false, nullsFirst: false })
+      .limit(15);
+
+    if (topRes.error || recentRes.error) {
+      console.warn("[ai-data-chat] kommo_leads lists fetch falhou:", topRes.error?.message || recentRes.error?.message);
+      return null;
+    }
+
+    return {
+      top: (topRes.data ?? []) as Record<string, unknown>[],
+      recent: (recentRes.data ?? []) as Record<string, unknown>[],
+    };
+  } catch (err) {
+    console.warn("[ai-data-chat] fetchLeadListsFromClientSupabase erro:", err);
+    return null;
+  }
+}
+
+// Formata uma linha vinda do kommo_leads. Schema flex — tenta colunas comuns.
+function formatKommoLeadLine(row: Record<string, unknown>): string {
+  const pick = (keys: string[]): string | null => {
+    for (const k of keys) {
+      const v = row[k];
+      if (v !== null && v !== undefined && String(v).trim() !== "") return String(v);
+    }
+    return null;
+  };
+
+  const name = pick(["nome", "name", "lead_name", "contact_name", "cliente", "title"]) ?? "—";
+  const company = pick(["empresa", "company", "organization", "razao_social", "account_name"]);
+  const source = pick(["utm_source", "origem", "source", "channel", "canal"]);
+  const stage = row.venda === true
+    ? "ganho"
+    : row.desqualificado === true
+      ? "perdido"
+      : row.reuniao_realizada === true
+        ? "reunião realizada"
+        : row.reuniao_confirmada === true
+          ? "reunião confirmada"
+          : row.atendimento_feito === true
+            ? "atendimento feito"
+            : "em andamento";
+  const dateIso = pick(["won_at_iso", "created_at_iso", "created_at", "won_at"]);
+  const dateStr = dateIso ? brDate(dateIso) : "—";
+
+  return `  - ${name}${company ? ` (${company})` : ""} · ${stage}${source ? ` · fonte: ${source}` : ""} · ${dateStr}`;
+}
+
 async function fetchLeadStatsFromClientSupabase(
   internalSupabase: ReturnType<typeof createClient>,
   orgId: string,
@@ -166,6 +249,11 @@ async function buildDataContext(
   // Tenta primeiro buscar leads na fonte externa do cliente (integração Supabase).
   // Se a org não tem integração ou não tem kommo_leads, cai no fluxo interno padrão.
   const clientLeadStats = await fetchLeadStatsFromClientSupabase(supabase, orgId, start, end);
+  // Quando há fonte externa, também busca a LISTA nominal (top + recent) por lá.
+  // O `topLeadsByValueRes` interno provavelmente vai voltar vazio nessas orgs.
+  const clientLeadLists = clientLeadStats
+    ? await fetchLeadListsFromClientSupabase(supabase, orgId)
+    : null;
 
   const [
     orgRes,
@@ -590,13 +678,18 @@ async function buildDataContext(
     return `  - ${name}${company}${valueStr}${status}${src}${date}`;
   };
 
-  const topLeadsLines = topLeadsByValue.length > 0
-    ? topLeadsByValue.map(formatLeadLine).join("\n")
-    : "  Sem leads convertidos para ranquear.";
+  // Prioridade: externo (kommo_leads) → interno (leads) → mensagem de vazio.
+  const topLeadsLines = clientLeadLists && clientLeadLists.top.length > 0
+    ? clientLeadLists.top.map(formatKommoLeadLine).join("\n")
+    : topLeadsByValue.length > 0
+      ? topLeadsByValue.map(formatLeadLine).join("\n")
+      : "  NENHUM LEAD CONVERTIDO REGISTRADO. Não invente exemplos.";
 
-  const recentLeadsLines = recentLeads.length > 0
-    ? recentLeads.map(formatLeadLine).join("\n")
-    : "  Sem leads cadastrados ainda.";
+  const recentLeadsLines = clientLeadLists && clientLeadLists.recent.length > 0
+    ? clientLeadLists.recent.map(formatKommoLeadLine).join("\n")
+    : recentLeads.length > 0
+      ? recentLeads.map(formatLeadLine).join("\n")
+      : "  NENHUM LEAD CADASTRADO. Não invente exemplos.";
 
   const text = `
 ## Dados da Organização: "${org?.name ?? "Cliente"}" | Período: ${periodStr}
@@ -693,6 +786,53 @@ ${trail.filter(t => !t.available).length > 0 ? `\nIndisponíveis (não use): ${t
   return { text, trail };
 }
 
+// ── LLM helpers (E1.S3 — LLMClient genérico) ──────────────────────────────────
+//
+// Anthropic Messages API tem formato diferente do OpenAI:
+//   - Endpoint: https://api.anthropic.com/v1/messages
+//   - Header: x-api-key + anthropic-version: 2023-06-01
+//   - Body: { model, max_tokens, system, messages: [{role:"user|assistant", content}] }
+//   - Resposta: { content: [{type:"text", text}] }
+// Estes helpers normalizam pra que o restante do código fale "OpenAI-like" e
+// só essa camada saiba traduzir.
+
+async function callAnthropicNonStream(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userContent: string,
+  options: { maxTokens?: number; temperature?: number } = {},
+): Promise<{ content: string; rawStatus: number }> {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: options.maxTokens ?? 2048,
+      temperature: options.temperature ?? 0.3,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userContent }],
+    }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => "");
+    console.error("[anthropic] erro", resp.status, txt.slice(0, 400));
+    return { content: "", rawStatus: resp.status };
+  }
+  const data = await resp.json();
+  // Resposta: { content: [{ type: "text", text: "..." }, ...] }
+  const blocks = Array.isArray(data?.content) ? data.content : [];
+  const text = blocks
+    .filter((b: { type?: string }) => b.type === "text")
+    .map((b: { text?: string }) => b.text ?? "")
+    .join("\n");
+  return { content: text, rawStatus: 200 };
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -701,29 +841,52 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, orgId, mode, dateRange, pathname, dashboardName } = await req.json();
+    const { messages, orgId, mode, dateRange, pathname, dashboardName, dashboardContext, intent, availableTables, persona, meeting_context } = await req.json();
 
     // Provider selection: OpenAI preferred (when chave está configurada), Lovable como fallback.
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!OPENAI_API_KEY && !LOVABLE_API_KEY) {
-      throw new Error("Neither OPENAI_API_KEY nor LOVABLE_API_KEY is configured");
+    if (!OPENAI_API_KEY && !LOVABLE_API_KEY && !ANTHROPIC_API_KEY) {
+      throw new Error("Nenhum provedor de IA configurado (OPENAI_API_KEY, LOVABLE_API_KEY ou ANTHROPIC_API_KEY).");
     }
 
-    const useOpenAI = !!OPENAI_API_KEY;
+    // E1.S3 — seleção de provedor por env. AI_PROVIDER explicito ganha; caso contrário
+    // prioridade: anthropic > openai > lovable (mas só se a chave existir).
+    const providerEnv = (Deno.env.get("AI_PROVIDER") ?? "").toLowerCase().trim();
+    type AiProvider = "anthropic" | "openai" | "lovable";
+    const provider: AiProvider = (() => {
+      if (providerEnv === "anthropic" && ANTHROPIC_API_KEY) return "anthropic";
+      if (providerEnv === "openai" && OPENAI_API_KEY) return "openai";
+      if (providerEnv === "lovable" && LOVABLE_API_KEY) return "lovable";
+      // Auto-fallback (ordem de preferência)
+      if (ANTHROPIC_API_KEY) return "anthropic";
+      if (OPENAI_API_KEY) return "openai";
+      return "lovable";
+    })();
+    const useOpenAI = provider === "openai";
+    const useAnthropic = provider === "anthropic";
+
+    // Endpoint OpenAI-compat (vale para OpenAI e Lovable; Anthropic usa caminho próprio).
     const aiEndpoint = useOpenAI
       ? "https://api.openai.com/v1/chat/completions"
       : "https://ai.gateway.lovable.dev/v1/chat/completions";
     const aiAuthHeader = useOpenAI ? `Bearer ${OPENAI_API_KEY}` : `Bearer ${LOVABLE_API_KEY}`;
 
-    // Modelos: OpenAI usa gpt-4o (insights, com tool_choice) e gpt-4o-mini (chat stream barato).
-    const insightsModel = useOpenAI
+    // Modelos por provedor.
+    const insightsModel = useAnthropic
+      ? (Deno.env.get("ANTHROPIC_MODEL_INSIGHTS") ?? "claude-sonnet-4-5")
+      : useOpenAI
       ? (Deno.env.get("OPENAI_MODEL_INSIGHTS") ?? "gpt-4o")
       : "google/gemini-2.5-pro";
-    const chatModel = useOpenAI
+    const chatModel = useAnthropic
+      ? (Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-4-5")
+      : useOpenAI
       ? (Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini")
       : "google/gemini-3-flash-preview";
+
+    console.log("[ai-data-chat] provider=", provider, "insights=", insightsModel, "chat=", chatModel);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -775,6 +938,43 @@ serve(async (req) => {
       dataContextText = `${screenContext}\n${dataContextText}`;
     }
 
+    // ── Snapshot do dashboard renderizado na sessão do cliente ────────────────
+    // O frontend captura as queries do React Query em cache (KPIs, scoreboard,
+    // forecast, etc) e envia em `dashboardContext`. Sem isso, perguntas sobre
+    // métricas custom calculadas no client (ex: vw_forecast_revenue,
+    // resolveExecutiveScoreboard) caíam em "não vejo esse número no contexto".
+    if (dashboardContext && typeof dashboardContext === "object") {
+      try {
+        const dc = dashboardContext as {
+          capturedAt?: string;
+          pathname?: string;
+          entries?: Array<{ key: unknown[]; value: string }>;
+          truncated?: boolean;
+        };
+        const entries = Array.isArray(dc.entries) ? dc.entries : [];
+        if (entries.length > 0) {
+          const lines: string[] = [
+            "### 0.1 Métricas visíveis na sessão do cliente AGORA",
+            "(snapshot do estado renderizado no navegador — fonte de verdade para perguntas sobre 'o que estou vendo')",
+            `- Capturado em: ${dc.capturedAt ?? "—"}`,
+            `- Pathname: ${dc.pathname ?? pathname ?? "—"}`,
+            ...(dc.truncated ? ["- ⚠️ Snapshot truncado por tamanho — peça filtros específicos se faltar dado."] : []),
+            "",
+          ];
+          for (const e of entries) {
+            const keyLabel = Array.isArray(e.key) ? e.key.map((k) => (typeof k === "string" ? k : JSON.stringify(k))).join(":") : String(e.key);
+            lines.push(`#### query:${keyLabel}`);
+            lines.push("```json");
+            lines.push(typeof e.value === "string" ? e.value : JSON.stringify(e.value));
+            lines.push("```");
+          }
+          dataContextText = `${lines.join("\n")}\n\n${dataContextText}`;
+        }
+      } catch (e) {
+        console.warn("[ai-data-chat] dashboardContext injection skipped:", e);
+      }
+    }
+
     // ── Insights mode (structured via tool-calling, non-streaming) ────────────
 
     if (mode === "insights") {
@@ -798,7 +998,25 @@ serve(async (req) => {
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      const systemPrompt = `Você é o Pinn AI — analista sênior de Revenue Operations com rigor estatístico de auditoria.
+      // ── Lente da persona (E4.S4) ───────────────────────────────────────────
+      // Direciona os insights pelo ângulo de leitura do C-level alvo.
+      // "geral" = sem lente específica (default, comportamento legado).
+      const PERSONA_LENS: Record<string, string> = {
+        ceo:
+          "Lente CEO: foque em saúde geral do negócio, crescimento, escala, sinais sistêmicos. Cruze ROI, expansão de base e capacidade de operação. Ignore micro-otimizações; prefira insights que afetam decisão de capital ou direção estratégica.",
+        cro:
+          "Lente CRO: foque em receita, pipeline, conversão, forecast, performance da força de vendas. Sempre quantifique o impacto em revenue (R$). Cruze taxa de conversão por etapa, ticket médio, ciclo de venda e produtividade por owner.",
+        cmo:
+          "Lente CMO: foque em fontes de aquisição, ROAS, CPL, qualidade de lead por canal, conversão entrada→reunião. Aponte canais com melhor/pior unit economics e oportunidades de realocação de verba.",
+        cfo:
+          "Lente CFO: foque em CAC, LTV, LTV/CAC ratio, margem por lead, payback, eficiência do capital alocado. Cite números monetários sempre e evite sugestões que dependam de hipóteses não financeiras.",
+        coo:
+          "Lente COO: foque em eficiência operacional, gargalos do funil, SLAs (tempo de resposta, tempo por etapa), tarefas vencidas, leads parados. Aponte onde o processo trava e quanta capacidade está sendo desperdiçada.",
+      };
+      const personaKey = String(persona ?? "").toLowerCase().trim();
+      const personaLens = PERSONA_LENS[personaKey] ?? "";
+
+      const systemPrompt = `Você é o Pinn AI — analista sênior de Revenue Operations com rigor estatístico de auditoria.${personaLens ? `\n\nLENTE DE LEITURA OBRIGATÓRIA:\n${personaLens}\n\nMantenha cada insight ALINHADO a essa lente. Se um insight não couber sob essa lente, NÃO o gere — prefira menos insights bem direcionados a 6 dispersos.` : ""}
 
 MISSÃO: gerar insights de PRECISÃO ABSOLUTA usando EXCLUSIVAMENTE os números do contexto. Tolerância zero para alucinação.
 
@@ -1021,12 +1239,204 @@ ${dataContextText}`;
       });
     }
 
+    // ── Live Generative Dashboard mode (E4.S3) ────────────────────────────────
+    // Recebe { intent: string, available_tables: string[] } e devolve uma lista
+    // de widget specs prontos para inserir em dashboard_widgets. A UI admin
+    // pega esse JSON e chama useCreateDashboardWidgets em batch.
+    if (mode === "live_generate") {
+      const userIntent = String(intent ?? "").trim();
+      if (!userIntent) {
+        return new Response(JSON.stringify({ error: "intent obrigatório" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const liveSystem = `Você é um construtor de dashboards do Pinn BAI. O usuário descreve em linguagem natural o que quer ver, e você devolve EXCLUSIVAMENTE uma chamada para emit_widgets com 3-6 widgets coerentes.
+
+REGRAS:
+- Use apenas tipos válidos: metric_card, area_chart, bar_chart, line_chart, pie_chart, funnel, table, insight_card.
+- Use dataSource real apresentado na lista. Se não houver tabela adequada, prefira metric_card com title descritivo e deixe dataSource vazio.
+- aggregation: sum | count | avg | min | max.
+- format: number | currency | percentage.
+- Para cada widget, coloque uma description curta (1 linha) que vira tooltip ℹ no card.
+
+TABELAS DISPONÍVEIS NA ORG:
+${(availableTables ?? []).join(", ") || "(lista não fornecida — use nomes conhecidos como crm_leads, paid_traffic_daily_metrics, bai_kpi_snapshots)"}
+
+PEDIDO DO USUÁRIO:
+${userIntent}`;
+
+      const widgetTool = {
+        type: "function",
+        function: {
+          name: "emit_widgets",
+          description: "Emite a lista de widgets a inserir no dashboard.",
+          parameters: {
+            type: "object",
+            properties: {
+              widgets: {
+                type: "array",
+                minItems: 3,
+                maxItems: 6,
+                items: {
+                  type: "object",
+                  properties: {
+                    type: { type: "string", enum: ["metric_card","area_chart","bar_chart","line_chart","pie_chart","funnel","table","insight_card"] },
+                    title: { type: "string" },
+                    description: { type: "string", description: "Aparece como tooltip do widget." },
+                    dataSource: { type: "string", description: "Nome da tabela/view (deixe vazio se não souber)." },
+                    metric: { type: "string", description: "Coluna que será agregada." },
+                    aggregation: { type: "string", enum: ["sum","count","avg","min","max"] },
+                    format: { type: "string", enum: ["number","currency","percentage"] },
+                    groupBy: { type: "string" },
+                  },
+                  required: ["type","title","description"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["widgets"],
+            additionalProperties: false,
+          },
+        },
+      };
+
+      const liveResp = await fetch(aiEndpoint, {
+        method: "POST",
+        headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: insightsModel,
+          messages: [
+            { role: "system", content: liveSystem },
+            { role: "user", content: userIntent },
+          ],
+          stream: false,
+          temperature: 0.2,
+          tools: [widgetTool],
+          tool_choice: { type: "function", function: { name: "emit_widgets" } },
+        }),
+      });
+
+      if (!liveResp.ok) {
+        if (liveResp.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (liveResp.status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "AI provider error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const liveJson = await liveResp.json();
+      const liveTool = liveJson.choices?.[0]?.message?.tool_calls?.[0];
+      let widgets: unknown[] = [];
+      if (liveTool?.function?.arguments) {
+        try {
+          const args = JSON.parse(liveTool.function.arguments);
+          widgets = Array.isArray(args.widgets) ? args.widgets : [];
+        } catch {
+          /* ignore */
+        }
+      }
+      return new Response(JSON.stringify({ widgets, generated_at: new Date().toISOString() }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Meeting brief mode (F13) ──────────────────────────────────────────────
+    // Gera pauta enxuta de reunião consultiva: 3-5 pontos priorizados,
+    // cada um com diagnóstico breve, número-âncora do contexto e ação sugerida.
+    // O analista júnior usa o output como roteiro — sem precisar do sênior junto.
+    if (mode === "meeting_brief") {
+      // meeting_context opcional: passado pelo frontend quando o admin
+      // colou/digitou info do evento (título, participantes, foco, hora).
+      // Quando ausente, fluxo legado continua valendo.
+      const meetingCtx = meeting_context as
+        | { title?: string; when?: string; attendees?: string; focus?: string }
+        | undefined;
+      const meetingContextBlock = meetingCtx && (meetingCtx.title || meetingCtx.focus || meetingCtx.attendees || meetingCtx.when)
+        ? `\n\nCONTEXTO ESPECÍFICO DESTA REUNIÃO (forneça pauta otimizada para este encontro):\n${[
+            meetingCtx.title && `- Encontro: ${meetingCtx.title}`,
+            meetingCtx.when && `- Quando: ${meetingCtx.when}`,
+            meetingCtx.attendees && `- Participantes: ${meetingCtx.attendees}`,
+            meetingCtx.focus && `- Foco/tópicos prévios: ${meetingCtx.focus}`,
+          ].filter(Boolean).join("\n")}`
+        : "";
+
+      const briefSystem = `Você é um consultor sênior de Revenue Ops da Pinn preparando a pauta da próxima reunião de acompanhamento com o cliente.
+
+REGRAS:
+- Português brasileiro, tom executivo, direto.
+- Markdown estruturado: cada ponto tem título, "O que aconteceu" (com número exato do contexto), "Por que importa" (1 linha) e "Sugestão de ação" (1 linha imperativa).
+- Entre 3 e 5 pontos, ordenados por impacto.
+- PROIBIDO inventar números. Use só o que aparece literalmente no contexto.
+- Termine com seção "Perguntas para o cliente" (2-3 perguntas que o consultor faz na reunião para validar interpretações).
+- NÃO comece com "Olá", saudação ou intro — vá direto na pauta.
+${meetingContextBlock ? "- AJUSTE a seleção dos 3-5 pontos pra que respondam ao foco/tópicos do encontro, quando houver." : ""}
+
+DADOS REAIS DA ORGANIZAÇÃO:
+${dataContextText}${meetingContextBlock}`;
+
+      let briefContent = "";
+      if (useAnthropic) {
+        const { content, rawStatus } = await callAnthropicNonStream(
+          ANTHROPIC_API_KEY!,
+          insightsModel,
+          briefSystem,
+          "Gere a pauta para a próxima reunião consultiva com base nos dados acima.",
+          { maxTokens: 2500, temperature: 0.3 },
+        );
+        if (rawStatus !== 200) {
+          if (rawStatus === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "AI provider error (anthropic)" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        briefContent = content || "Não foi possível gerar a pauta — sem resposta do modelo.";
+      } else {
+        const briefResp = await fetch(aiEndpoint, {
+          method: "POST",
+          headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: insightsModel,
+            messages: [
+              { role: "system", content: briefSystem },
+              { role: "user", content: "Gere a pauta para a próxima reunião consultiva com base nos dados acima." },
+            ],
+            stream: false,
+            temperature: 0.3,
+          }),
+        });
+
+        if (!briefResp.ok) {
+          const status = briefResp.status;
+          if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          if (status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "AI provider error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        const briefJson = await briefResp.json();
+        briefContent = briefJson.choices?.[0]?.message?.content ?? "Não foi possível gerar a pauta — sem resposta do modelo.";
+      }
+
+      return new Response(JSON.stringify({
+        markdown: briefContent,
+        generated_at: new Date().toISOString(),
+        model: insightsModel,
+        provider,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Chat mode (streaming) ─────────────────────────────────────────────────
 
     const systemPrompt = `Você é o **BAI Copilot** — analista sênior de Revenue Operations da Pinn, dedicado a esta organização.
 
 ESCOPO DE ACESSO (importante esclarecer ao usuário se perguntado):
-Você TEM ACESSO AO BANCO COMPLETO DA ORGANIZAÇÃO desta sessão. Não está limitado ao que está visível na tela. Os dados disponíveis abaixo cobrem:
+Você TEM ACESSO AO BANCO COMPLETO DA ORGANIZAÇÃO desta sessão **E TAMBÉM AO ESTADO RENDERIZADO NA TELA DO USUÁRIO** (seção "0.1 Métricas visíveis na sessão do cliente AGORA"). Quando o usuário perguntar sobre uma métrica ("qual a taxa de conversão atual?", "quanto é o forecast?"), PROCURE PRIMEIRO na seção 0.1 — ela traz os mesmos números que ele está vendo no dashboard naquele momento. Só caia para as demais seções se a 0.1 não tiver a métrica.
+
+REGRA CRÍTICA — VALORES JÁ CALCULADOS DOS WIDGETS:
+Dentro da seção 0.1, entradas com key começando em "widget-snapshot:" trazem o valor EXATO que cada widget do dashboard está mostrando ao usuário. Estrutura: { widgetId, title, metric, value, format, ... }.
+
+Quando o usuário perguntar sobre uma métrica que casa com um título de widget-snapshot, USE O VALOR DO WIDGET-SNAPSHOT — NÃO RECALCULE a partir dos dados crus. Se você recalcular, vai obter número diferente do que o usuário vê na tela (porque você não conhece o filtro de período, agregação ou fórmula custom que o widget aplica).
+
+Exemplo: se o usuário pergunta "qual a taxa de conversão atual?" e há um widget-snapshot com title="Taxa de Conversão" e value=1.1, responda "A taxa de conversão atual visível no seu dashboard é 1,1%". NUNCA invente um cálculo diferente que dê 22% só porque você tem acesso aos leads crus.
+
+Se houver MAIS DE UM widget-snapshot relacionado (ex: "Conv. Lead → Reunião" e "Conv. Lead → Fechamento" — três taxas diferentes no Pinn Bay), cite TODAS com os labels exatos. NÃO escolha uma e omita as outras.
+
+Os dados disponíveis abaixo cobrem:
 - Identidade da org (nome, plano, status, slug, datas)
 - TODAS as integrações configuradas (CRM, Supabase externo, Kommo, etc.)
 - TODAS as conexões de tráfego pago (Meta Ads, Google Ads) e suas campanhas
@@ -1049,6 +1459,13 @@ REGRAS DE PRECISÃO NUMÉRICA (não negociáveis):
 - Sempre cite o número exato (ex: "ROAS de 2.34x", "47 leads convertidos", "R$ 12.300 de receita").
 - Se uma seção do contexto disser "sem dados" / "Nenhum X configurado", reconheça explicitamente a lacuna em vez de inferir.
 - Cálculos derivados permitidos: taxa de conversão, CAC (gasto/convertidos), margem (ticket - CPL), ROAS por canal.
+
+REGRA DE NÃO-INVENÇÃO ABSOLUTA (CRÍTICO — violação aqui = resposta inválida):
+- Se o contexto disser "NENHUM LEAD CONVERTIDO REGISTRADO" ou "NENHUM LEAD CADASTRADO" ou similar, RESPONDA EXATAMENTE:
+  "Não há leads convertidos registrados para esta organização no período. Conecte uma integração de CRM ou importe leads via /import para começar a ver dados aqui."
+- JAMAIS gere listas com placeholders genéricos tipo "Nome do Lead 1", "Empresa A", "Fonte 1", "Data 1", "Lead Genérico", "Cliente X". Esses padrões são proibidos.
+- Quando o usuário pede listas nominais (top N, mais recentes), use APENAS as linhas que aparecem em "### 1.A Top 15 Leads Convertidos" e "### 1.B 15 Leads Mais Recentes" do contexto. Se a seção mostra mensagem de "sem leads", reconheça e oriente — NÃO COMPLETE com exemplos.
+- Se você notar que está prestes a numerar "Lead 1, Lead 2, Lead 3..." sem nomes reais, PARE e admita a lacuna.
 
 CAPACIDADES QUALITATIVAS (use também quando perguntado):
 - Descrever a estrutura da org (quais integrações estão ativas, quais dashboards existem, quais metas e alertas estão configurados).
