@@ -18,6 +18,25 @@ export default defineConfig(({ mode }) => ({
         target: "http://127.0.0.1:8787",
         changeOrigin: true,
       },
+      // Backend Python (FastAPI) em dev — Email Outreach (SmartLead), CRM
+      // Auditor, etc. Em prod, o Nginx do compose faz o mesmo proxy.
+      // Sobrescreva via VITE_DEV_BACKEND_URL para apontar pra outra máquina/porta.
+      ...Object.fromEntries(
+        ["/email", "/crm", "/hub", "/ads", "/kpi", "/webhook", "/adapters", "/whatsapp", "/linkedin", "/health"].map(
+          (prefix) => [
+            prefix,
+            {
+              target: process.env.VITE_DEV_BACKEND_URL || "http://127.0.0.1:8010",
+              changeOrigin: true,
+              // Enroll de campanha WhatsApp pode levar minutos pra lotes 500+,
+              // pq cada lead = 2-3 calls Supabase no Mari Brain. Default do
+              // http-proxy é 120s e cortava com 504 (caso real 2026-05-27).
+              timeout: 600_000,        // 10min — matches backend mari_client.enroll_leads
+              proxyTimeout: 600_000,
+            },
+          ],
+        ),
+      ),
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
