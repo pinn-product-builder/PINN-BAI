@@ -1,6 +1,8 @@
 import { useParams } from 'react-router-dom';
 import { usePublicShare } from '@/hooks/useDashboardSharing';
 import { Loader2, Lock, AlertTriangle } from 'lucide-react';
+import { WidgetRenderer } from '@/components/dashboard/DashboardEngine';
+import type { DashboardWidget } from '@/lib/types';
 
 export default function PublicDashboard() {
   const { token } = useParams<{ token: string }>();
@@ -26,22 +28,24 @@ export default function PublicDashboard() {
     );
   }
 
-  const dashboard = (share as any).dashboards;
-  const widgets = dashboard?.dashboard_widgets ?? [];
+  const shareRow = share as any;
+  const dashboard = shareRow.dashboards;
+  const orgId: string | undefined = shareRow.org_id;
+  const widgets: DashboardWidget[] = dashboard?.dashboard_widgets ?? [];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16">
       {/* Header */}
       <div className="border-b border-border/50 bg-card px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold">{share.title ?? dashboard?.name ?? 'Dashboard'}</h1>
+          <h1 className="text-lg font-bold">{shareRow.title ?? dashboard?.name ?? 'Dashboard'}</h1>
           {dashboard?.description && (
             <p className="text-xs text-muted-foreground mt-0.5">{dashboard.description}</p>
           )}
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Lock className="w-3.5 h-3.5" />
-          <span>Somente leitura · {share.view_count} visualizações</span>
+          <span>Somente leitura · {shareRow.view_count} visualizações</span>
         </div>
       </div>
 
@@ -51,12 +55,15 @@ export default function PublicDashboard() {
           <div className="text-center py-24 text-muted-foreground">
             <p className="font-medium">Dashboard sem widgets configurados.</p>
           </div>
+        ) : !orgId ? (
+          <div className="text-center py-24 text-muted-foreground">
+            <p className="font-medium">Link incompleto — não foi possível identificar a organização.</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {widgets.map((w: any) => (
-              <div key={w.id} className="rounded-lg border border-border bg-card p-4">
-                <p className="text-sm font-semibold mb-2">{w.title ?? 'Widget'}</p>
-                <p className="text-xs text-muted-foreground">Tipo: {w.type}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-[minmax(220px,auto)]">
+            {widgets.map((w) => (
+              <div key={w.id} className="min-h-[220px]">
+                <WidgetRenderer widget={w} orgId={orgId} />
               </div>
             ))}
           </div>

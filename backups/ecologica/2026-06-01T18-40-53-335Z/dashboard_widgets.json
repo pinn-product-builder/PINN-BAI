@@ -1,0 +1,328 @@
+[
+  {
+    "id": "931051d0-5fc0-4e44-914b-bda19b0d4811",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "metric_card",
+    "title": "Investimento",
+    "description": "Valor investido em campanhas",
+    "config": {
+      "format": "currency",
+      "showTrend": true,
+      "dataSource": "kommo_leads_ecologica",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "investment",
+      "showSparkline": true
+    },
+    "position": 5,
+    "size": "small",
+    "is_visible": false,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "48635a62-98ec-48fa-87ae-ca6d972a448d",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "metric_card",
+    "title": "CPL",
+    "description": "Custo por Lead médio",
+    "config": {
+      "format": "currency",
+      "showTrend": true,
+      "dataSource": "kommo_leads_ecologica",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "cost_per_lead",
+      "showSparkline": true
+    },
+    "position": 6,
+    "size": "small",
+    "is_visible": false,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "65d73065-c9ca-49ae-93e7-31f5c2611c9a",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "metric_card",
+    "title": "Custo por Reunião",
+    "description": "Custo médio por reunião agendada",
+    "config": {
+      "format": "currency",
+      "showTrend": true,
+      "dataSource": "kommo_leads_ecologica",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "cost_per_meeting",
+      "showSparkline": true
+    },
+    "position": 7,
+    "size": "small",
+    "is_visible": false,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "2880d7bd-0ef3-44cc-8e14-565769d4cf7b",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "metric_card",
+    "title": "Total de Leads",
+    "description": "Total de leads no CRM",
+    "config": {
+      "format": "number",
+      "metric": "nome_lead",
+      "showTrend": true,
+      "dataSource": "kommo_leads_ecologica",
+      "aggregation": "count",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "total_leads",
+      "showSparkline": true
+    },
+    "position": 0,
+    "size": "small",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "8b25610c-8cf3-4641-99dd-ec8bdc7a0c10",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "metric_card",
+    "title": "Com Reunião",
+    "description": "Leads que tiveram reunião",
+    "config": {
+      "format": "number",
+      "metric": "reuniao",
+      "showTrend": true,
+      "dataSource": "kommo_leads_ecologica",
+      "aggregation": "count",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "meetings_total",
+      "showSparkline": true
+    },
+    "position": 1,
+    "size": "small",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "5702552f-cae4-4e7c-a7ce-db2f2961f376",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "metric_card",
+    "title": "Reuniões Agendadas",
+    "description": "Reuniões agendadas no período",
+    "config": {
+      "format": "number",
+      "metric": "reuniao_agendada",
+      "showTrend": true,
+      "dataSource": "kommo_leads_ecologica",
+      "aggregation": "count",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "meetings_scheduled",
+      "showSparkline": true
+    },
+    "position": 2,
+    "size": "small",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "f3ecac4c-c5a6-4deb-b9e6-5c9c2842ac85",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "metric_card",
+    "title": "Reuniões Realizadas",
+    "description": "Reuniões que efetivamente aconteceram",
+    "config": {
+      "format": "number",
+      "metric": "reuniao_realizada",
+      "showTrend": true,
+      "dataSource": "kommo_leads_ecologica",
+      "aggregation": "count",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "meetings_done",
+      "showSparkline": true
+    },
+    "position": 3,
+    "size": "small",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "cb6e6117-5a40-44d8-83a1-dad2fd87ea1b",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "metric_card",
+    "title": "Destinos",
+    "description": "Leads com destino definido",
+    "config": {
+      "format": "number",
+      "metric": "destino_de_interesse",
+      "showTrend": true,
+      "dataSource": "kommo_leads_ecologica",
+      "aggregation": "count",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "destinations",
+      "showSparkline": true
+    },
+    "position": 4,
+    "size": "small",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "961b9781-aac0-4a0e-a254-4a80446c933e",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "metric_card",
+    "title": "Conv. Lead → Reunião",
+    "description": "Taxa de conversão de lead para reunião",
+    "config": {
+      "format": "percentage",
+      "metric": "reuniao",
+      "showTrend": true,
+      "dataSource": "kommo_leads_ecologica",
+      "aggregation": "count",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "lead_to_meeting_rate",
+      "showSparkline": true
+    },
+    "position": 5,
+    "size": "small",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "11e6e784-1d54-4a71-9e66-3fbd7f78f470",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "area_chart",
+    "title": "Evolução Diária",
+    "description": "Leads, mensagens, reuniões e investimento ao longo do tempo",
+    "config": {
+      "format": "number",
+      "metric": "nome_lead",
+      "groupBy": "data_criacao",
+      "dataSource": "kommo_leads_ecologica",
+      "aggregation": "count",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "daily_evolution"
+    },
+    "position": 6,
+    "size": "large",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "ee05dee6-0f68-4396-87e4-cbc0a2219ee7",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "funnel",
+    "title": "Pipeline por Destino",
+    "description": "Funil por destino de interesse",
+    "config": {
+      "format": "number",
+      "groupBy": "destino_de_interesse",
+      "dataSource": "kommo_leads_ecologica",
+      "aggregation": "count",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "pipeline_destination"
+    },
+    "position": 7,
+    "size": "medium",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "3e1893ec-e675-4f58-9732-4437c270b169",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "table",
+    "title": "Próximas Reuniões",
+    "description": "Reuniões agendadas a partir de hoje",
+    "config": {
+      "format": "number",
+      "columns": [
+        "nome_lead",
+        "destino_de_interesse",
+        "horario_reuniao",
+        "link_reuniao",
+        "vendedor"
+      ],
+      "pageSize": 5,
+      "dataSource": "kommo_leads_ecologica",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "upcoming_meetings"
+    },
+    "position": 8,
+    "size": "medium",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "efba15f0-172d-4cea-95a8-42bc926e3ccd",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "pie_chart",
+    "title": "Destinos Populares",
+    "description": "Distribuição por destino",
+    "config": {
+      "format": "number",
+      "metric": "destino_de_interesse",
+      "groupBy": "destino_de_interesse",
+      "dataSource": "kommo_leads_ecologica",
+      "aggregation": "count",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "destinations_chart"
+    },
+    "position": 9,
+    "size": "medium",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "ebf992b4-2bd6-45a0-8c1e-e008c4870aab",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "insight_card",
+    "title": "Insights IA",
+    "description": "Análise baseada nos dados reais",
+    "config": {
+      "format": "number",
+      "dataSource": "kommo_leads_ecologica",
+      "maxInsights": 5,
+      "sourceTable": "kommo_leads_ecologica",
+      "includeRecommendations": true
+    },
+    "position": 10,
+    "size": "medium",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  },
+  {
+    "id": "d16e929f-497d-408d-9293-1b1c6681a51b",
+    "dashboard_id": "cdfc0263-248e-40bb-ad9c-1680c4550e10",
+    "type": "table",
+    "title": "Lista de Leads",
+    "description": "Leads recentes com detalhes",
+    "config": {
+      "format": "number",
+      "columns": [
+        "nome_lead",
+        "data_criacao",
+        "destino_de_interesse",
+        "quantidade_de_pessoas",
+        "vendedor",
+        "resumo"
+      ],
+      "pageSize": 8,
+      "dataSource": "kommo_leads_ecologica",
+      "sourceTable": "kommo_leads_ecologica",
+      "targetMetric": "leads_list"
+    },
+    "position": 11,
+    "size": "large",
+    "is_visible": true,
+    "created_at": "2026-02-19T15:55:43.669336+00:00",
+    "updated_at": "2026-02-19T16:03:44.185755+00:00"
+  }
+]

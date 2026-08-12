@@ -1,8 +1,8 @@
 """
 Cliente HTTP direto à API v4 do Kommo (Bearer + subdomínio).
 
-Use quando os tokens já estão disponíveis (OAuth Kommo, integração Composio que grava
-`access_token` + `subdomain` em `crm_auditor_connections.credentials`, etc.).
+Use quando os tokens já estão disponíveis (OAuth Kommo grava `access_token` +
+`subdomain` em `crm_auditor_connections.credentials`).
 """
 from __future__ import annotations
 
@@ -243,19 +243,48 @@ class KommoHttpClient:
         return out
 
     async def list_custom_fields(self, tenant_id: str) -> list[dict[str, Any]]:
+        """Catálogo de campos custom de leads + contatos + empresas.
+
+        Cada item é tagueado com `_auditor_entity_type` ('leads'|'contacts'|'companies')
+        para o sync_service gravar com o entity_type correto. Sem isso, campos de contato
+        (EMAIL/PHONE) nunca eram descobertos — só os de lead.
+        """
         _ = tenant_id
-        try:
-            async with self._client() as client:
-                resp = await client.get("/api/v4/leads/custom_fields")
-            if resp.status_code in (404, 204):
-                return []
-            resp.raise_for_status()
-            body = resp.json()
-            emb = body.get("_embedded") or {}
-            for key in ("custom_fields", "leads"):
-                items = emb.get(key)
+        out: list[dict[str, Any]] = []
+        for entity in ("leads", "contacts", "companies"):
+            try:
+                async with self._client() as client:
+                    resp = await client.get(f"/api/v4/{entity}/custom_fields")
+                if resp.status_code in (404, 204):
+                    continue
+                resp.raise_for_status()
+                body = resp.json()
+                emb = body.get("_embedded") or {}
+                items = emb.get("custom_fields")
                 if isinstance(items, list):
-                    return list(items)
-        except Exception as exc:
-            logger.warning("Kommo HTTP custom_fields: %s", exc)
-        return []
+                    for it in items:
+                        if isinstance(it, dict):
+                            tagged = dict(it)
+                            tagged["_auditor_entity_type"] = entity
+                            out.append(tagged)
+            except Exception as exc:
+                logger.warning("Kommo HTTP custom_fields %s: %s", entity, exc)
+        return out
+
+
+def build_kommo_client(connection_row: dict[str, Any] | None) -> KommoHttpClient:
+    """Constrói o cliente Kommo a partir de credentials.access_token + subdomain.
+
+    Composio foi removido do sistema: a única fonte suportada é o token direto
+    (OAuth Kommo grava access_token + subdomain em crm_auditor_connections.credentials).
+    Sem credenciais, falha alto — nunca cai em mock/dado fictício.
+    """
+    creds = dict((connection_row or {}).get("credentials") or {})
+    token = creds.get("access_token") or creds.get("accessToken")
+    sub = creds.get("subdomain")
+    if not (token and sub):
+        raise ValueError(
+            "Conexão Kommo sem credenciais: preencha credentials.access_token + "
+            "credentials.subdomain (token de longa duração do Kommo)."
+        )
+    return KommoHttpClient(str(token), str(sub))

@@ -2,19 +2,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
- * Sync Kommo → tabelas crm_* unificadas, via Composio.
+ * Sync Kommo → tabelas crm_* unificadas.
  *
- * Substitui o job APScheduler do backend Python (que estava offline). Lê
- * credenciais per-tenant de crm_auditor_connections.credentials:
- *   - composio_api_key
- *   - composio_user_id
- *   - composio_connected_account_id (também na coluna dedicada)
- *   - composio_execute_base_url (default: https://backend.composio.dev/api/v3.1)
- *   - value_config (opcional, ditá como derivar opportunity_value)
+ * Autenticação por token direto: `crm_auditor_connections.credentials` deve ter
+ * { subdomain, access_token } (Long-Lived Token) → bate em /api/v4 direto.
+ * (Composio foi removido do sistema.)
  *
  * MVP: sincroniza pipelines + stages + loss_reasons + users + leads. Contatos,
- * empresas e tasks ficam fora desta primeira versão — leads é o que move o
- * dashboard.
+ * empresas e tasks ficam fora — leads é o que move o dashboard.
  */
 
 const corsHeaders = {
@@ -28,9 +23,8 @@ interface SyncRequest {
 }
 
 interface KommoCredentials {
-  composio_api_key?: string;
-  composio_user_id?: string;
-  composio_execute_base_url?: string;
+  subdomain?: string;
+  access_token?: string;
 }
 
 interface ValueConfig {
@@ -40,14 +34,27 @@ interface ValueConfig {
   opportunity_field_id?: string;
 }
 
-// Composio tool slugs (mesmos do composio_tool_map.py)
+// Endpoint logical names.
 const T = {
-  LIST_PIPELINES: "KOMMO_LIST_LEADS_PIPELINES",
-  LIST_PIPELINE_STAGES: "KOMMO_LIST_PIPELINE_STAGES",
-  LIST_USERS: "KOMMO_LIST_USERS",
-  LIST_LEADS: "KOMMO_LIST_LEADS",
-  LIST_LOSS_REASONS: "KOMMO_LIST_LOSS_REASONS",
+  LIST_PIPELINES: "LIST_PIPELINES",
+  LIST_PIPELINE_STAGES: "LIST_PIPELINE_STAGES",
+  LIST_USERS: "LIST_USERS",
+  LIST_LEADS: "LIST_LEADS",
+  LIST_LOSS_REASONS: "LIST_LOSS_REASONS",
 } as const;
+
+type ToolName = keyof typeof T;
+
+// Mapeamento Kommo API v4.
+function directEndpoint(tool: ToolName, args: Record<string, unknown>): string {
+  switch (tool) {
+    case "LIST_PIPELINES":       return "/api/v4/leads/pipelines";
+    case "LIST_PIPELINE_STAGES": return `/api/v4/leads/pipelines/${args.pipeline_id}/statuses`;
+    case "LIST_USERS":           return "/api/v4/users";
+    case "LIST_LEADS":           return "/api/v4/leads";
+    case "LIST_LOSS_REASONS":    return "/api/v4/leads/loss_reasons";
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -59,10 +66,15 @@ serve(async (req) => {
     const { org_id }: SyncRequest = await req.json();
     if (!org_id) return json({ error: "org_id obrigatório" }, 400);
 
+    // SEM requireOrgAccess aqui: o pg_cron (sync_all_crm_connections, migration
+    // 20260522150000) chama esta function SEM Authorization. Fechar exige antes
+    // guardar a service_role key no Vault e enviá-la no net.http_post do cron.
+    // Risco aceito: só dispara sync (idempotente), não retorna dados de lead.
+
     // Lê connection Kommo
     const { data: connRow, error: connErr } = await supabase
       .from("crm_auditor_connections")
-      .select("id, credentials, composio_connected_account_id, value_config")
+      .select("id, credentials, value_config")
       .eq("tenant_id", org_id)
       .eq("provider", "kommo")
       .maybeSingle();
@@ -70,45 +82,20 @@ serve(async (req) => {
     if (!connRow) return json({ error: "Sem connection Kommo pra essa org" }, 404);
 
     const creds = (connRow.credentials ?? {}) as KommoCredentials;
-    const connectedAccountId = connRow.composio_connected_account_id as string | null;
-    if (!creds.composio_api_key || !creds.composio_user_id || !connectedAccountId) {
-      await markError(supabase, org_id, "Credenciais Composio incompletas (composio_api_key/composio_user_id/composio_connected_account_id).");
-      return json({ error: "Credenciais Composio incompletas" }, 400);
-    }
     const valueConfig = (connRow.value_config ?? {}) as ValueConfig;
-    const baseUrl = (creds.composio_execute_base_url ?? "https://backend.composio.dev/api/v3.1").replace(/\/+$/, "");
 
-    const exec = async (slug: string, args: Record<string, unknown>): Promise<unknown> => {
-      const resp = await fetch(`${baseUrl}/tools/execute/${slug}`, {
-        method: "POST",
-        headers: {
-          "x-api-key": creds.composio_api_key!,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          connected_account_id: connectedAccountId,
-          user_id: creds.composio_user_id,
-          arguments: args,
-        }),
-      });
-      const text = await resp.text();
-      let payload: Record<string, unknown>;
-      try { payload = text ? JSON.parse(text) : {}; }
-      catch { throw new Error(`Composio resposta inválida (HTTP ${resp.status}): ${text.slice(0, 200)}`); }
-      if (resp.status >= 400) throw new Error(`Composio HTTP ${resp.status}: ${text.slice(0, 300)}`);
-      if (payload.successful === false) throw new Error(`Composio falhou: ${JSON.stringify(payload.message ?? payload).slice(0, 300)}`);
-      const err = payload.error;
-      if (err) {
-        const msg = typeof err === "object" && err !== null
-          ? (err as { message?: string; slug?: string }).message ?? (err as { slug?: string }).slug ?? JSON.stringify(err)
-          : String(err);
-        throw new Error(`Composio: ${msg}`.slice(0, 300));
-      }
-      return parseInner(payload.data);
-    };
+    // Token direto é o único modo suportado.
+    if (!creds.subdomain || !creds.access_token) {
+      const missing = !creds.subdomain && !creds.access_token
+        ? "subdomain + access_token"
+        : !creds.subdomain ? "subdomain" : "access_token";
+      throw new Error(`Credenciais Kommo incompletas: faltando ${missing}.`);
+    }
+
+    const exec = makeDirectExec(creds.subdomain, creds.access_token);
 
     const paginate = async (
-      slug: string,
+      tool: ToolName,
       baseArgs: Record<string, unknown>,
       embeddedKey: string,
       maxPages = 999,
@@ -117,7 +104,7 @@ serve(async (req) => {
       let page = 1;
       const limit = 250;
       while (page <= maxPages) {
-        const data = await exec(slug, { ...baseArgs, page, limit });
+        const data = await exec(tool, { ...baseArgs, page, limit });
         const chunk = extractEmbeddedList(data, embeddedKey);
         if (chunk.length === 0) break;
         all.push(...chunk);
@@ -148,16 +135,17 @@ serve(async (req) => {
       if (Array.isArray(embedded) && embedded.length > 0) {
         stages = embedded.filter((x): x is Record<string, unknown> => typeof x === "object");
       } else {
-        const raw = await exec(T.LIST_PIPELINE_STAGES, { pipeline_id: Number(pid) });
-        stages = extractEmbeddedList(raw, "statuses");
-        if (stages.length === 0) stages = extractEmbeddedList(raw, "items");
+        const stagesRaw = await exec(T.LIST_PIPELINE_STAGES, { pipeline_id: Number(pid) });
+        stages = extractEmbeddedList(stagesRaw, "statuses");
+        if (stages.length === 0) stages = extractEmbeddedList(stagesRaw, "items");
       }
       for (const s of stages) {
         const sid = String(s.id);
-        const typeNum = Number(s.type ?? 0);
-        // Kommo: type 1 = won, type 2 = lost
+        // Kommo reserva IDs FIXOS p/ os terminais, em todo pipeline/conta:
+        // 142 = ganho (won), 143 = perdido (lost). O campo `type` NÃO indica
+        // won/lost (type=1 é "Incoming leads"/entrada) — casa pelo ID reservado.
         const stageType: "won" | "lost" | "progress" =
-          typeNum === 1 ? "won" : typeNum === 2 ? "lost" : "progress";
+          sid === "142" ? "won" : sid === "143" ? "lost" : "progress";
         stagesByExternalId.set(sid, stageType);
         stageRows.push({
           tenant_id: org_id,
@@ -188,7 +176,7 @@ serve(async (req) => {
     }));
 
     // ── Sync leads (paginado) ────────────────────────────────────────────
-    const leadsRaw = await paginate(T.LIST_LEADS, { with_params: ["contacts"] }, "leads");
+    const leadsRaw = await paginate(T.LIST_LEADS, { with_params: ["contacts"], order: { updated_at: "desc" } }, "leads");
     const syncedAt = new Date().toISOString();
     const leadRows = leadsRaw.map((raw) => mapLeadRow(raw, org_id, stagesByExternalId, lossByExternalId, valueConfig, syncedAt));
 
@@ -204,6 +192,26 @@ serve(async (req) => {
     if (stageRows.length > 0)    await upsert("crm_stages",    stageRows,    "tenant_id,pipeline_external_id,external_id");
     if (userRows.length > 0)     await upsert("crm_users",     userRows,     "tenant_id,external_id");
     if (leadRows.length > 0)     await upsert("crm_leads",     leadRows,     "tenant_id,external_id");
+
+    // ── Reconciliação (delete-missing): a sync é autoritativa. Apaga o que NÃO
+    // voltou da API (lead removido no Kommo, lixo de syncs antigas/mock) → contagem
+    // fica exata, não só crescente. Guard: só reconcilia se a API trouxe algo.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const reconcile = async (table: string, keyCol: string, fetchedIds: string[]) => {
+      if (fetchedIds.length === 0) return;
+      const fetched = new Set(fetchedIds.map(String));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existing } = await (supabase as any).from(table).select(keyCol).eq("tenant_id", org_id);
+      const stale = (existing ?? [])
+        .map((r: Record<string, unknown>) => String(r[keyCol]))
+        .filter((id: string) => !fetched.has(id));
+      for (let i = 0; i < stale.length; i += 100) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from(table).delete().eq("tenant_id", org_id).in(keyCol, stale.slice(i, i + 100));
+      }
+    };
+    await reconcile("crm_leads", "external_id", leadRows.map((r) => String(r.external_id)));
+    await reconcile("crm_pipelines", "external_id", pipelineRows.map((r) => String(r.external_id)));
 
     // Status final
     await supabase
@@ -241,14 +249,58 @@ serve(async (req) => {
   }
 });
 
-function parseInner(raw: unknown): unknown {
-  if (raw == null) return null;
-  if (typeof raw === "string") {
-    const trimmed = raw.trim();
-    if (!trimmed) return null;
-    try { return JSON.parse(trimmed); } catch { return trimmed; }
-  }
-  return raw;
+type ExecFn = (tool: ToolName, args: Record<string, unknown>) => Promise<unknown>;
+
+function makeDirectExec(subdomain: string, accessToken: string): ExecFn {
+  const cleanSubdomain = subdomain.trim().replace(/^https?:\/\//, "").replace(/\.kommo\.com.*$/i, "");
+  const baseUrl = `https://${cleanSubdomain}.kommo.com`;
+  return async (tool, args) => {
+    const path = directEndpoint(tool, args);
+    const url = new URL(baseUrl + path);
+    // Pagina + limit + with via query string. Mapeamento:
+    //  - page → page; limit → limit; with_params → with (CSV)
+    if (args.page) url.searchParams.set("page", String(args.page));
+    if (args.limit) url.searchParams.set("limit", String(args.limit));
+    if (Array.isArray(args.with_params)) {
+      url.searchParams.set("with", (args.with_params as string[]).join(","));
+    }
+    // Ordenação Kommo v4: order[updated_at]=desc → puxa a fatia mais fresca 1º.
+    if (args.order && typeof args.order === "object") {
+      for (const [k, v] of Object.entries(args.order as Record<string, string>)) {
+        url.searchParams.set(`order[${k}]`, String(v));
+      }
+    }
+    // Incremental (opcional): só leads atualizados após o watermark (epoch s).
+    if (args.updated_after != null) {
+      url.searchParams.set("filter[updated_at][from]", String(args.updated_after));
+    }
+    const resp = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+    // 204 = empty page (Kommo retorna pra última página +1)
+    if (resp.status === 204) return {};
+    const text = await resp.text();
+    if (resp.status === 401 || resp.status === 403) {
+      // Mensagem amigável: o problema é credencial, não o sistema.
+      throw new Error(
+        "Token Kommo inválido ou expirado. Verifique o access_token (Long-Lived Token) " +
+        "e o subdomínio no painel do Kommo (Configurações → Integrações). " +
+        `Kommo respondeu ${resp.status}.`,
+      );
+    }
+    if (resp.status >= 400) {
+      throw new Error(`Kommo API ${tool} HTTP ${resp.status}: ${text.slice(0, 300)}`);
+    }
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`Kommo API ${tool} resposta inválida: ${text.slice(0, 200)}`);
+    }
+  };
 }
 
 function extractEmbeddedList(payload: unknown, key: string): Record<string, unknown>[] {

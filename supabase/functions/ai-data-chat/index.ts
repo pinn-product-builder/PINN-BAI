@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireOrgAccess, requireUser } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -296,23 +297,14 @@ async function buildDataContext(
     })(),
 
     // Source distribution (sem janela de período pra distribuição agregada)
-    supabase.from("leads").select("source").eq("org_id", orgId).limit(2000),
+    supabase.from("crm_leads").select("source").eq("tenant_id", orgId).limit(2000),
 
-    // RFM latest run
-    supabase
-      .from("rfm_analyses")
-      .select("rfm_score, rfm_segment, recency_days, frequency, monetary")
-      .eq("org_id", orgId)
-      .order("calculated_at", { ascending: false })
-      .limit(500),
+    // RFM/Churn removidos do produto (commit 131aaef) — tabelas rfm_analyses /
+    // churn_predictions não existem. Placeholders vazios mantêm os índices do
+    // Promise.all sem erro de DB em runtime.
+    Promise.resolve({ data: [], error: null }),
 
-    // Churn predictions
-    supabase
-      .from("churn_predictions")
-      .select("churn_probability, risk_level")
-      .eq("org_id", orgId)
-      .order("predicted_at", { ascending: false })
-      .limit(500),
+    Promise.resolve({ data: [], error: null }),
 
     // Customer health summary (counts by band)
     supabase
@@ -842,6 +834,11 @@ serve(async (req) => {
 
   try {
     const { messages, orgId, mode, dateRange, pathname, dashboardName, dashboardContext, intent, availableTables, persona, meeting_context } = await req.json();
+
+    const auth = orgId
+      ? await requireOrgAccess(req, orgId, corsHeaders)
+      : await requireUser(req, corsHeaders);
+    if (!auth.ok) return auth.response;
 
     // Provider selection: OpenAI preferred (when chave está configurada), Lovable como fallback.
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");

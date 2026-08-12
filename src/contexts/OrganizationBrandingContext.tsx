@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Organization } from "@/lib/types";
-import { setActiveOrgSlug, isDemoSlug } from "@/lib/featureFlags";
+import { setActiveOrgSlug, setActiveOrgGating, isDemoSlug } from "@/lib/featureFlags";
 
 export interface OrganizationBrandingContextType {
   organization: Organization | null;
@@ -36,6 +36,7 @@ export const OrganizationBrandingProvider: React.FC<{ children: React.ReactNode 
         setOrganization(null);
         resetToAdminTheme();
         setActiveOrgSlug(null);
+        setActiveOrgGating(null);
         setIsLoading(false);
         return;
       }
@@ -47,6 +48,7 @@ export const OrganizationBrandingProvider: React.FC<{ children: React.ReactNode 
         setOrganization(null);
         resetToAdminTheme();
         setActiveOrgSlug(null);
+        setActiveOrgGating(null);
         setIsLoading(false);
         return;
       }
@@ -60,15 +62,57 @@ export const OrganizationBrandingProvider: React.FC<{ children: React.ReactNode 
         // mesmo quando o UUID local não bate o hardcoded em featureFlags.
         const slug = (data as { slug?: string | null })?.slug ?? null;
         setActiveOrgSlug(slug);
-        // Org demo → invalida queries cacheadas com resultado "vazio" do
-        // Supabase (que rodaram antes do slug chegar). Garante refetch
-        // que agora cai no branch de mock.
-        if (isDemoSlug(slug)) {
-          queryClient.invalidateQueries();
+
+        // F1: carrega gating do banco (feature flags + visibilidade de menu) e
+        // popula o cache lido pelos helpers de featureFlags.ts. Falhas aqui
+        // deixam o cache no fallback hardcoded — gating nunca derruba a org.
+        const orgRow = data as unknown as {
+          org_type?: string | null;
+          is_demo_org?: boolean | null;
+          default_landing_path?: string | null;
+        };
+        const [flagsRes, menuRes] = await Promise.all([
+          supabase.from("org_feature_flags").select("flag_key, enabled").eq("org_id", targetOrgId),
+          supabase.from("org_menu_visibility").select("menu_key, visible").eq("org_id", targetOrgId),
+        ]);
+
+        // Guarda de ordem de deploy: se as tabelas de gating ainda não existem
+        // (migration F1 não aplicada), as queries erram (relation does not
+        // exist). Nesse caso NÃO setamos o snapshot — os helpers continuam no
+        // fallback hardcoded e o modo demo da Arguto não quebra.
+        if (flagsRes.error || menuRes.error) {
+          setActiveOrgGating(null);
+          if (isDemoSlug(slug)) queryClient.invalidateQueries();
+        } else {
+          const featureFlags: Record<string, boolean> = {};
+          for (const r of (flagsRes.data ?? []) as Array<{ flag_key: string; enabled: boolean }>) {
+            featureFlags[r.flag_key] = r.enabled;
+          }
+          const menuVisibility: Record<string, boolean> = {};
+          for (const r of (menuRes.data ?? []) as Array<{ menu_key: string; visible: boolean }>) {
+            menuVisibility[r.menu_key] = r.visible;
+          }
+          setActiveOrgGating({
+            orgId: targetOrgId,
+            slug,
+            orgType: orgRow.org_type ?? null,
+            isDemoOrg: !!orgRow.is_demo_org,
+            defaultLandingPath: orgRow.default_landing_path ?? null,
+            featureFlags,
+            menuVisibility,
+          });
+
+          // Org demo → invalida queries cacheadas com resultado "vazio" do
+          // Supabase (que rodaram antes do gating chegar). Garante refetch
+          // que agora cai no branch de mock.
+          if (isDemoSlug(slug) || orgRow.is_demo_org) {
+            queryClient.invalidateQueries();
+          }
         }
       } else {
         resetToAdminTheme();
         setActiveOrgSlug(null);
+        setActiveOrgGating(null);
       }
       setIsLoading(false);
     };

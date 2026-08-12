@@ -11,17 +11,28 @@ import {
   endOfDay,
   startOfWeek,
   endOfWeek,
+  startOfMonth,
+  endOfMonth,
   startOfQuarter,
   endOfQuarter,
   startOfYear,
   endOfYear,
   subDays,
+  subMonths,
   parse,
   isValid,
   format,
 } from 'date-fns';
 
-export type QuickPeriod = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
+export type QuickPeriod =
+  | 'today'
+  | 'week'
+  | 'last_15d'
+  | 'month'
+  | 'prev_month'
+  | 'quarter'
+  | 'year'
+  | 'custom';
 
 export interface DateRange {
   start: Date;
@@ -63,8 +74,14 @@ function computeDateRange(
         start: startOfWeek(now, { weekStartsOn: 1 }),
         end: endOfWeek(now, { weekStartsOn: 1 }),
       };
+    case 'last_15d':
+      return { start: startOfDay(subDays(now, 14)), end: endOfDay(now) };
     case 'month':
       return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
+    case 'prev_month': {
+      const prev = subMonths(now, 1);
+      return { start: startOfMonth(prev), end: endOfMonth(prev) };
+    }
     case 'quarter':
       return { start: startOfQuarter(now), end: endOfQuarter(now) };
     case 'year':

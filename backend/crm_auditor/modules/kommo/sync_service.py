@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from crm_auditor.modules.kommo.composio_client import build_kommo_remote_client
+from crm_auditor.modules.kommo.kommo_http_client import build_kommo_client
 from crm_auditor.modules.kommo import mapper
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class AuditorSyncService:
         await self._set_connection_sync("syncing", None)
 
         try:
-            client = build_kommo_remote_client(self.connection_row)
+            client = build_kommo_client(self.connection_row)
             raw_pipelines = await client.list_pipelines(self.tenant_id)
             pipeline_rows = [mapper.map_pipeline_row(self.tenant_id, p, synced_at) for p in raw_pipelines]
             if pipeline_rows:
@@ -89,6 +89,20 @@ class AuditorSyncService:
                 ).execute()
             stats["users"] = len(user_rows)
 
+            # Catálogo de motivos de perda precisa estar disponível antes do map dos leads
+            # para resolver loss_reason_id -> nome textual (caso contrário lost_reason
+            # acaba exibindo o ID cru, ex: "3503").
+            extended_catalog: dict[str, Any] = {}
+            fc = getattr(client, "fetch_extended_catalog", None)
+            if callable(fc):
+                try:
+                    extended_catalog = await fc()
+                except Exception as exc:
+                    logger.warning("Catálogo estendido (fontes/motivos): %s", exc)
+            loss_reasons_by_id = mapper.build_loss_reason_index(
+                extended_catalog.get("loss_reasons") if isinstance(extended_catalog, dict) else None
+            )
+
             page, all_leads = 1, []
             while True:
                 chunk = await client.list_leads(self.tenant_id, page=page, limit=250)
@@ -99,12 +113,31 @@ class AuditorSyncService:
                     break
                 page += 1
 
-            lead_rows = [mapper.map_lead_row(self.tenant_id, raw, stage_index, synced_at) for raw in all_leads]
+            value_config = self.connection_row.get("value_config") or {}
+            lead_rows = [
+                mapper.map_lead_row(
+                    self.tenant_id, raw, stage_index, synced_at, loss_reasons_by_id, value_config
+                )
+                for raw in all_leads
+            ]
             if lead_rows:
                 await self.db.table("crm_leads").upsert(
                     lead_rows, on_conflict="tenant_id,external_id"
                 ).execute()
             stats["leads"] = len(lead_rows)
+
+            # ── Reconciliação: o cliente é a fonte autoritativa. Apaga do banco o que
+            # não voltou da API (lead removido no Kommo, ou lixo de syncs antigas como o
+            # pipeline fantasma 5001 do mock). Sem isso a contagem só cresce e nunca bate.
+            stats["deleted_leads"] = await self._reconcile_simple(
+                "crm_leads", {str(r["external_id"]) for r in lead_rows}
+            )
+            stats["deleted_pipelines"] = await self._reconcile_simple(
+                "crm_pipelines", {str(r["external_id"]) for r in pipeline_rows}
+            )
+            stats["deleted_stages"] = await self._reconcile_stages(
+                {(str(r["pipeline_external_id"]), str(r["external_id"])) for r in stage_rows}
+            )
 
             page, all_contacts = 1, []
             while True:
@@ -115,12 +148,19 @@ class AuditorSyncService:
                 if len(chunk) < 250:
                     break
                 page += 1
-            contact_rows = [mapper.map_contact_row(self.tenant_id, c, synced_at) for c in all_contacts]
+            contact_field_map = await self._load_contact_field_map()
+            contact_rows = [
+                mapper.map_contact_row(self.tenant_id, c, synced_at, contact_field_map)
+                for c in all_contacts
+            ]
             if contact_rows:
                 await self.db.table("crm_norm_contacts").upsert(
                     contact_rows, on_conflict="tenant_id,external_id"
                 ).execute()
             stats["contacts"] = len(contact_rows)
+            stats["deleted_contacts"] = await self._reconcile_simple(
+                "crm_norm_contacts", {str(r["external_id"]) for r in contact_rows}
+            )
 
             page, all_companies = 1, []
             while True:
@@ -170,6 +210,16 @@ class AuditorSyncService:
                 ).execute()
             stats["custom_fields"] = len(cf_rows)
 
+            # Auto-detecta email/phone no catálogo recém-descoberto (idempotente;
+            # do-nothing em conflito → não sobrescreve confirmação humana na UI).
+            # Tira o EMAIL/PHONE hardcoded do mapper; a próxima sync já usa o mapeamento.
+            try:
+                await self.db.rpc(
+                    "seed_org_field_mappings", {"_tenant_id": self.tenant_id}
+                ).execute()
+            except Exception as exc:
+                logger.warning("seed_org_field_mappings: %s", exc)
+
             list_notes = getattr(client, "list_all_entity_notes", None)
             if callable(list_notes):
                 try:
@@ -208,14 +258,6 @@ class AuditorSyncService:
                     stats["conversations"] = len(c_rows)
                 except Exception as exc:
                     logger.warning("Sync conversas Kommo: %s", exc)
-
-            extended_catalog: dict[str, Any] = {}
-            fc = getattr(client, "fetch_extended_catalog", None)
-            if callable(fc):
-                try:
-                    extended_catalog = await fc()
-                except Exception as exc:
-                    logger.warning("Catálogo estendido (fontes/motivos): %s", exc)
 
             await (
                 self.db.table("crm_snapshots")
@@ -264,6 +306,93 @@ class AuditorSyncService:
             )
             await self._set_connection_sync("failed", msg, finished)
             raise
+
+    async def _load_contact_field_map(self) -> dict[str, dict[str, str | None]]:
+        """Lê org_field_mappings (entity contact) → {'email': {'code','id'}, 'phone': {...}}.
+
+        É o que tira o EMAIL/PHONE hardcoded do mapper: a sync já auto-detecta esses
+        campos (seed_org_field_mappings) e aqui passamos a resolução pro mapper.
+        """
+        try:
+            res = await (
+                self.db.table("org_field_mappings")
+                .select("logical_field, source_code, source_external_id")
+                .eq("tenant_id", self.tenant_id)
+                .eq("entity_type", "contact")
+                .execute()
+            )
+        except Exception as exc:
+            logger.warning("org_field_mappings indisponível (%s) — fallback EMAIL/PHONE", exc)
+            return {}
+        fm: dict[str, dict[str, str | None]] = {}
+        for r in res.data or []:
+            lf = r.get("logical_field")
+            if lf in ("email", "phone"):
+                ext = r.get("source_external_id")
+                fm[lf] = {"code": r.get("source_code"), "id": str(ext) if ext is not None else None}
+        return fm
+
+    async def _reconcile_simple(self, table: str, fetched_ids: set[str]) -> int:
+        """Apaga linhas do tenant cujo external_id não veio da API (delete-missing).
+
+        Segurança: só reconcilia quando a API retornou ALGO (fetched_ids não-vazio).
+        Um fetch vazio normalmente é erro/conta sem permissão — nesse caso não apagamos
+        nada para evitar zerar o tenant por engano.
+        """
+        if not fetched_ids:
+            return 0
+        res = (
+            await self.db.table(table)
+            .select("external_id")
+            .eq("tenant_id", self.tenant_id)
+            .execute()
+        )
+        existing = {str(r["external_id"]) for r in (res.data or []) if r.get("external_id") is not None}
+        stale = sorted(existing - fetched_ids)
+        if not stale:
+            return 0
+        for i in range(0, len(stale), 100):
+            chunk = stale[i : i + 100]
+            await (
+                self.db.table(table)
+                .delete()
+                .eq("tenant_id", self.tenant_id)
+                .in_("external_id", chunk)
+                .execute()
+            )
+        logger.info("Reconcile %s tenant=%s: %s removido(s)", table, self.tenant_id, len(stale))
+        return len(stale)
+
+    async def _reconcile_stages(self, fetched_keys: set[tuple[str, str]]) -> int:
+        """Stages usam chave composta (pipeline_external_id, external_id) — status 142/143
+        são compartilhados entre pipelines, então não dá para reconciliar só por external_id.
+        """
+        if not fetched_keys:
+            return 0
+        res = (
+            await self.db.table("crm_stages")
+            .select("pipeline_external_id, external_id")
+            .eq("tenant_id", self.tenant_id)
+            .execute()
+        )
+        existing = {
+            (str(r["pipeline_external_id"]), str(r["external_id"]))
+            for r in (res.data or [])
+            if r.get("external_id") is not None
+        }
+        stale = sorted(existing - fetched_keys)
+        for pipe, ext in stale:
+            await (
+                self.db.table("crm_stages")
+                .delete()
+                .eq("tenant_id", self.tenant_id)
+                .eq("pipeline_external_id", pipe)
+                .eq("external_id", ext)
+                .execute()
+            )
+        if stale:
+            logger.info("Reconcile crm_stages tenant=%s: %s removido(s)", self.tenant_id, len(stale))
+        return len(stale)
 
     async def _set_connection_sync(self, status: str, error: str | None, finished_at: str | None = None) -> None:
         conn_id = self.connection_row.get("id")

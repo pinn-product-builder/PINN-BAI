@@ -33,6 +33,7 @@ import { buildExecutiveBrief, splitActionHorizons, fmtMoney, fmtNum, fmtPct, tie
 import { isDemoOrg } from "@/lib/featureFlags";
 import { DEMO_CRM_AUDIT_DASHBOARD, DEMO_CRM_AI_REPORT } from "@/data/arguto-extra-demo";
 import { fetchCrmAuditDashboard, buildDeterministicAnalysisReport } from "@/lib/crmAuditFromViews";
+import { useFilters } from "@/hooks/useFilters";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 // Backend Python legado (`/crm/audit/dashboard`) foi descomissionado. Hoje o
@@ -62,11 +63,12 @@ const TOOLTIP_STYLE = {
 };
 
 // ─── Data fetch ───────────────────────────────────────────────────────────────
-async function fetchDashboard(tenantId: string) {
+async function fetchDashboard(tenantId: string, dateRange?: { start: string; end: string }) {
   // Modo demo (Arguto): retorna snapshot pré-curado sem tocar o banco.
   if (isDemoOrg(tenantId)) return DEMO_CRM_AUDIT_DASHBOARD;
-  // Snapshot real: assembla a partir das views agregadas no Supabase.
-  return await fetchCrmAuditDashboard(tenantId);
+  // Snapshot real: usa RPC server-side quando há janela temporal (números
+  // batem com o dashboard cliente), senão cai para o caminho das views.
+  return await fetchCrmAuditDashboard(tenantId, dateRange ? { dateRange } : {});
 }
 
 // ─── Severity helpers ─────────────────────────────────────────────────────────
@@ -142,8 +144,8 @@ function Section({ title, subtitle, accent, children, id }: {
 }
 
 // ─── Metric card ─────────────────────────────────────────────────────────────
-function MetricCard({ label, value, warn, highlight, hint }: {
-  label: string; value: string; warn?: boolean; highlight?: boolean; hint?: string;
+function MetricCard({ label, value, warn, highlight, hint, tooltip }: {
+  label: string; value: string; warn?: boolean; highlight?: boolean; hint?: string; tooltip?: string;
 }) {
   return (
     <Box sx={{
@@ -172,9 +174,18 @@ function MetricCard({ label, value, warn, highlight, hint }: {
         background: "linear-gradient(90deg, #EF4444, #F87171)",
       } : undefined,
     }}>
-      <Typography variant="caption" sx={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary" }}>
-        {label}
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Typography variant="caption" sx={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary" }}>
+          {label}
+        </Typography>
+        {tooltip && (
+          <MuiTooltip title={<Typography variant="caption" sx={{ whiteSpace: "pre-line" }}>{tooltip}</Typography>} placement="top" arrow>
+            <Box component="span" sx={{ display: "inline-flex", color: "text.disabled", cursor: "help", "&:hover": { color: "text.secondary" } }}>
+              <Box component="svg" width={11} height={11} viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="4.5" r="0.9"/><rect x="7.3" y="6.5" width="1.4" height="5.2" rx="0.5"/></Box>
+            </Box>
+          </MuiTooltip>
+        )}
+      </Stack>
       <Typography variant="h6" fontWeight={800} letterSpacing="-0.03em" sx={{ mt: 0.75, lineHeight: 1.1, color: highlight ? ORANGE : warn ? "error.main" : "text.primary", fontVariantNumeric: "tabular-nums" }}>
         {value}
       </Typography>
@@ -360,7 +371,7 @@ function EvidenceBlock({ id, title, subtitle, rows, universeTotal, emptyHint }: 
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ bgcolor: "action.hover" }}>
-                    {["Entidade", "Responsável", "Pipeline / Etapa", "Valor", "Prazo", "Diagnóstico", "Sev.", "Ação"].map(h => (
+                    {["Entidade", "Responsável", "Pipeline / Etapa", "Valor", "Última atividade", "Diagnóstico", "Sev.", "Ação"].map(h => (
                       <TableCell key={h} sx={{ fontSize: "0.63rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "text.secondary", py: 1, whiteSpace: "nowrap" }}>{h}</TableCell>
                     ))}
                   </TableRow>
@@ -432,9 +443,13 @@ export default function CrmAuditDashboard() {
   const [analyzing, setAnalyzing] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
+  // Janela temporal global — quando o usuário muda o filtro, a auditoria
+  // recalcula via RPC server-side e fica em sincronia com os cards do dashboard.
+  const { dateRangeISO } = useFilters();
+
   const { data, error, isFetching, refetch } = useQuery({
-    queryKey: ["crm-audit-dashboard", tenantId],
-    queryFn: () => fetchDashboard(tenantId),
+    queryKey: ["crm-audit-dashboard", tenantId, dateRangeISO.start, dateRangeISO.end],
+    queryFn: () => fetchDashboard(tenantId, dateRangeISO),
     enabled: !!tenantId,
     staleTime: 60_000,
     retry: 1,
@@ -452,7 +467,7 @@ export default function CrmAuditDashboard() {
     try {
       // Best-effort: dispara sync no backend legado se existir; do contrário
       // só revalida o snapshot a partir das views Supabase. O re-sync real do
-      // Kommo agora é feito pelo módulo /crm-auditor (Hono + Composio).
+      // Kommo agora é feito pelo módulo /crm-auditor (conexão direta por token).
       try {
         await fetch(`${BACKEND}/crm/kommo/sync`, {
           method: "POST",
@@ -516,6 +531,7 @@ export default function CrmAuditDashboard() {
   const strengths = (data?.strengths ?? []) as { title?: string; detail?: string }[];
   const samples = (data?.samples ?? {}) as { counts?: Record<string, number>; stuck_leads?: unknown[]; no_next_action_leads?: unknown[]; overdue_tasks?: unknown[] };
   const stageDist = (data?.stage_distribution ?? []) as { stage_name?: string; lead_count?: number; pct_of_open_pipeline?: number }[];
+  const funnelVelocity = (data?.funnel_velocity ?? []) as { stage_name?: string; avg_days_in_stage?: number; median_days_in_stage?: number }[];
   // lost_reasons may be raw IDs — resolve names from extended_catalog
   const lossReasonMap = new Map<string, string>(
     ((data?.extended_catalog as Record<string, unknown>)?.loss_reasons as { id: number; name: string }[] ?? []).map(r => [String(r.id), r.name])
@@ -677,20 +693,82 @@ export default function CrmAuditDashboard() {
 
         {/* Error */}
         {error && !data && (
-          <Alert severity="error" sx={{ mb: 2, borderRadius: "10px" }}>
-            <strong>Erro ao carregar relatório</strong><br />
-            <Typography variant="caption">{String((error as Error).message)}</Typography>
-          </Alert>
-        )}
-
-        {/* Empty state */}
-        {!data && !loading && !error && (
-          <Stack alignItems="center" spacing={2} sx={{ py: 10 }}>
-            <Typography color="text.secondary">Clique em <strong>Atualizar dados</strong> para gerar o snapshot da auditoria.</Typography>
+          <Stack alignItems="center" spacing={2} sx={{ py: 8, px: 2, textAlign: "center" }}>
+            <Box sx={{ width: 56, height: 56, borderRadius: "50%", bgcolor: "action.hover", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <WarningIcon sx={{ color: CHART_COLORS.amber, fontSize: 28 }} />
+            </Box>
+            <Stack spacing={0.5} alignItems="center">
+              <Typography variant="h6" fontWeight={700}>Não foi possível carregar a auditoria</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 480 }}>
+                Verifique se o CRM está conectado e tente atualizar os dados. Se o problema persistir, entre em contato com o suporte da Pinn.
+              </Typography>
+            </Stack>
+            <Button
+              variant="outlined" size="small" startIcon={<RefreshIcon />}
+              onClick={handleRefresh} disabled={loading}
+              sx={{ borderColor: "divider", color: "text.secondary", fontWeight: 600, textTransform: "none", fontSize: "0.8rem", mt: 1 }}
+            >
+              Atualizar dados
+            </Button>
+            <Box component="details" sx={{ mt: 2, color: "text.secondary", fontSize: "0.72rem", "& summary": { cursor: "pointer", userSelect: "none" } }}>
+              <summary>Detalhes técnicos</summary>
+              <Typography variant="caption" component="div" sx={{ mt: 1, fontFamily: "monospace", color: "text.disabled", maxWidth: 600, wordBreak: "break-word" }}>
+                {String((error as Error).message)}
+              </Typography>
+            </Box>
           </Stack>
         )}
 
-        {data && (
+        {/* Empty state — antes do primeiro sync */}
+        {!data && !loading && !error && (
+          <Stack alignItems="center" spacing={2} sx={{ py: 10, px: 2, textAlign: "center" }}>
+            <Box sx={{ width: 56, height: 56, borderRadius: "50%", bgcolor: ORANGE_SOFT, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <RefreshIcon sx={{ color: ORANGE, fontSize: 28 }} />
+            </Box>
+            <Stack spacing={0.5} alignItems="center">
+              <Typography variant="h6" fontWeight={700}>Snapshot ainda não gerado</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 480 }}>
+                Sincronize o CRM para gerar o primeiro retrato da operação. O processo leva alguns minutos.
+              </Typography>
+            </Stack>
+            <Button
+              variant="contained" size="small" startIcon={<RefreshIcon />}
+              onClick={handleRefresh} disabled={loading}
+              sx={{ background: `linear-gradient(135deg, ${ORANGE}, #EA580C)`, fontWeight: 600, textTransform: "none", fontSize: "0.8rem", boxShadow: "0 4px 12px rgba(249,115,22,0.3)", mt: 1 }}
+            >
+              Atualizar dados
+            </Button>
+          </Stack>
+        )}
+
+        {/* Empty state — data carregou mas o CRM está vazio (sem leads) */}
+        {data && totalLeads === 0 && (
+          <Stack alignItems="center" spacing={2} sx={{ py: 10, px: 2, textAlign: "center" }}>
+            <Box sx={{ width: 56, height: 56, borderRadius: "50%", bgcolor: "action.hover", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <SearchIcon sx={{ color: "text.secondary", fontSize: 28 }} />
+            </Box>
+            <Stack spacing={0.5} alignItems="center">
+              <Typography variant="h6" fontWeight={700}>Nenhuma movimentação encontrada</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 520 }}>
+                O CRM está conectado, mas não retornou leads no período. Verifique se a sincronização está ativa e se há oportunidades cadastradas no Kommo.
+              </Typography>
+              {lastSync && (
+                <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5 }}>
+                  Última sincronização: {lastSync}
+                </Typography>
+              )}
+            </Stack>
+            <Button
+              variant="outlined" size="small" startIcon={<RefreshIcon />}
+              onClick={handleRefresh} disabled={loading}
+              sx={{ borderColor: "divider", color: "text.secondary", fontWeight: 600, textTransform: "none", fontSize: "0.8rem", mt: 1 }}
+            >
+              Verificar sincronização
+            </Button>
+          </Stack>
+        )}
+
+        {data && totalLeads > 0 && (
           <>
             {/* ── Tab 0: Scoreboard ── */}
             {tab === 0 && (
@@ -750,14 +828,56 @@ export default function CrmAuditDashboard() {
                   <MetricCard label="Perdidas" value={fmtNum(ov.total_lost_leads)} />
                 </Box>
 
+                <GroupLabel>Qualificação dos contatos</GroupLabel>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.75, mb: 3 }}>
+                  {(() => {
+                    const pt = (data?.person_type_distribution ?? {}) as Record<string, number | undefined>;
+                    const total = Number(pt.total_contacts ?? 0);
+                    const pj = Number(pt.pj_count ?? 0);
+                    const pf = Number(pt.pf_count ?? 0);
+                    const unk = Number(pt.unknown_count ?? 0);
+                    const pjPct = Number(pt.pj_pct ?? 0);
+                    return (
+                      <>
+                        <MetricCard
+                          label="Contatos PJ (CNPJ)"
+                          value={total > 0 ? `${fmtNum(pj)} · ${pjPct.toFixed(1)}%` : "—"}
+                          tooltip={"Contatos identificados como pessoa jurídica via CNPJ no Kommo ou empresa vinculada. Indicador-chave para operações B2B."}
+                        />
+                        <MetricCard
+                          label="Contatos PF (CPF)"
+                          value={total > 0 ? fmtNum(pf) : "—"}
+                          warn={total > 0 && pf > pj}
+                          tooltip={"Contatos identificados como pessoa física via CPF. Em operação B2B, volume alto de PF pode indicar ruído na captura."}
+                        />
+                        <MetricCard
+                          label="Sem identificação"
+                          value={total > 0 ? `${fmtNum(unk)}` : "—"}
+                          warn={total > 0 && unk / Math.max(1, total) > 0.3}
+                          tooltip={"Contatos sem CPF/CNPJ preenchido no Kommo. Padronizar a captura desse campo melhora a qualificação automática."}
+                        />
+                        <MetricCard
+                          label="Base contatos"
+                          value={fmtNum(total)}
+                        />
+                      </>
+                    );
+                  })()}
+                </Box>
+
                 <GroupLabel>Indicadores financeiros</GroupLabel>
                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: "repeat(4, 1fr)" }, gap: 1.75, mb: 3 }}>
-                  <MetricCard label="Valor em aberto" value={fmtMoney(ov.total_open_pipeline_value)} highlight />
+                  <MetricCard
+                    label="Pipeline em aberto"
+                    value={fmtMoney(ov.total_open_pipeline_value)}
+                    highlight
+                    tooltip={"Soma do valor da oportunidade comercial dos leads em aberto.\n\nExibe R$0 enquanto a connection não tiver value_config definido — o valor cru do CRM pode representar a dívida do lead (não a oportunidade real) e somá-lo daria um forecast falso.\n\nConfigure em crm_auditor_connections.value_config para ativar o cálculo."}
+                  />
                   <MetricCard label="Valor ganho" value={fmtMoney(fin.won_pipeline_value as number)} />
-                  <MetricCard label="Ticket médio (abertas)" value={fmtMoney(fin.avg_ticket_open as number)} />
+                  <MetricCard label="Ticket médio (abertas)" value={fmtMoney(fin.avg_ticket_open as number)} tooltip={"Pipeline em aberto ÷ número de oportunidades em aberto. Útil para estimar quanto a empresa fatura por lead que entra no funil."} />
                   <MetricCard label="Concentração top 3" value={fmtPct(fin.open_value_concentration_top3_pct as number, 2)} />
-                  <MetricCard label="Taxa de ganho" value={winRate ? `${winRate}%` : "—"} />
-                  <MetricCard label="Taxa de perda" value={lossRate ? `${lossRate}%` : "—"} />
+                  <MetricCard label="Taxa de ganho" value={winRate ? `${winRate}%` : "—"} tooltip={"Leads ganhos ÷ total de leads × 100. Inclui leads de todos os estágios."} />
+                  <MetricCard label="Taxa de perda" value={lossRate ? `${lossRate}%` : "—"} tooltip={"Leads perdidos ÷ total de leads × 100."} />
                 </Box>
 
                 <GroupLabel>Atrito e higiene</GroupLabel>
@@ -899,6 +1019,34 @@ export default function CrmAuditDashboard() {
                       const maxLost = Math.max(1, ...stageLoss.map(r => Number(r.lost_count ?? 0)));
                       return stageLoss.slice(0, 12).map((s, i) => (
                         <StageBar key={i} name={String(s.stage_name ?? "—")} count={s.lost_count ?? 0} pct={(Number(s.lost_count ?? 0) / maxLost) * 100} color={CHART_COLORS.red} />
+                      ));
+                    })()}
+                  </>
+                )}
+
+                {funnelVelocity.length > 0 && (
+                  <>
+                    <Divider sx={{ my: 2.5 }} />
+                    <Typography variant="caption" sx={{ fontSize: "0.63rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "text.secondary", display: "block", mb: 1.5 }}>
+                      Tempo médio em cada etapa
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+                      Calculado como média de dias desde a última atualização dos leads abertos em cada estágio. Bom proxy para gargalo — quanto maior, mais lentos os avanços.
+                    </Typography>
+                    {(() => {
+                      const maxDays = Math.max(1, ...funnelVelocity.map(r => Number(r.avg_days_in_stage ?? 0)));
+                      return funnelVelocity.slice(0, 16).map((s, i) => (
+                        <Box key={i} sx={{ mb: 1 }}>
+                          <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.3 }}>
+                            <Typography variant="caption" sx={{ fontSize: "0.78rem", color: "text.primary" }}>{String(s.stage_name ?? "—")}</Typography>
+                            <Typography variant="caption" sx={{ fontSize: "0.72rem", color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>
+                              {fmtNum(s.avg_days_in_stage)}d média · {fmtNum(s.median_days_in_stage)}d mediana
+                            </Typography>
+                          </Stack>
+                          <Box sx={{ height: 6, borderRadius: 999, bgcolor: "action.hover", overflow: "hidden" }}>
+                            <Box sx={{ width: `${(Number(s.avg_days_in_stage ?? 0) / maxDays) * 100}%`, height: "100%", bgcolor: ORANGE, borderRadius: 999 }} />
+                          </Box>
+                        </Box>
                       ));
                     })()}
                   </>
@@ -1092,12 +1240,17 @@ export default function CrmAuditDashboard() {
               <Section title="Forecast e confiabilidade" subtitle={`Índice de confiança: ${fmtNum(execResolved.scores?.forecast_0_100)} — baseado em completude de valor, responsável e origem.`} accent>
                 <Grid container spacing={1.5} sx={{ mb: 3 }}>
                   {[
-                    { label: "Valor aberto total", value: fmtMoney(ov.total_open_pipeline_value), highlight: true },
-                    { label: "Confiabilidade (0–100)", value: fmtNum(execResolved.scores?.forecast_0_100) },
-                    { label: "Abertas sem valor", value: fmtNum(ov.open_leads_without_value), warn: (ov.open_leads_without_value ?? 0) > 0 },
-                    { label: "Concentração top 3 deals", value: fmtPct(fin.open_value_concentration_top3_pct as number, 2) },
+                    {
+                      label: "Forecast de receita",
+                      value: fmtMoney(((data?.forecast_revenue as Record<string, unknown> | undefined)?.value as number) ?? 0),
+                      highlight: true,
+                      tooltip: `Previsão de receita pelo método pipeline-weighted.\n\nComo é calculado: Σ(valor da oportunidade × probabilidade do estágio).\n\nA probabilidade do estágio é a posição relativa no funil (estágio inicial ≈ 0%, estágio final ≈ 100%). Leads sem opportunity_value não contribuem.\n\nLeads contribuindo: ${fmtNum(((data?.forecast_revenue as Record<string, unknown> | undefined)?.contributing_leads as number) ?? 0)} de ${fmtNum(((data?.forecast_revenue as Record<string, unknown> | undefined)?.total_open_leads as number) ?? 0)} abertas.`,
+                    },
+                    { label: "Pipeline em aberto", value: fmtMoney(ov.total_open_pipeline_value), tooltip: "Soma do valor da oportunidade comercial dos leads em aberto. Exibe R$0 enquanto a connection não tiver value_config definido." },
+                    { label: "Confiabilidade (0–100)", value: fmtNum(execResolved.scores?.forecast_0_100), tooltip: "Score 0–100 de qualidade do forecast: penaliza abertas sem valor, sem responsável, sem origem e duplicidades. Não é previsão de receita — só mede a confiabilidade dos dados." },
+                    { label: "Abertas sem valor", value: fmtNum(ov.open_leads_without_value), warn: (ov.open_leads_without_value ?? 0) > 0, tooltip: "Quantas oportunidades em aberto não têm opportunity_value preenchido. Cada uma vira R$0 no forecast." },
                   ].map((m, i) => (
-                    <Grid item xs={6} md={3} key={i}><MetricCard label={m.label} value={m.value} highlight={m.highlight} warn={m.warn} /></Grid>
+                    <Grid item xs={6} md={3} key={i}><MetricCard label={m.label} value={m.value} highlight={m.highlight} warn={m.warn} tooltip={m.tooltip} /></Grid>
                   ))}
                 </Grid>
 

@@ -137,11 +137,11 @@ export const useOrganizationStats = (orgId: string | undefined) => {
     queryFn: async () => {
       if (!orgId) return null;
 
-      // Get leads count
+      // Get leads count — crm_leads é a fonte de verdade (`leads` legada vazia). P1.2/P8.
       const { count: leadsCount, error: leadsError } = await supabase
-        .from('leads')
+        .from('crm_leads')
         .select('*', { count: 'exact', head: true })
-        .eq('org_id', orgId);
+        .eq('tenant_id', orgId);
 
       if (leadsError) throw leadsError;
 

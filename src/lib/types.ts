@@ -6,7 +6,7 @@ import type { Json } from '@/integrations/supabase/types';
 
 export type AppRole = 'platform_admin' | 'client_admin' | 'analyst' | 'viewer';
 export type OrgStatus = 'active' | 'suspended' | 'trial';
-export type IntegrationType = 'supabase' | 'google_sheets' | 'csv' | 'api' | 'ploomes' | 'coldmail' | 'smartlead';
+export type IntegrationType = 'supabase' | 'google_sheets' | 'csv' | 'api' | 'ploomes' | 'coldmail' | 'smartlead' | 'kommo' | 'omie';
 export type IntegrationStatus = 'pending' | 'connected' | 'error' | 'syncing';
 export type LeadSource = 'google_ads' | 'meta_ads' | 'linkedin' | 'referral' | 'organic' | 'email' | 'other';
 export type LeadStatus = 'new' | 'qualified' | 'in_analysis' | 'proposal' | 'converted' | 'lost';
@@ -328,6 +328,25 @@ export interface WidgetConfig {
   columns?: string[];
   pageSize?: number;
   format?: 'number' | 'currency' | 'percentage';
+
+  // === Mapeamento avançado (alinhado ao DashboardEngine) ===
+  /** Alias de metric usado em alguns presets */
+  metricField?: string;
+  /** Filtros server-side aplicados no fetch (ex.: { field_name: 'Origem Lead' }) */
+  filters?: Record<string, unknown>;
+  /** View já retorna dados agregados (1 row = 1 período de KPIs) */
+  isAggregatedView?: boolean;
+  /** Multi-série para gráficos de evolução */
+  dataKeys?: string[];
+  seriesLabels?: Record<string, string>;
+  /** Cor por série (nome da série → hex). Editável por widget; sobrepõe a paleta/defaults. */
+  seriesColors?: Record<string, string>;
+  /** Fórmula custom (nomes de colunas como variáveis); tem prioridade no metric_card */
+  formula?: string;
+  /** Exibir como percentual: multiplica o valor final por 100 (proporção → %). Reversível. */
+  percentScale?: boolean;
+  /** Coluna de data usada pelo filtro de período (ex.: created_at, day). Opt-in. */
+  dateField?: string;
 }
 
 // ============= Lead =============
@@ -486,7 +505,7 @@ export const targetMetricLabels: Record<TargetMetric, { label: string; descripti
   total_leads: { label: 'Total de Leads', description: 'Número total de leads no período', icon: 'users' },
   new_leads: { label: 'Novos Leads', description: 'Leads capturados recentemente', icon: 'user-plus' },
   conversions: { label: 'Conversões', description: 'Leads convertidos em clientes', icon: 'check-circle' },
-  conversion_rate: { label: 'Taxa de Conversão', description: 'Percentual de leads convertidos', icon: 'percent' },
+  conversion_rate: { label: 'Taxa de Conversão', description: 'Métrica ambígua — prefira lead→reunião, lead→fechamento ou conv. por etapa (ver tooltip do widget).', icon: 'percent' },
   revenue: { label: 'Receita Total', description: 'Soma de todas as vendas', icon: 'dollar-sign' },
   mrr: { label: 'MRR', description: 'Receita Recorrente Mensal', icon: 'trending-up' },
   growth_rate: { label: 'Taxa de Crescimento', description: 'Variação percentual no período', icon: 'arrow-up-right' },

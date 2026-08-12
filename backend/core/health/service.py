@@ -2,10 +2,15 @@
 CustomerHealthService — computa health score composto por cliente.
 
 Score 0-100 composto de 4 dimensões:
-  - Engajamento (35%): recência + frequência de atividades no CRM
-  - Receita (30%): valor monetário + tendência vs período anterior
-  - Momentum (20%): deals ativos no pipeline, velocidade de avanço
+  - Engajamento (35%): recência do último contato + interações registradas
+  - Receita (30%): valor da oportunidade comercial + segmento RFM (M score)
+  - Momentum (20%): estágio atual no funil (sort_order do crm_stages)
   - Lealdade (15%): segmento RFM + tempo como cliente
+
+Fonte de dados (Bug 5 — multi-canal):
+  Prioriza `crm_leads` (todos os canais: Kommo, indicação, LinkedIn, prospecção
+  ativa). Cai para `leads` (Meta Ads) apenas se o CRM não tiver dados — evita
+  ignorar clientes que chegaram por canais que não passam pelo adapter Meta.
 
 Gera alertas proativos quando detecta sinais de risco.
 """
@@ -64,6 +69,106 @@ class CustomerHealthService:
     def __init__(self, tenant_id: str) -> None:
         self.tenant_id = tenant_id
 
+    async def _fetch_population(self, db: Any) -> tuple[list[dict], str]:
+        """Busca a população de clientes priorizando o CRM (todos os canais).
+
+        Retorna (leads_normalizados, source_label). Cada lead normalizado tem
+        as chaves esperadas pelo cálculo: id, name, email, status, value,
+        created_at, updated_at, stage_order (opcional), interactions_30d
+        (opcional, contagem agregada de eventos+notas).
+        """
+        # 1ª escolha: crm_leads (Kommo, multi-canal). Pega todos os status.
+        crm_res = await db.table("crm_leads").select(
+            "external_id,name,lead_status,value,opportunity_value,"
+            "pipeline_external_id,stage_external_id,external_updated_at,"
+            "created_at,contact_external_id"
+        ).eq("tenant_id", self.tenant_id).execute()
+        crm_rows = crm_res.data or []
+
+        if crm_rows:
+            # Resolve sort_order do estágio para alimentar momentum.
+            stages_res = await db.table("crm_stages").select(
+                "pipeline_external_id,external_id,sort_order,stage_type"
+            ).eq("tenant_id", self.tenant_id).execute()
+            stage_by_key = {
+                (str(s["pipeline_external_id"]), str(s["external_id"])): s
+                for s in (stages_res.data or [])
+            }
+            # Email do contato primário (quando houver) — usado para juntar com RFM/churn legados.
+            contacts_res = await db.table("crm_norm_contacts").select(
+                "external_id,email"
+            ).eq("tenant_id", self.tenant_id).execute()
+            email_by_contact = {
+                str(c["external_id"]): (c.get("email") or None) for c in (contacts_res.data or [])
+            }
+            # Interações recentes (notas + eventos) agregadas por lead nos últimos 30 dias.
+            from_dt = (datetime.now(tz=timezone.utc) - timedelta(days=30)).isoformat()
+            notes_res = await db.table("crm_auditor_notes").select(
+                "entity_external_id,note_at"
+            ).eq("tenant_id", self.tenant_id).gte("note_at", from_dt).execute()
+            events_res = await db.table("crm_auditor_events").select(
+                "entity_external_id,occurred_at,entity_type"
+            ).eq("tenant_id", self.tenant_id).gte("occurred_at", from_dt).execute()
+            interactions_30d: dict[str, int] = {}
+            for n in (notes_res.data or []):
+                eid = str(n.get("entity_external_id") or "")
+                if eid:
+                    interactions_30d[eid] = interactions_30d.get(eid, 0) + 1
+            for e in (events_res.data or []):
+                if str(e.get("entity_type") or "") != "lead":
+                    continue
+                eid = str(e.get("entity_external_id") or "")
+                if eid:
+                    interactions_30d[eid] = interactions_30d.get(eid, 0) + 1
+
+            normalized: list[dict] = []
+            for row in crm_rows:
+                lead_id = str(row.get("external_id") or "")
+                stage_meta = stage_by_key.get(
+                    (str(row.get("pipeline_external_id") or ""), str(row.get("stage_external_id") or ""))
+                )
+                # Mapeia lead_status do CRM ao status interno usado pelo momentum_map.
+                lead_status_raw = (row.get("lead_status") or "open").lower()
+                if lead_status_raw == "won":
+                    status_label = "converted"
+                elif lead_status_raw == "lost":
+                    status_label = "lost"
+                else:
+                    # Aberto: deriva fase aproximada do sort_order do estágio para usar o momentum_map.
+                    so = (stage_meta or {}).get("sort_order")
+                    if so is None:
+                        status_label = "new"
+                    elif so <= 1:
+                        status_label = "new"
+                    elif so == 2:
+                        status_label = "qualified"
+                    elif so == 3:
+                        status_label = "in_analysis"
+                    else:
+                        status_label = "proposal"
+                # Valor comercial: prefere opportunity_value (após Bug 2 está populado quando há value_config).
+                opp = row.get("opportunity_value")
+                value = float(opp) if opp is not None else float(row.get("value") or 0)
+                normalized.append({
+                    "id": lead_id,
+                    "name": row.get("name") or "",
+                    "email": email_by_contact.get(str(row.get("contact_external_id") or "")),
+                    "status": status_label,
+                    "value": value,
+                    "created_at": row.get("created_at"),
+                    "updated_at": row.get("external_updated_at") or row.get("created_at"),
+                    "stage_order": (stage_meta or {}).get("sort_order"),
+                    "interactions_30d": interactions_30d.get(lead_id, 0),
+                })
+            return normalized, "crm_leads"
+
+        # Fallback: leads do adapter Meta Ads (ou outras integrações que escrevem aqui).
+        leads_res = await db.table("leads").select(
+            "id,name,email,status,value,created_at,updated_at"
+        ).eq("org_id", self.tenant_id).execute()
+        legacy = leads_res.data or []
+        return legacy, "leads"
+
     async def compute_all(self) -> dict:
         db = await get_db()
         now = datetime.now(tz=timezone.utc)
@@ -72,16 +177,14 @@ class CustomerHealthService:
 
         rfm_res = await db.table("customer_rfm_scores").select("*").eq("org_id", self.tenant_id).execute()
         churn_res = await db.table("customer_churn_scores").select("*").eq("org_id", self.tenant_id).execute()
-        leads_res = await db.table("leads").select(
-            "id,name,email,status,value,created_at,updated_at"
-        ).eq("org_id", self.tenant_id).execute()
 
         rfm_by_key: dict[str, dict] = {r["customer_key"]: r for r in (rfm_res.data or [])}
         churn_by_key: dict[str, dict] = {r["customer_key"]: r for r in (churn_res.data or [])}
-        leads: list[dict] = leads_res.data or []
+
+        leads, source_table = await self._fetch_population(db)
 
         if not leads:
-            return {"computed": 0, "alerts": 0}
+            return {"computed": 0, "alerts": 0, "source": source_table}
 
         # ── Calcular score por cliente ─────────────────────────────────────────
 
@@ -107,7 +210,9 @@ class CustomerHealthService:
                 frequency = int(rfm.get("frequency", 1))
             else:
                 recency_days = days_since_update
-                frequency = 1
+                # Quando vier do CRM, prefere interactions_30d real ao default 1
+                # (default 1 viciava o freq_score para 15pts em todo lead Meta).
+                frequency = int(lead.get("interactions_30d") or 1)
 
             recency_score = max(0, 100 - recency_days * 2)  # perde 2pts por dia
             freq_score = min(100, frequency * 15)
@@ -125,16 +230,30 @@ class CustomerHealthService:
                 revenue_score = monetary_score
 
             # ── Dimensão 3: Momentum (pipeline) ───────────────────────────────
+            # Para leads do CRM, prefere o sort_order real do estágio sobre o
+            # status mapeado — funciona com qualquer cliente (Kommo, indicação,
+            # LinkedIn) e respeita a configuração de funil específica do tenant.
             status = lead.get("status", "new")
-            momentum_map = {
-                "converted": 100,
-                "proposal": 85,
-                "in_analysis": 70,
-                "qualified": 55,
-                "new": 40,
-                "lost": 5,
-            }
-            momentum_score = momentum_map.get(status, 40)
+            stage_order = lead.get("stage_order")
+            if isinstance(stage_order, (int, float)) and stage_order is not None:
+                # Normaliza sort_order (1-N) numa escala 40-95 e ajusta para
+                # estágios finais (won/lost) via status já mapeado.
+                if status == "converted":
+                    momentum_score = 100
+                elif status == "lost":
+                    momentum_score = 5
+                else:
+                    momentum_score = _clamp(40 + min(stage_order, 6) * 9)
+            else:
+                momentum_map = {
+                    "converted": 100,
+                    "proposal": 85,
+                    "in_analysis": 70,
+                    "qualified": 55,
+                    "new": 40,
+                    "lost": 5,
+                }
+                momentum_score = momentum_map.get(status, 40)
 
             # ── Dimensão 4: Lealdade (RFM segment + idade) ────────────────────
             rfm_segment = rfm.get("rfm_segment", "Regulares") if rfm else "Regulares"
@@ -182,7 +301,7 @@ class CustomerHealthService:
                 "customer_key": key,
                 "customer_name": lead.get("name", ""),
                 "customer_email": lead.get("email"),
-                "source_table": "leads",
+                "source_table": source_table,
                 "health_score": composite,
                 "health_band": _band(composite),
                 "engagement_score": engagement_score,
@@ -240,10 +359,10 @@ class CustomerHealthService:
                 await db.table("customer_alerts").insert(new_alerts).execute()
 
         logger.info(
-            "Health compute (tenant=%s): %d scores, %d alertas",
-            self.tenant_id, len(health_rows), len(alert_rows),
+            "Health compute (tenant=%s, source=%s): %d scores, %d alertas",
+            self.tenant_id, source_table, len(health_rows), len(alert_rows),
         )
-        return {"computed": len(health_rows), "alerts": len(alert_rows)}
+        return {"computed": len(health_rows), "alerts": len(alert_rows), "source": source_table}
 
     def _build_alert_description(
         self, sig: dict, rfm: Any, churn: Any, lead: dict

@@ -55,6 +55,9 @@ serve(async (req) => {
       });
     }
 
+    // SEM requireOrgAccess: pg_cron (sync_all_crm_connections) chama sem
+    // Authorization — ver comentário em sync-kommo/index.ts.
+
     // Lê credenciais per-tenant
     const { data: connRows } = await supabase
       .from("crm_auditor_connections")

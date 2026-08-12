@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { requireOrgAccess } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -200,6 +201,9 @@ Deno.serve(async (req) => {
     if (!['meta_ads', 'google_ads'].includes(platformSlug)) {
       return json({ error: `Plataforma não suportada: ${platformSlug}` }, 400);
     }
+
+    const auth = await requireOrgAccess(req, orgId, corsHeaders);
+    if (!auth.ok) return auth.response;
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },

@@ -15,7 +15,6 @@ services:
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
-      COMPOSIO_API_KEY: ${COMPOSIO_API_KEY:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
     expose:
       - "8787"
@@ -34,6 +33,48 @@ services:
       timeout: 10s
       retries: 5
       start_period: 15s
+
+  # Backend Python (FastAPI) — CRM Auditor, Health, KPI, Email Outreach (Pinn Smart).
+  # Roda na mesma rede do compose; o nginx do `web` proxa /email/, /crm/, /ads/,
+  # /hub/, /kpi/, /webhook/, /adapters/, /track/ e /unsubscribe/ pra cá.
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      PORT: "8000"
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # Email Outreach (Pinn Smart)
+      EO_ENCRYPTION_KEY: ${EO_ENCRYPTION_KEY:-}
+      EO_HEALTHCHECK_INTERVAL_MINUTES: ${EO_HEALTHCHECK_INTERVAL_MINUTES:-60}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-}
+      # CRM Auditor (Kommo token direto) + LLM
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # WhatsApp Outreach (proxy pro Mari Brain)
+      MARI_API_BASE: ${MARI_API_BASE:-https://mari.pinnpb.com}
+      MARI_API_TOKEN: ${MARI_API_TOKEN:-}
+    expose:
+      - "8000"
+    restart: unless-stopped
+    networks:
+      - root_default
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=5).status==200 else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   web:
     build:

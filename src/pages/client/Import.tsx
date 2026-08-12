@@ -229,6 +229,55 @@ const ClientImport = () => {
     return out.map((c) => c.trim());
   }
 
+  async function parseCsvFile(file: File): Promise<{ headers: string[]; rows: string[][]; delim: string }> {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
+    if (!lines.length) return { headers: [], rows: [], delim: ',' };
+    const delim = (lines[0].match(/;/g)?.length ?? 0) > (lines[0].match(/,/g)?.length ?? 0) ? ';' : ',';
+    const headers = parseCsvLine(lines[0], delim);
+    const rows = lines.slice(1).map((l) => parseCsvLine(l, delim));
+    return { headers, rows, delim };
+  }
+
+  function rowsToObjects(headers: string[], rows: string[][]): Record<string, string>[] {
+    return rows.map((row) => Object.fromEntries(headers.map((h, i) => [h, row[i] ?? ''])));
+  }
+
+  // Heurística: tenta combinar header com um campo do sistema (lead.*)
+  function autoSuggestMapping(header: string): string {
+    const h = header.toLowerCase().trim();
+    if (/(^|\W)(nome|name|nome_completo|fullname|full_name)(\W|$)/.test(h)) return 'lead.name';
+    if (/(^|\W)(email|e-mail|correio)(\W|$)/.test(h)) return 'lead.email';
+    if (/(^|\W)(telefone|phone|celular|whatsapp|mobile|tel|fone)(\W|$)/.test(h)) return 'lead.phone';
+    if (/(^|\W)(empresa|company|organizacao|organization|cliente)(\W|$)/.test(h)) return 'lead.company';
+    if (/(^|\W)(origem|source|canal|channel|midia)(\W|$)/.test(h)) return 'lead.source';
+    if (/(^|\W)(status|etapa|stage|fase|situacao)(\W|$)/.test(h)) return 'lead.status';
+    if (/(^|\W)(valor|value|preco|price|deal|ticket|receita)(\W|$)/.test(h)) return 'lead.value';
+    if (/(^|\W)(data|date|created_at|criado|cadastro|criacao)(\W|$)/.test(h)) return 'lead.created_at';
+    return 'ignore';
+  }
+
+  // Mapeia source livre pro enum lead_source. Fallback: 'organic'.
+  function normalizeLeadSource(raw: string): string {
+    const v = raw.toLowerCase().trim();
+    if (/google|ads/.test(v)) return 'google_ads';
+    if (/linkedin/.test(v)) return 'linkedin';
+    if (/referral|indica/.test(v)) return 'referral';
+    if (/email|e-mail|coldmail/.test(v)) return 'email';
+    if (/organic|sit[eo]|seo/.test(v)) return 'organic';
+    return 'organic';
+  }
+
+  // Mapeia status livre pro enum lead_status. Fallback: 'new'.
+  function normalizeLeadStatus(raw: string): string {
+    const v = raw.toLowerCase().trim();
+    if (/qualifi/.test(v)) return 'qualified';
+    if (/analis|analy/.test(v)) return 'in_analysis';
+    if (/propost|proposal/.test(v)) return 'proposal';
+    if (/convert|ganh|won|fechad/.test(v)) return 'converted';
+    return 'new';
+  }
+
   async function validateCsv(file: File) {
     setCsvValidating(true);
     setCsvPreview(null);
@@ -330,87 +379,183 @@ const ClientImport = () => {
     setCurrentStep('analyze');
     setIsAnalyzing(true);
 
-    // In a real app, we would parse the CSV here
-    // For now, let's use the DataProfiler with mock data
-    const mockData = [
-      { 'Nome': 'João', 'Valor': 1000, 'Data': '2024-01-01', 'Status': 'Lead Qualificado' },
-      { 'Nome': 'Maria', 'Valor': 2500, 'Data': '2024-01-02', 'Status': 'Novo' },
-      { 'Nome': 'Pedro', 'Valor': 500, 'Data': '2024-01-03', 'Status': 'Novo' },
-    ];
+    try {
+      if (!selectedFile) throw new Error('Nenhum arquivo selecionado.');
+      if (!selectedFile.name.endsWith('.csv')) {
+        throw new Error('Apenas .csv suportado por enquanto. Para Excel, exporte como CSV.');
+      }
 
-    const profiled = DataProfiler.profile(mockData);
-    const cols: DetectedColumn[] = profiled.map(p => ({
-      name: p.name,
-      type: p.type as any,
-      sample: [String(mockData[0][p.name as keyof typeof mockData[0]])],
-      suggestedMapping: 'custom'
-    }));
+      // csvPreview já tem o sample (20 linhas) calculado em validateCsv — usar isso pra perfilar.
+      if (!csvPreview || csvPreview.headers.length === 0) {
+        throw new Error('Pré-visualização do CSV indisponível. Recarregue o arquivo.');
+      }
 
-    setDetectedColumns(cols);
-    setIsAnalyzing(false);
-    setCurrentStep('mapping');
+      const sampleObjects = rowsToObjects(csvPreview.headers, csvPreview.rows);
+      const profiled = DataProfiler.profile(sampleObjects);
+
+      const cols: DetectedColumn[] = profiled.map((p) => ({
+        name: p.name,
+        type: p.type as any,
+        sample: sampleObjects.slice(0, 3).map((o) => String(o[p.name] ?? '')).filter(Boolean),
+        suggestedMapping: autoSuggestMapping(p.name),
+      }));
+
+      setDetectedColumns(cols);
+      // Pré-popular mapeamento com as sugestões automáticas (usuário pode editar).
+      setMappings(Object.fromEntries(cols.map((c) => [c.name, c.suggestedMapping ?? 'ignore'])));
+      setCurrentStep('mapping');
+    } catch (err) {
+      toast({
+        title: 'Erro ao analisar arquivo',
+        description: err instanceof Error ? err.message : 'Erro desconhecido.',
+        variant: 'destructive',
+      });
+      setCurrentStep('upload');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleImport = async () => {
-    if (!orgId) return;
+    if (!orgId || !selectedFile) return;
 
     setCurrentStep('confirm');
     setIsImporting(true);
 
     try {
-      // 1. Create a Premium Dashboard automatically
+      // 1. Re-ler o arquivo inteiro (csvPreview tem só sample).
+      const { headers, rows } = await parseCsvFile(selectedFile);
+      if (!headers.length) throw new Error('Arquivo vazio.');
+
+      const allObjects = rowsToObjects(headers, rows);
+
+      // 2. Construir leads a partir do mapeamento.
+      type LeadInsert = {
+        org_id: string;
+        integration_id?: string | null;
+        name: string;
+        email?: string | null;
+        phone?: string | null;
+        company?: string | null;
+        source: string;
+        status: string;
+        value: number;
+        metadata: Record<string, string>;
+      };
+
+      const reverseMap: Record<string, string> = {};
+      for (const [csvCol, leadField] of Object.entries(mappings)) {
+        if (leadField && leadField !== 'ignore' && leadField !== 'custom') {
+          reverseMap[leadField] = csvCol;
+        }
+      }
+
+      const leadsToInsert: LeadInsert[] = allObjects.map((obj) => {
+        const name = reverseMap['lead.name'] ? obj[reverseMap['lead.name']] : '';
+        const email = reverseMap['lead.email'] ? obj[reverseMap['lead.email']] : '';
+        const phone = reverseMap['lead.phone'] ? obj[reverseMap['lead.phone']] : '';
+        const company = reverseMap['lead.company'] ? obj[reverseMap['lead.company']] : '';
+        const sourceRaw = reverseMap['lead.source'] ? obj[reverseMap['lead.source']] : '';
+        const statusRaw = reverseMap['lead.status'] ? obj[reverseMap['lead.status']] : '';
+        const valueRaw = reverseMap['lead.value'] ? obj[reverseMap['lead.value']] : '';
+
+        // Coletar colunas não mapeadas em metadata pra não perder info.
+        const metadata: Record<string, string> = {};
+        for (const h of headers) {
+          const map = mappings[h];
+          if (!map || map === 'ignore') continue;
+          if (map === 'custom') metadata[h] = obj[h];
+        }
+
+        return {
+          org_id: orgId,
+          name: (name || email || 'Sem nome').trim(),
+          email: email?.trim() || null,
+          phone: phone?.trim() || null,
+          company: company?.trim() || null,
+          source: sourceRaw ? normalizeLeadSource(sourceRaw) : 'organic',
+          status: statusRaw ? normalizeLeadStatus(statusRaw) : 'new',
+          value: valueRaw ? (parseFloat(valueRaw.replace(/[^\d,.-]/g, '').replace(',', '.')) || 0) : 0,
+          metadata,
+        };
+      }).filter((l) => l.name || l.email || l.phone);
+
+      // 3. Criar registro de integration (type=csv) com mapeamento salvo em config.
+      const integration = await createIntegration.mutateAsync({
+        org_id: orgId,
+        name: connectionName.trim() || selectedFile.name,
+        type: 'csv',
+        config: {
+          file_name: selectedFile.name,
+          column_count: headers.length,
+          row_count: allObjects.length,
+          imported_count: leadsToInsert.length,
+          mappings,
+          columns: headers,
+        } as never,
+      });
+
+      // 4. Inserir leads em batches de 500.
+      if (leadsToInsert.length > 0) {
+        const withIntegration = leadsToInsert.map((l) => ({ ...l, integration_id: integration.id }));
+        for (let i = 0; i < withIntegration.length; i += 500) {
+          const batch = withIntegration.slice(i, i + 500);
+          const { error: leadsError } = await supabase.from('leads').insert(batch as any);
+          if (leadsError) throw new Error(`Erro ao inserir leads (lote ${i / 500 + 1}): ${leadsError.message}`);
+        }
+      }
+
+      // 5. Criar dashboard automaticamente a partir das colunas reais perfiladas.
+      const profiled = DataProfiler.profile(allObjects.slice(0, 100));
+      const recommendations = DataProfiler.recommendWidgets(profiled, String(organization?.plan || 1));
+
       const { data: dashboard, error: dashError } = await supabase
         .from('dashboards')
         .insert({
           org_id: orgId,
-          name: `Dashboard Inteligente - ${new Date().toLocaleDateString()}`,
-          is_default: true,
-          layout: {} as Json
+          name: `Dashboard - ${selectedFile.name.replace(/\.[^.]+$/, '')}`,
+          is_default: false,
+          layout: {} as Json,
         })
         .select()
         .single();
 
       if (dashError) throw dashError;
 
-      // 2. Generate and store suggested widgets
-      const profiled = DataProfiler.profile([
-        { 'Vendas': 5000, 'Leads': 120, 'Data': '2024-02-01', 'Canal': 'Google Ads' },
-        { 'Vendas': 7000, 'Leads': 150, 'Data': '2024-02-02', 'Canal': 'LinkedIn' },
-        { 'Vendas': 3000, 'Leads': 80, 'Data': '2024-02-03', 'Canal': 'Referral' }
-      ]);
-      const recommendations = DataProfiler.recommendWidgets(profiled, String(organization?.plan || 1));
+      if (recommendations.length > 0) {
+        const widgetsToInsert = recommendations.map((rec, idx) => ({
+          dashboard_id: dashboard.id,
+          type: rec.type,
+          title: rec.title,
+          description: rec.description,
+          config: { ...rec.config, dataSource: 'leads' } as any,
+          width: rec.width,
+          height: rec.height,
+          position_x: (idx % 3) * 4,
+          position_y: Math.floor(idx / 3) * 2,
+          is_visible: true,
+        }));
 
-      const widgetsToInsert = recommendations.map((rec, idx) => ({
-        dashboard_id: dashboard.id,
-        type: rec.type,
-        title: rec.title,
-        description: rec.description,
-        config: rec.config as any,
-        width: rec.width,
-        height: rec.height,
-        position_x: (idx % 3) * 4,
-        position_y: Math.floor(idx / 3) * 2,
-        is_visible: true
-      }));
+        const { error: widgetError } = await supabase
+          .from('dashboard_widgets')
+          .insert(widgetsToInsert as any);
 
-      const { error: widgetError } = await supabase
-        .from('dashboard_widgets')
-        .insert(widgetsToInsert as any);
-
-      if (widgetError) throw widgetError;
+        if (widgetError) throw widgetError;
+      }
 
       toast({
-        title: 'Auto-Setup Concluído!',
-        description: 'Analisamos seus dados e criamos um dashboard premium para você.',
+        title: 'Importação concluída!',
+        description: `${leadsToInsert.length} leads importados de ${allObjects.length} linhas. Dashboard criado.`,
       });
 
       navigate(`/client/${orgId}/dashboard`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
-        title: 'Erro no Auto-Setup',
-        description: error.message,
-        variant: 'destructive'
+        title: 'Erro na importação',
+        description: error instanceof Error ? error.message : 'Erro desconhecido.',
+        variant: 'destructive',
       });
+      setCurrentStep('mapping');
     } finally {
       setIsImporting(false);
     }

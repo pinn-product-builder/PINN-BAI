@@ -23,7 +23,6 @@ from core.crm.registry import ADAPTER_REGISTRY, get_adapter  # noqa: E402
 from core.ads.base import AD_ADAPTER_REGISTRY, get_ad_adapter  # noqa: E402
 from core.ads.sync_service import AdSyncService  # noqa: E402
 from core.db import get_db  # noqa: E402
-from core.sync.service import SyncService  # noqa: E402
 from core.health.service import CustomerHealthService  # noqa: E402
 from core.kpi.threshold_service import ThresholdService  # noqa: E402
 from core.kpi.achievement_service import AchievementService  # noqa: E402
@@ -34,6 +33,27 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s — %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Sentry opcional — ativa quando SENTRY_DSN está no env. Sem DSN, é no-op.
+_sentry_dsn = os.getenv("SENTRY_DSN")
+if _sentry_dsn:
+    try:
+        import sentry_sdk  # type: ignore
+        from sentry_sdk.integrations.fastapi import FastApiIntegration  # type: ignore
+        from sentry_sdk.integrations.starlette import StarletteIntegration  # type: ignore
+
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            environment=os.getenv("SENTRY_ENV", "production"),
+            traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+            integrations=[StarletteIntegration(), FastApiIntegration()],
+        )
+        logger.info("[observability] Sentry ativo (FastAPI).")
+    except ImportError:
+        logger.warning(
+            "[observability] SENTRY_DSN configurado mas sentry-sdk não instalado. "
+            "Rode `pip install sentry-sdk[fastapi]` para ativar.",
+        )
 
 app = FastAPI(
     title="Pinn BAI — CRM Backend",
@@ -78,115 +98,11 @@ async def list_adapters() -> dict:
 
 
 # ── CRM connections ────────────────────────────────────────────────────────────
-
-class ConnectRequest(BaseModel):
-    crm_slug: str
-    credentials: dict
-
-
-@app.post("/crm/connect/{tenant_id}", tags=["crm"])
-async def connect_crm(tenant_id: str, body: ConnectRequest) -> JSONResponse:
-    """
-    Salva as credenciais do CRM para um tenant e valida a conexão.
-    Cria ou substitui a conexão existente (upsert por org_id + crm_slug).
-    """
-    if body.crm_slug not in ADAPTER_REGISTRY:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"CRM '{body.crm_slug}' não suportado. Disponíveis: {list(ADAPTER_REGISTRY.keys())}",
-        )
-
-    adapter = get_adapter(
-        slug=body.crm_slug,
-        tenant_id=tenant_id,
-        credentials=body.credentials,
-    )
-
-    valid = await adapter.verify_credentials()
-    if not valid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciais inválidas. Verifique o token e o subdomínio.",
-        )
-
-    db = await get_db()
-    await db.table("crm_connections").upsert(
-        {
-            "org_id": tenant_id,
-            "crm_slug": body.crm_slug,
-            "credentials": body.credentials,
-            "sync_status": "idle",
-        },
-        on_conflict="org_id,crm_slug",
-    ).execute()
-
-    return JSONResponse({"ok": True, "crm_slug": body.crm_slug})
-
-
-@app.get("/crm/connections/{tenant_id}", tags=["crm"])
-async def get_connections(tenant_id: str) -> JSONResponse:
-    """Lista todas as conexões CRM de um tenant com status de sync."""
-    db = await get_db()
-    result = await db.table("crm_connections").select(
-        "crm_slug,sync_status,last_sync_at,sync_error,created_at"
-    ).eq("org_id", tenant_id).execute()
-
-    connections = result.data or []
-
-    # Enrich with record counts
-    for conn in connections:
-        slug = conn["crm_slug"]
-        for table, key in [
-            ("crm_contacts", "contacts"),
-            ("crm_deals", "deals"),
-            ("crm_appointments", "appointments"),
-            ("crm_activities", "activities"),
-        ]:
-            count_result = await db.table(table).select(
-                "*", count="exact"
-            ).eq("org_id", tenant_id).eq("crm_slug", slug).execute()
-            conn[key] = count_result.count or 0
-
-    return JSONResponse({"connections": connections})
-
-
-@app.post("/crm/sync/{tenant_id}/{crm_slug}", tags=["crm"])
-async def trigger_sync(tenant_id: str, crm_slug: str) -> JSONResponse:
-    """
-    Dispara sincronização completa do CRM para o tenant.
-    Busca credenciais do Supabase, instancia o adapter e roda SyncService.
-    """
-    db = await get_db()
-    result = await db.table("crm_connections").select("credentials").eq(
-        "org_id", tenant_id
-    ).eq("crm_slug", crm_slug).single().execute()
-
-    if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Nenhuma conexão encontrada para crm='{crm_slug}' e tenant='{tenant_id}'.",
-        )
-
-    credentials = result.data["credentials"]
-
-    svc = SyncService(
-        tenant_id=tenant_id,
-        crm_slug=crm_slug,
-        credentials=credentials,
-    )
-    counts = await svc.sync_all()
-
-    return JSONResponse({"ok": True, "synced": counts})
-
-
-@app.delete("/crm/connections/{tenant_id}/{crm_slug}", tags=["crm"])
-async def disconnect_crm(tenant_id: str, crm_slug: str) -> JSONResponse:
-    """Remove a conexão CRM e todos os dados sincronizados do tenant."""
-    db = await get_db()
-    await db.table("crm_connections").delete().eq("org_id", tenant_id).eq(
-        "crm_slug", crm_slug
-    ).execute()
-    return JSONResponse({"ok": True})
+# Rotas legadas REMOVIDAS (connect/list/sync/disconnect via adapter + as tabelas
+# crm_connections/crm_contacts/crm_deals/crm_appointments/crm_activities, que não
+# existem mais no banco). O caminho canônico é o módulo `crm_auditor`
+# (crm_auditor_connections → crm_leads) + a sync edge `sync-kommo` (cron). O front
+# correspondente (CrmConnector) também foi removido. Ver fragmentação #41.
 
 
 # ── Webhook ────────────────────────────────────────────────────────────────────

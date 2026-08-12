@@ -1,2 +1,0 @@
--- Fonte canônica: ../../supabase/migrations/20260506120000_bai_crm_auditor.sql
--- Este arquivo existe apenas para navegação rápida no repositório.

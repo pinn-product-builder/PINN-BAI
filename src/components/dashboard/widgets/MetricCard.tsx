@@ -1,10 +1,18 @@
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { TrendingUp, TrendingDown, Minus, Info, Loader2, Database } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info, Loader2, Database, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Area, AreaChart, ResponsiveContainer } from 'recharts';
 import { useTheme } from '@mui/material/styles';
 import { alpha } from '@mui/material/styles';
+import { getConversionMetricDef, buildConversionTooltip } from '@/lib/conversionMetrics';
+import { MetricExplanationDialog, type MetricExplanation } from '@/components/dashboard/MetricExplanationDialog';
+
+export interface MetricSeriesPoint {
+  day: number | string;
+  value: number;
+}
 
 interface MetricCardProps {
   title: string;
@@ -12,18 +20,20 @@ interface MetricCardProps {
   value?: number;
   previousValue?: number;
   format?: 'number' | 'currency' | 'percentage';
+  /**
+   * Quando true e `series` contém pelo menos 2 pontos reais, renderiza o sparkline.
+   * Sem dados reais o sparkline é omitido — não geramos tendência sintética.
+   */
   showSparkline?: boolean;
+  series?: MetricSeriesPoint[];
   isLoading?: boolean;
   metricLabel?: string;
+  /**
+   * Quando passado, o card vira clicável e abre dialog com fórmula, fontes e
+   * detalhamento numérico (padrão Arguto/MetricExplanationDialog).
+   */
+  explanation?: MetricExplanation | null;
 }
-
-const generateSparklineData = (baseValue: number) => {
-  const points = 14;
-  return Array.from({ length: points }, (_, i) => ({
-    day: i,
-    value: Math.max(0, baseValue * (0.65 + Math.sin(i / 1.8) * 0.2 + Math.random() * 0.25)),
-  }));
-};
 
 const TITLE_MAP: Record<string, string> = {
   total_leads: 'Total de Leads',
@@ -45,8 +55,13 @@ const TITLE_MAP: Record<string, string> = {
   cpl_30d: 'CPL (30d)',
   cpm: 'Custo por Reunião',
   cp_meeting_booked_30d: 'Custo por Reunião',
+  // Métricas de conversão — labels canônicos vêm de lib/conversionMetrics.ts.
+  // O genérico `conversion_rate` é mantido como alias para compat com dashboards
+  // antigos, mas o tooltip orienta a escolher uma das 3 conversões específicas.
   conversion_rate: 'Taxa de Conversão',
   conv_lead_to_meeting_30d: 'Conv. Lead → Reunião',
+  conv_lead_to_won_30d: 'Conv. Lead → Fechamento',
+  conv_stage_avg_30d: 'Conv. média por etapa',
   calls_done: 'Ligações Realizadas',
 };
 
@@ -66,10 +81,13 @@ const MetricCard = ({
   previousValue,
   format = 'number',
   showSparkline = true,
+  series,
   isLoading = false,
   metricLabel,
+  explanation,
 }: MetricCardProps) => {
   const theme = useTheme();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const accents: Record<string, { line: string; stop: string }> = {
     currency: { line: theme.palette.primary.main, stop: alpha(theme.palette.primary.main, 0.12) },
     percentage: { line: theme.palette.success.main, stop: alpha(theme.palette.success.main, 0.1) },
@@ -77,6 +95,17 @@ const MetricCard = ({
   };
   const accent = accents[format] ?? accents.number;
   const displayTitle = prettifyTitle(title);
+
+  // Métricas de conversão têm definição canônica (fórmula explícita, label oficial)
+  // para resolver o caso de "três taxas conflitantes" no dashboard. Quando o título
+  // ou metricLabel matchar uma família de conversão, usamos o label e tooltip do
+  // catálogo em vez do prettifyTitle/description recebidos.
+  const conversionKey = metricLabel ?? title;
+  const conversionDef = getConversionMetricDef(conversionKey);
+  const resolvedTitle = conversionDef ? conversionDef.label : displayTitle;
+  const resolvedDescription = conversionDef
+    ? buildConversionTooltip(conversionKey, description)
+    : description;
 
   if (isLoading) {
     return (
@@ -121,12 +150,35 @@ const MetricCard = ({
     }
   };
 
-  const sparkData = generateSparklineData(value);
+  const hasRealSeries = Array.isArray(series) && series.length >= 2;
+  const renderSparkline = showSparkline && hasRealSeries;
+
+  const isClickable = !!explanation;
 
   return (
+    <>
     <Card
-      className="relative overflow-hidden rounded-xl h-full flex flex-col bg-card/80 backdrop-blur-sm border-border/40 hover:border-border/70 transition-all duration-300 group"
+      className={cn(
+        'relative overflow-hidden rounded-xl h-full flex flex-col bg-card/80 backdrop-blur-sm border-border/40 transition-all duration-300 group',
+        isClickable
+          ? 'hover:border-primary/60 hover:shadow-md cursor-pointer'
+          : 'hover:border-border/70',
+      )}
       style={{ minHeight: 140 }}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={isClickable ? () => setDialogOpen(true) : undefined}
+      onKeyDown={
+        isClickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setDialogOpen(true);
+              }
+            }
+          : undefined
+      }
+      aria-label={isClickable ? `Detalhar métrica ${resolvedTitle}` : undefined}
     >
       {/* Top accent bar — thin, full-width */}
       <div
@@ -134,20 +186,27 @@ const MetricCard = ({
         style={{ background: `linear-gradient(90deg, ${accent.line}, ${accent.line}40)` }}
       />
 
+      {/* Indicador discreto de "clicável" — ícone de lupa no canto */}
+      {isClickable && (
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Search className="w-3 h-3 text-muted-foreground/50" />
+        </div>
+      )}
+
       <div className="p-4 pb-2 flex-shrink-0">
         {/* Title row */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider truncate">
-              {displayTitle}
+              {resolvedTitle}
             </h3>
-            {description && (
+            {resolvedDescription && (
               <Tooltip>
                 <TooltipTrigger>
                   <Info className="w-3 h-3 text-muted-foreground/25 hover:text-muted-foreground/60 cursor-help shrink-0" />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
-                  <p className="text-xs">{description}</p>
+                  <p className="text-xs whitespace-pre-line">{resolvedDescription}</p>
                 </TooltipContent>
               </Tooltip>
             )}
@@ -187,12 +246,12 @@ const MetricCard = ({
         </div>
       </div>
 
-      {/* Sparkline */}
-      {showSparkline && (
+      {/* Sparkline — só renderiza se houver série real (>=2 pontos) */}
+      {renderSparkline && (
         <div className="flex-1 flex flex-col justify-end px-0 pb-0 mt-1">
           <div className="h-[52px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+              <AreaChart data={series} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id={`sg-${format}-${title.replace(/\W/g,'')}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={accent.line} stopOpacity={0.3} />
@@ -215,6 +274,12 @@ const MetricCard = ({
         </div>
       )}
     </Card>
+    <MetricExplanationDialog
+      open={dialogOpen}
+      onOpenChange={setDialogOpen}
+      explanation={explanation ?? null}
+    />
+    </>
   );
 };
 

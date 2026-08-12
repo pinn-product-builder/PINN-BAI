@@ -22,33 +22,10 @@ interface AreaChartWidgetProps {
   xAxisKey?: string;
   dataKeys?: string[];
   seriesLabels?: Record<string, string>;
+  /** Cor por série vinda do config do widget (DB) — sobrepõe o mapa/paleta default. */
+  seriesColors?: Record<string, string>;
   isLoading?: boolean;
 }
-
-/**
- * Cores fixas por nome de série — valores hex absolutos para garantir
- * consistência entre tema claro e escuro (sem depender de CSS vars de tema).
- *
- * Mapeamento baseado no print escuro (referência visual correta):
- *   encaminhado       → roxo/lilás   (igual ao print escuro)
- *   atendimento_feito → verde claro
- *   reuniao_confirmada→ laranja/amber
- *   reuniao_realizada → azul
- *   venda             → laranja vivo
- *   desqualificado    → vermelho
- *   hermes_entrada    → verde esmeralda
- */
-const SERIES_COLOR_MAP: Record<string, string> = {
-  encaminhado:        '#8B5CF6', // roxo/violeta
-  atendimento_feito:  '#22C55E', // verde
-  reuniao_confirmada: '#F59E0B', // âmbar/laranja
-  reuniao_realizada:  '#3B82F6', // azul
-  venda:              '#FF6B35', // Pinn DS oficial — orange (alma da marca)
-  desqualificado:     '#EF4444', // vermelho
-  hermes_entrada:     '#10B981', // esmeralda
-  // aliases
-  hermes_encaminhado: '#8B5CF6',
-};
 
 // Paleta estendida para séries não mapeadas — derivada do DS oficial Pinn v1.0
 // Ordem: orange → success → info → warning → error → graphite + variações safe
@@ -57,10 +34,13 @@ const EXTENDED_COLORS = [
   '#555555', '#E55A2B', '#0EA5A4', '#7C3AED', '#06B6D4',
 ];
 
+// Cor de série: override do banco/config (seriesColors — p/ ETAPAS vem de
+// vw_org_stage_presentation.color via a RPC canônica) tem prioridade; senão,
+// paleta determinística por índice. Sem cor de etapa hardcoded por cliente.
 const getSeriesColorFn =
-  (paletteFallback: string[], primaryMain: string) => (key: string, index: number) => {
-    if (key === "venda") return primaryMain;
-    if (SERIES_COLOR_MAP[key]) return SERIES_COLOR_MAP[key];
+  (overrides: Record<string, string>, paletteFallback: string[]) =>
+  (key: string, index: number) => {
+    if (overrides[key]) return overrides[key];
     return paletteFallback[index % paletteFallback.length] ?? EXTENDED_COLORS[index % EXTENDED_COLORS.length];
   };
 
@@ -82,15 +62,8 @@ const DEFAULT_LABEL_MAP: Record<string, string> = {
   spend: 'Investimento',
   calls_done: 'Ligações',
   cpl: 'CPL',
-  // Campos Kommo
-  hermes_entrada: 'Entrada',
-  hermes_encaminhado: 'Encaminhado',
-  encaminhado: 'Encaminhado',
-  atendimento_feito: 'Atendimento Feito',
-  reuniao_confirmada: 'Reunião Confirmada',
-  reuniao_realizada: 'Reunião Realizada',
-  venda: 'Venda',
-  desqualificado: 'Desqualificado',
+  // Nomes de ETAPA não são hardcoded aqui: chegam via seriesLabels
+  // (vw_org_stage_presentation, RPC canônica) ou config do widget.
 };
 
 const createCustomTooltip = (labelMap: Record<string, string>) => {
@@ -125,11 +98,12 @@ const AreaChartWidget = ({
   xAxisKey = 'label',
   dataKeys = ['value'],
   seriesLabels,
+  seriesColors,
   isLoading = false,
 }: AreaChartWidgetProps) => {
   const theme = useTheme();
   const paletteSeries = getChartSeriesColors(theme);
-  const getSeriesColor = getSeriesColorFn(paletteSeries, theme.palette.primary.main);
+  const getSeriesColor = getSeriesColorFn(seriesColors || {}, paletteSeries);
   const hasRealData = data.length > 0;
   const LABEL_MAP = { ...DEFAULT_LABEL_MAP, ...(seriesLabels || {}) };
   const CustomTooltip = createCustomTooltip(LABEL_MAP);

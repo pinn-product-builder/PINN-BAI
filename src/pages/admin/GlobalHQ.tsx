@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,17 +11,33 @@ import {
     Loader2,
     Move,
     Check,
+    RotateCcw,
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { EditableCardGrid, type CardWidget } from '@/components/dashboard/EditableCardGrid';
 import { cn } from '@/lib/utils';
 import OrgAvatar from '@/components/admin/OrgAvatar';
 import { usePlans } from '@/hooks/usePlans';
 import { getPlanShortName } from '@/lib/plans';
 
+const statusVariant: Record<string, string> = {
+    active: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+    trial: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    suspended: 'bg-red-500/10 text-red-500 border-red-500/20',
+};
+
 const GlobalHQ = () => {
     const navigate = useNavigate();
     const [isEditingLayout, setIsEditingLayout] = useState(false);
+    const resetLayoutRef = useRef<() => void>(() => {});
     const { data: plans } = usePlans();
+
+    const handleResetLayout = () => {
+        if (confirm('Restaurar o tamanho e posição padrão dos cards?')) {
+            resetLayoutRef.current();
+        }
+    };
 
     const { data: organizations, isLoading } = useQuery({
         queryKey: ['admin-organizations'],
@@ -120,9 +136,6 @@ const GlobalHQ = () => {
                                                     <span className="text-sm font-bold text-foreground whitespace-nowrap truncate">{getPlanShortName(plans, org.plan)}</span>
                                                     <Badge variant="outline" className="text-[10px] bg-muted border-border text-muted-foreground uppercase shrink-0">{org.status}</Badge>
                                                 </div>
-                                                <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-1">
-                                                    <div className="h-full bg-primary rounded-full" style={{ width: `${Math.random() * 40 + 60}%` }} />
-                                                </div>
                                             </div>
                                             <Button
                                                 variant="ghost"
@@ -149,28 +162,53 @@ const GlobalHQ = () => {
         {
             id: 'hq:atividade',
             size: { w: 4, h: 7 },
-            render: () => (
-                <Card className="border border-border bg-card shadow-2xl rounded-2xl h-full">
-                    <CardHeader>
-                        <CardTitle className="text-lg text-foreground font-bold">Atividade Recente</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {organizations?.slice(0, 3).map((org, i) => (
-                            <div key={i} className="flex gap-3 text-sm">
-                                <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0 animate-pulse" />
-                                <p className="text-muted-foreground">
-                                    <span className="font-bold text-foreground">{org.admin_name || 'Admin'}</span> ativou a org <span className="font-bold text-primary">{org.name}</span>
-                                    <br />
-                                    <span className="text-[10px] opacity-50 uppercase tracking-tighter">Sincronizado via Supabase</span>
-                                </p>
-                            </div>
-                        ))}
-                        {(organizations?.length || 0) === 0 && (
-                            <p className="text-muted-foreground text-xs italic">Aguardando telemetria...</p>
-                        )}
-                    </CardContent>
-                </Card>
-            ),
+            render: () => {
+                const recentOrgs = organizations?.slice(0, 5) ?? [];
+                return (
+                    <Card className="border border-border bg-card shadow-2xl rounded-2xl h-full">
+                        <CardHeader>
+                            <CardTitle className="text-lg text-foreground font-bold">Atividade Recente</CardTitle>
+                            <CardDescription>Últimas organizações cadastradas</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {recentOrgs.length === 0 ? (
+                                <p className="text-muted-foreground text-xs italic">Nenhuma organização cadastrada ainda.</p>
+                            ) : (
+                                recentOrgs.map((org) => (
+                                    <button
+                                        key={org.id}
+                                        onClick={() => navigate(`/admin/organizations/${org.id}`)}
+                                        className="no-drag w-full flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 transition-colors text-left"
+                                    >
+                                        <OrgAvatar
+                                            name={org.name}
+                                            logoUrl={org.logo_url}
+                                            sizeClassName="w-8 h-8 shrink-0"
+                                            textClassName="text-[10px]"
+                                            roundedClassName="rounded-lg"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-semibold text-foreground truncate">{org.name}</p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Cadastrada {formatDistanceToNow(new Date(org.created_at), { addSuffix: true, locale: ptBR })}
+                                            </p>
+                                        </div>
+                                        <Badge
+                                            variant="outline"
+                                            className={cn(
+                                                'text-[9px] uppercase tracking-tight shrink-0',
+                                                statusVariant[org.status] ?? 'bg-muted border-border text-muted-foreground'
+                                            )}
+                                        >
+                                            {org.status}
+                                        </Badge>
+                                    </button>
+                                ))
+                            )}
+                        </CardContent>
+                    </Card>
+                );
+            },
         },
     ];
 
@@ -198,6 +236,18 @@ const GlobalHQ = () => {
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                    {isEditingLayout && (
+                        <button
+                            type="button"
+                            onClick={handleResetLayout}
+                            className="shrink-0 inline-flex items-center gap-1.5 h-10 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border border-border bg-card text-muted-foreground hover:border-destructive/40 hover:text-destructive transition-all"
+                            title="Restaurar tamanho e posição padrão dos cards"
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                            <span className="hidden sm:inline">Resetar layout</span>
+                            <span className="sm:hidden">Resetar</span>
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => setIsEditingLayout((v) => !v)}
@@ -222,6 +272,7 @@ const GlobalHQ = () => {
                 orgId={null}
                 widgets={widgets}
                 isEditing={isEditingLayout}
+                onLayoutReset={(reset) => { resetLayoutRef.current = reset; }}
             />
         </div>
     );

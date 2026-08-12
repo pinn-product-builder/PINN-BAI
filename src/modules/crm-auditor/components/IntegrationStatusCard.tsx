@@ -47,7 +47,7 @@ export function IntegrationStatusCard({ provider, connection, integrationMode }:
               </Typography>
               {integrationMode === "live" && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                  OAuth Kommo via Composio (sessão de link + retorno ao PINN).
+                  Conexão direta (token de acesso da Kommo).
                 </Typography>
               )}
             </Box>

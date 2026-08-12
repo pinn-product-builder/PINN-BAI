@@ -24,6 +24,7 @@ import {
   RefreshCw, Database, Globe, Search, History, Download, FileText, FileDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { GoogleCalendarCard } from '@/components/integrations/GoogleCalendarCard';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -327,6 +328,10 @@ export default function Integrations() {
           {integrations.length} ativa{integrations.length !== 1 ? 's' : ''}
         </Badge>
       </div>
+
+      {/* Google Calendar — usado pela Pauta IA. Separado das integrações
+          "de dados" (CRM/ads) porque é fonte de contexto, não snapshot. */}
+      {orgId && <GoogleCalendarCard orgId={orgId} />}
 
       {integrations.length > 0 && (
         <section className="space-y-3">

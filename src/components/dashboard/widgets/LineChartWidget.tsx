@@ -22,6 +22,8 @@ interface LineChartWidgetProps {
   dataKeys?: string[];
   xAxisKey?: string;
   seriesLabels?: Record<string, string>;
+  /** Cor por série vinda do config do widget (DB) — sobrepõe a paleta default. */
+  seriesColors?: Record<string, string>;
   isLoading?: boolean;
 }
 
@@ -39,15 +41,8 @@ const DEFAULT_LABEL_MAP: Record<string, string> = {
   spend: 'Investimento',
   calls_done: 'Ligações',
   status: 'Status',
-  // Campos Kommo
-  hermes_entrada: 'Entrada',
-  hermes_encaminhado: 'Encaminhado',
-  encaminhado: 'Encaminhado',
-  atendimento_feito: 'Atendimento Feito',
-  reuniao_confirmada: 'Reunião Confirmada',
-  reuniao_realizada: 'Reunião Realizada',
-  venda: 'Venda',
-  desqualificado: 'Desqualificado',
+  // Nomes de ETAPA não são hardcoded aqui: chegam via seriesLabels
+  // (vw_org_stage_presentation, RPC canônica) ou config do widget.
 };
 
 const createCustomTooltip = (labelMap: Record<string, string>) => {
@@ -82,10 +77,14 @@ const LineChartWidget = ({
   dataKeys = ['value'],
   xAxisKey = 'label',
   seriesLabels,
+  seriesColors,
   isLoading = false,
 }: LineChartWidgetProps) => {
   const theme = useTheme();
   const chartColors = getChartSeriesColors(theme);
+  // Config do widget (DB) tem prioridade sobre a paleta por índice.
+  const colorForKey = (key: string, index: number) =>
+    seriesColors?.[key] ?? chartColors[index % chartColors.length];
   const gridStroke = chartGridColor(theme);
   const tickColor = theme.palette.text.secondary;
   const bgPaper = theme.palette.background.paper;
@@ -178,7 +177,7 @@ const LineChartWidget = ({
                     type="monotone"
                     dataKey={key}
                     name={key}
-                    stroke={chartColors[index % chartColors.length]}
+                    stroke={colorForKey(key, index)}
                     strokeWidth={2.5}
                     dot={false}
                     activeDot={{ r: 5, strokeWidth: 2, stroke: bgPaper }}

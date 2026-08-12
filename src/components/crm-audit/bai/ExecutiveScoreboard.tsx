@@ -46,7 +46,7 @@ export function ExecutiveScoreboard({
     <div>
       {insufficient ? (
         <div className="bai-exec-alert-strip">
-          Conta Kommo sem leads nem contatos neste snapshot — os indicadores permanecem zerados até a próxima sincronização via Composio.
+          Conta Kommo sem leads nem contatos neste snapshot — os indicadores permanecem zerados até a próxima sincronização.
         </div>
       ) : null}
       <div className="bai-exec-grid">

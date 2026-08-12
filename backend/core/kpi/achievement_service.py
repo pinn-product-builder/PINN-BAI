@@ -7,6 +7,8 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
+from .lead_data import org_has_converted_lead
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,7 +17,8 @@ class AchievementService:
         self.db = db
 
     async def _get_org_members(self, org_id: str) -> list[dict]:
-        r = self.db.table("org_members").select("user_id").eq("org_id", org_id).execute()
+        # Membros da org = profiles com esse org_id (não existe tabela org_members).
+        r = self.db.table("profiles").select("user_id").eq("org_id", org_id).execute()
         return r.data or []
 
     async def _already_earned(self, org_id: str, user_id: str, achievement_id: str) -> bool:
@@ -66,16 +69,14 @@ class AchievementService:
         critical_count = sum(1 for h in health_rows if h.get("health_band") == "critico")
         healthy_pct = (healthy_count / total_health * 100) if total_health > 0 else 0
 
-        # Churn
-        churn_r = self.db.table("churn_predictions").select("churn_probability").eq("org_id", org_id).execute()
-        churn_rows = churn_r.data or []
-        avg_churn = (sum(r.get("churn_probability") or 0 for r in churn_rows) / len(churn_rows)) if churn_rows else 0
+        # Churn removido do produto (commit 131aaef) — churn_predictions não existe.
 
-        # CRM leads
-        leads_r = self.db.table("leads").select("id,status").eq("org_id", org_id).gte("created_at", start_30d).execute()
+        # CRM leads — fonte de verdade é crm_leads (a tabela `leads` legada está
+        # vazia). lead_status='won' ≈ convertido (P1.2).
+        leads_r = self.db.table("crm_leads").select("id,lead_status").eq("tenant_id", org_id).gte("created_at", start_30d).execute()
         leads = leads_r.data or []
         total_leads_30d = len(leads)
-        total_conv_30d = sum(1 for l in leads if l.get("status") == "converted")
+        total_conv_30d = sum(1 for l in leads if l.get("lead_status") == "won")
         conv_rate = (total_conv_30d / total_leads_30d * 100) if total_leads_30d > 0 else 0
 
         # Grant org-level achievements to ALL members
@@ -88,12 +89,13 @@ class AchievementService:
             ("zero_critical",   total_health > 0 and critical_count == 0),
         ]
 
+        # First conversion (org-wide, all-time) — crm_leads first, fallback legado.
+        has_conversion = org_has_converted_lead(self.db, org_id)
+
         for member in members:
             uid = member["user_id"]
 
-            # First conversion — check if user has any converted lead attributed
-            user_leads = self.db.table("leads").select("id").eq("org_id", org_id).eq("status", "converted").limit(1).execute()
-            if user_leads.data:
+            if has_conversion:
                 if await self._grant(org_id, uid, "first_conversion"):
                     total_granted += 1
 

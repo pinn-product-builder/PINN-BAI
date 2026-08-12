@@ -40,6 +40,17 @@ export function fmtPct(v: number | undefined | null, digits = 1): string {
 export type GapLike = { title?: string; detail?: string; severity?: string };
 export type StrengthLike = { title?: string; detail?: string };
 
+/**
+ * Pluraliza substantivos respeitando concordância singular/plural em pt-BR.
+ * Uso: `pluralize(1, "oportunidade")` → "1 oportunidade"; `pluralize(5, "oportunidade")` → "5 oportunidades".
+ * Aceita override do plural para casos irregulares (ex: "país" → "países").
+ */
+export function pluralize(count: number, singular: string, plural?: string): string {
+  const formatted = count.toLocaleString("pt-BR");
+  if (count === 1 || count === -1) return `${formatted} ${singular}`;
+  return `${formatted} ${plural ?? `${singular}s`}`;
+}
+
 /** Extrai bullets executivos a partir de gaps, riscos da IA e pontos fortes (sem inventar números). */
 export function buildExecutiveBrief(input: {
   gaps: GapLike[];
@@ -56,9 +67,16 @@ export function buildExecutiveBrief(input: {
   const sortedGaps = [...input.gaps].sort((a, b) => sevOrder(a.severity) - sevOrder(b.severity));
   const topProblems = sortedGaps.slice(0, 3).map((g) => `${g.title ?? "Alerta"} — ${g.detail ?? ""}`.trim());
 
+  // topRisks NÃO deve repetir o que já saiu em topProblems — Igor reportou em
+  // 19/05 que "Riscos a endereçar" aparecia idêntico aos "Principais atritos"
+  // logo abaixo. Quando a IA não preenche analysisRisks, completamos com gaps
+  // que ainda não foram exibidos (após os 3 primeiros).
+  const usedProblemTitles = new Set(sortedGaps.slice(0, 3).map((g) => g.title ?? ""));
   const topRisks = (input.analysisRisks ?? []).slice(0, 3);
   if (topRisks.length < 3) {
-    const extra = sortedGaps.slice(0, 4).filter((g) => String(g.severity).toLowerCase() === "high");
+    const extra = sortedGaps
+      .filter((g) => !usedProblemTitles.has(g.title ?? ""))
+      .filter((g) => String(g.severity).toLowerCase() === "high");
     for (const g of extra) {
       if (topRisks.length >= 3) break;
       const line = `${g.title ?? "Risco"} — ${g.detail ?? ""}`.trim();

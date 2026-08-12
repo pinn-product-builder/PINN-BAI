@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DashboardGrid, normalizeLayouts, layoutsDifferMaterially } from './DashboardGrid';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,16 +12,24 @@ import {
   Trash2,
   Database,
   RefreshCw,
+  Pencil,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardWidget } from '@/lib/types';
 import { useExternalData } from '@/hooks/useExternalData';
 import { useFilters } from '@/hooks/useFilters';
+// Construtor de dashboard no estado vazio (descobre fontes + sugere widgets).
+import { useFirstSyncDetector } from '@/modules/crm-auditor/hooks/useFirstSyncDetector';
+import AutoBuildDashboardDialog from '@/modules/crm-auditor/components/AutoBuildDashboardDialog';
 import { resolveByWidgetTitle } from '@/lib/referenceMappings';
 import { REFERENCE_MAPPINGS } from '@/lib/referenceMappings';
+import { evaluateFormula, buildFormulaVarsFromRows } from '@/lib/widgetFormula';
 
 // Import chart widgets
+import { WidgetEditorDialog } from '@/components/dashboard/admin/WidgetEditorDialog';
+import { useAuth } from '@/contexts/AuthContext';
 import MetricCard from '@/components/dashboard/widgets/MetricCard';
+import { buildWidgetExplanation } from '@/lib/buildWidgetExplanation';
 import AreaChartWidget from '@/components/dashboard/widgets/AreaChartWidget';
 import BarChartWidget from '@/components/dashboard/widgets/BarChartWidget';
 import LineChartWidget from '@/components/dashboard/widgets/LineChartWidget';
@@ -31,6 +39,12 @@ import TableWidget from '@/components/dashboard/widgets/TableWidget';
 import InsightCard from '@/components/dashboard/widgets/InsightCard';
 import RFMMatrixWidget from '@/components/dashboard/widgets/RFMMatrixWidget';
 import ChurnPredictionWidget from '@/components/dashboard/widgets/ChurnPredictionWidget';
+
+// Logs de debug do dashboard engine só rodam em DEV — evita poluir o DevTools do cliente.
+// Nota: usar notação bracket pra não ser pego se alguém rodar replace_all em 'console.log' depois.
+const dbg: (...args: unknown[]) => void = import.meta.env.DEV
+  ? (...args) => { console['log'](...args); }
+  : () => {};
 
 interface WidgetConfig {
   dataSource?: string;
@@ -43,7 +57,12 @@ interface WidgetConfig {
   funnelFields?: string[];
   funnelStages?: string[];
   dateFormat?: string;
+  /** Coluna de data usada pelo filtro de período (ex.: created_at, day). Opt-in. */
+  dateField?: string;
   sourceTable?: string;
+  // Filtros server-side aplicados no fetch (ex.: { field_name: 'Origem Lead' }
+  // pra views genéricas de campos customizados do CRM).
+  filters?: Record<string, unknown>;
   targetMetric?: string;
   transformation?: string;
   format?: 'number' | 'currency' | 'percentage';
@@ -55,6 +74,11 @@ interface WidgetConfig {
   seriesLabels?: Record<string, string>;
   showTrend?: boolean;
   showSparkline?: boolean;
+  // Fórmula custom: usa nomes de colunas como variáveis. Ex.: "conv_30d / leads_30d * 100".
+  // Quando setada, tem prioridade sobre metric/aggregation no metric_card.
+  formula?: string;
+  // Exibir como percentual: multiplica o valor final por 100 (proporção → %). Reversível.
+  percentScale?: boolean;
 }
 
 // ============================================================
@@ -138,31 +162,53 @@ const resolveGroupByField = (
 };
 
 /**
- * Ordem canônica das séries para fontes conhecidas.
- * Garante que as cores sejam sempre consistentes independente da ordem
- * em que os campos chegam nos dados.
- */
-const CANONICAL_SERIES_ORDER: Record<string, string[]> = {
-  kommo_leads: [
-    'encaminhado',
-    'atendimento_feito',
-    'reuniao_confirmada',
-    'reuniao_realizada',
-    'venda',
-    'desqualificado',
-    'hermes_entrada',
-  ],
-};
-
-/**
  * Processa dados multi-série para gráficos de evolução temporal.
  * Retorna dados no formato Recharts: [{ day: "15 Jan", new_leads: 12, msg_in: 45, ... }, ...]
  */
 const processMultiSeriesData = (
   rawData: Record<string, unknown>[],
   config: WidgetConfig,
-): { chartData: any[]; detectedKeys: string[] } => {
+): { chartData: any[]; detectedKeys: string[]; seriesLabels?: Record<string, string>; seriesColors?: Record<string, string> } => {
   if (rawData.length === 0) return { chartData: [], detectedKeys: [] };
+
+  // ── Caminho CANÔNICO (DB-driven) — saída de rpc:crm_stage_entries_daily ─────
+  // Linhas "long": {day, stage_external_id, stage_name, stage_color,
+  // stage_sort_order, lead_count}. Pivotamos pra wide (1 série por etapa) e
+  // montamos label/cor/ordem das séries A PARTIR DO BANCO (vw_org_stage_
+  // presentation) — sem CANONICAL_SERIES_ORDER/SERIES_LABELS hardcoded.
+  const probe = rawData[0];
+  if (probe && 'stage_external_id' in probe && 'lead_count' in probe &&
+      'stage_sort_order' in probe && 'day' in probe) {
+    const seriesLabels: Record<string, string> = {};
+    const seriesColors: Record<string, string> = {};
+    const order = new Map<string, number>();              // stage_external_id → sort_order
+    const byDay = new Map<string, Record<string, number>>(); // iso day → {ext: count}
+    for (const row of rawData) {
+      const ext = String(row.stage_external_id ?? '');
+      if (!ext) continue;
+      const sort = Number(row.stage_sort_order) || 0;
+      if (!(ext in seriesLabels)) seriesLabels[ext] = String(row.stage_name ?? ext);
+      if (row.stage_color && !(ext in seriesColors)) seriesColors[ext] = String(row.stage_color);
+      if (!order.has(ext) || sort < (order.get(ext) as number)) order.set(ext, sort);
+      const iso = String(row.day ?? '');
+      if (!byDay.has(iso)) byDay.set(iso, {});
+      const bucket = byDay.get(iso)!;
+      bucket[ext] = (bucket[ext] ?? 0) + (Number(row.lead_count) || 0);
+    }
+    // Ordem das séries = stage_sort_order do banco; desempata por nome.
+    const detectedKeys = [...order.keys()].sort((a, b) => {
+      const d = (order.get(a) as number) - (order.get(b) as number);
+      return d !== 0 ? d : (seriesLabels[a] || '').localeCompare(seriesLabels[b] || '');
+    });
+    const chartData = [...byDay.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))   // ISO ordena cronologicamente
+      .map(([iso, bucket]) => {
+        const entry: Record<string, unknown> = { label: formatDateLabel(iso) };
+        detectedKeys.forEach(k => { entry[k] = bucket[k] ?? 0; });
+        return entry;
+      });
+    return { chartData, detectedKeys, seriesLabels, seriesColors };
+  }
 
   // Resolver groupBy REAL (pode não existir nos dados)
   const configGroupBy = config.groupBy || 'day';
@@ -196,23 +242,13 @@ const processMultiSeriesData = (
     return { chartData, detectedKeys: numericKeys };
   }
 
-  console.log('[processMultiSeriesData] groupBy resolvido:', configGroupBy, '→', groupBy);
+  dbg('[processMultiSeriesData] groupBy resolvido:', configGroupBy, '→', groupBy);
 
-  // Resolver dataKeys: explícito no config > ordem canônica por fonte > auto-detect
+  // Resolver dataKeys: explícito no config > auto-detect.
+  // (A ordem/label/cor canônica de ETAPA vem do banco no branch canônico acima,
+  // via rpc:crm_stage_entries_daily — não há mais lista hardcoded por cliente.)
   const availableColumns = Object.keys(rawData[0]);
-  const dataSource = (config.dataSource || config.sourceTable || '').toLowerCase();
-  const canonicalOrder = Object.entries(CANONICAL_SERIES_ORDER).find(([src]) =>
-    dataSource.includes(src)
-  )?.[1];
-
-  let explicitKeys: string[] = config.dataKeys || [];
-
-  // Se não há dataKeys explícitos mas existe ordem canônica para a fonte,
-  // usar os campos canônicos que realmente existem nos dados
-  if (explicitKeys.length === 0 && canonicalOrder) {
-    explicitKeys = canonicalOrder.filter(k => availableColumns.includes(k));
-    console.log('[processMultiSeriesData] Usando ordem canônica para', dataSource, '→', explicitKeys);
-  }
+  const explicitKeys: string[] = config.dataKeys || [];
 
   // Se temos dataKeys explícitos, verificar se existem nos dados
   const validExplicitKeys = explicitKeys.filter(k => availableColumns.includes(k));
@@ -340,7 +376,7 @@ const processGroupedData = (
     ? resolveGroupByField(rawData, configGroupBy, false) 
     : null;
   
-  console.log('[processGroupedData] groupBy:', configGroupBy, '→', resolvedGroupBy);
+  dbg('[processGroupedData] groupBy:', configGroupBy, '→', resolvedGroupBy);
   
   if (!resolvedGroupBy) {
     // Sem groupBy válido: retorna valor agregado único
@@ -421,45 +457,61 @@ const processGroupedData = (
 };
 
 // Widget wrapper with source badge and controls
-const WidgetWrapper = ({ 
-  children, 
-  sourceTable, 
+const WidgetWrapper = ({
+  children,
+  sourceTable,
   onRefresh,
   onRemove,
+  onEdit,
   isRefreshing,
   error
-}: { 
-  children: React.ReactNode; 
+}: {
+  children: React.ReactNode;
   sourceTable?: string;
   onRefresh?: () => void;
   onRemove?: () => void;
+  onEdit?: () => void;
   isRefreshing?: boolean;
   error?: string | null;
 }) => (
   <div className="relative group h-full">
-    {/* Hover controls — top-right */}
-    <div className="absolute -top-2.5 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-      {onRefresh && (
+    {/* Controles — top-right. O lápis (editar conteúdo) fica SEMPRE visível p/ admin;
+        refresh/remover (organização) só aparecem no hover. */}
+    <div className="absolute -top-2.5 right-3 z-10 flex gap-1">
+      {onEdit && (
         <Button
           variant="ghost"
           size="icon"
-          className="h-5 w-5 bg-muted/80 backdrop-blur-sm border border-border/50 rounded-md"
-          onClick={onRefresh}
-          disabled={isRefreshing}
+          className="h-5 w-5 bg-amber-500/90 backdrop-blur-sm border border-amber-600/50 rounded-md text-white hover:bg-amber-500 shadow-sm"
+          onClick={onEdit}
+          title="Editar widget (fonte de dados, métrica, cores)"
         >
-          <RefreshCw className={`h-2.5 w-2.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <Pencil className="h-2.5 w-2.5" />
         </Button>
       )}
-      {onRemove && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-5 w-5 bg-muted/80 backdrop-blur-sm border border-border/50 rounded-md text-destructive hover:text-destructive"
-          onClick={onRemove}
-        >
-          <Trash2 className="h-2.5 w-2.5" />
-        </Button>
-      )}
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        {onRefresh && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 bg-muted/80 backdrop-blur-sm border border-border/50 rounded-md"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-2.5 w-2.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        )}
+        {onRemove && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 bg-muted/80 backdrop-blur-sm border border-border/50 rounded-md text-destructive hover:text-destructive"
+            onClick={onRemove}
+          >
+            <Trash2 className="h-2.5 w-2.5" />
+          </Button>
+        )}
+      </div>
     </div>
     {/* Error overlay */}
     {error && (
@@ -476,14 +528,20 @@ const WidgetWrapper = ({
 );
 
 // Individual widget renderer that fetches its own data
-const WidgetRenderer = ({ 
-  widget, 
+export const WidgetRenderer = ({
+  widget,
   orgId,
-  onRemove
+  onRemove,
+  onEdit,
+  isEditing = false,
 }: {
   widget: DashboardWidget;
   orgId: string;
   onRemove?: (widgetId: string) => void;
+  onEdit?: (widget: DashboardWidget) => void;
+  /** Em modo edição de grid, desativa interações de conteúdo (ex.: popup de
+   *  explicação ao clicar no card) pra não atrapalhar o arrasto. */
+  isEditing?: boolean;
 }) => {
   const rawConfig = (widget.config || {}) as WidgetConfig;
   // Normalizar: metricField → metric (BF Company usa metricField no DB)
@@ -493,11 +551,12 @@ const WidgetRenderer = ({
   };
   const tableName = config.dataSource || config.sourceTable;
   const { dateRangeISO } = useFilters();
+  const widgetQueryClient = useQueryClient();
 
   const { data: externalData, isLoading, error, refetch } = useExternalData(
     orgId,
     tableName
-      ? { tableName, limit: 1000, dateRange: dateRangeISO, dateField: config.groupBy }
+      ? { tableName, limit: 1000, dateRange: dateRangeISO, dateField: config.dateField, filters: config.filters }
       : undefined
   );
   
@@ -517,7 +576,9 @@ const WidgetRenderer = ({
   const handleRemove = () => {
     if (onRemove) onRemove(widget.id);
   };
-  
+
+  const handleEdit = onEdit ? () => onEdit(widget) : undefined;
+
   const unfilteredData = externalData?.data || [];
 
   // Client-side date filter: detect date field from config or common column names
@@ -539,7 +600,7 @@ const WidgetRenderer = ({
   })();
 
   // Debug logging
-  console.log(`[WidgetRenderer] ${widget.title} (${widget.type}):`, {
+  dbg(`[WidgetRenderer] ${widget.title} (${widget.type}):`, {
     tableName: tableName || 'NOT SET',
     dataCount: rawData.length,
     firstRowKeys: rawData[0] ? Object.keys(rawData[0]) : [],
@@ -655,7 +716,7 @@ const WidgetRenderer = ({
       const afonsinaField = afonsinaConfig.fieldName.toLowerCase();
       const match = numericFields.find(k => k.toLowerCase() === afonsinaField);
       if (match) {
-        console.log(`[resolveMetricField] Afonsina match: ${title} → ${match}`);
+        dbg(`[resolveMetricField] Afonsina match: ${title} → ${match}`);
         return match;
       }
       // Match parcial com campo Afonsina
@@ -664,7 +725,7 @@ const WidgetRenderer = ({
         return kl.includes(afonsinaField) || afonsinaField.includes(kl);
       });
       if (partialMatch) {
-        console.log(`[resolveMetricField] Afonsina partial match: ${title} → ${partialMatch}`);
+        dbg(`[resolveMetricField] Afonsina partial match: ${title} → ${partialMatch}`);
         return partialMatch;
       }
     }
@@ -681,7 +742,7 @@ const WidgetRenderer = ({
         for (const view of refMapping.viewPatterns) {
           const match = numericFields.find(k => view.fieldPattern.test(k));
           if (match) {
-            console.log(`[resolveMetricField] Reference mapping: ${cfg.targetMetric} → ${match}`);
+            dbg(`[resolveMetricField] Reference mapping: ${cfg.targetMetric} → ${match}`);
             return match;
           }
         }
@@ -738,12 +799,31 @@ const WidgetRenderer = ({
       return undefined;
     }
 
+    // FORMULA CUSTOM (config.formula): tem prioridade sobre metric/aggregation.
+    // Cada identificador na expressão = coluna da view. KPI view (1 linha) =
+    // valor direto; demais = soma da coluna.
+    if (config.formula && config.formula.trim()) {
+      try {
+        const vars = buildFormulaVarsFromRows(rawData);
+        const result = evaluateFormula(config.formula, vars);
+        if (isNaN(result) || !isFinite(result)) {
+          console.warn('[DashboardEngine] Fórmula retornou NaN/Inf:', config.formula, '| vars:', vars);
+          return 0;
+        }
+        dbg('[DashboardEngine] Fórmula avaliada:', config.formula, '→', result, '| vars:', vars);
+        return result;
+      } catch (err) {
+        console.error('[DashboardEngine] Erro avaliando fórmula:', config.formula, err);
+        // cai pro caminho padrão abaixo
+      }
+    }
+
     const requestedAggregation = config.aggregation || 'count';
     const metricField = resolveMetricField(rawData, config, widget.title || '');
     const fieldConfigured = Boolean(config.metric || config.metricField || config.targetMetric);
     const aggregation = requestedAggregation === 'count' && fieldConfigured ? 'count_values' : requestedAggregation;
 
-    console.log('[DashboardEngine] Resolução de campo:', {
+    dbg('[DashboardEngine] Resolução de campo:', {
       configMetric: config.metric,
       targetMetric: config.targetMetric,
       resolvedField: metricField,
@@ -765,15 +845,20 @@ const WidgetRenderer = ({
 
     if (isBooleanField) {
       const trueCount = rawData.filter(r => r[metricField] === true).length;
+      // percentScale: devolve a PROPORÇÃO (0–1); o ×100 é aplicado no call site
+      // (evita dupla escala com o ramo legado de percentage abaixo).
+      if (config.percentScale) {
+        return rawData.length > 0 ? trueCount / rawData.length : 0;
+      }
       const format = resolveFormat(config, widget.title || '');
-      
+
       if (format === 'percentage') {
         const rate = rawData.length > 0 ? (trueCount / rawData.length) * 100 : 0;
-        console.log('[DashboardEngine] Boolean percentage:', metricField, '→', rate.toFixed(1), '%');
+        dbg('[DashboardEngine] Boolean percentage:', metricField, '→', rate.toFixed(1), '%');
         return parseFloat(rate.toFixed(1));
       }
       
-      console.log('[DashboardEngine] Boolean count:', metricField, '→', trueCount, 'de', rawData.length);
+      dbg('[DashboardEngine] Boolean count:', metricField, '→', trueCount, 'de', rawData.length);
       return trueCount;
     }
 
@@ -809,14 +894,20 @@ const WidgetRenderer = ({
     const isDailyView = /(_dia|_daily|_diario|_hora|_hourly|_min|_minute)\b/i.test(tableName);
     const hasKpiMarker = /kpi|_30d|_60d|_90d|_7d|_mtd|_ytd|summary|overview|_resumo|_total/i.test(tableName);
     const canUseDirectKpiValue = !['count', 'count_values'].includes(aggregation);
-    const isViewKpi = canUseDirectKpiValue && !isDailyView && (
+    // isAggregatedView=true FORÇA valor direto do campo (mesmo sem aggregation explícito,
+    // que cairia em count_values e retornaria a contagem de linhas = 1). Sem essa
+    // precedência, cards de KPI pré-agregado (vw_bai_crm_kpis, distribution filtrada)
+    // mostravam "1" em vez do valor real.
+    const isViewKpi = !isDailyView && (
       config.isAggregatedView === true ||
-      hasKpiMarker ||
-      (rawData.length === 1 && values.length === 1)
+      (canUseDirectKpiValue && (
+        hasKpiMarker ||
+        (rawData.length === 1 && values.length === 1)
+      ))
     );
 
     if (isViewKpi && values.length >= 1) {
-      console.log('[DashboardEngine] View KPI pré-agregada, valor direto:', values[0], '| tabela:', tableName);
+      dbg('[DashboardEngine] View KPI pré-agregada, valor direto:', values[0], '| tabela:', tableName);
       return values[0];
     }
 
@@ -845,7 +936,7 @@ const WidgetRenderer = ({
         result = rawData.length;
     }
 
-    console.log('[DashboardEngine] Valor calculado:', result, '| campo:', metricField, '| agregação:', aggregation, '| linhas:', values.length);
+    dbg('[DashboardEngine] Valor calculado:', result, '| campo:', metricField, '| agregação:', aggregation, '| linhas:', values.length);
     return result;
   };
   
@@ -887,6 +978,7 @@ const WidgetRenderer = ({
   const wrapperProps = {
     onRefresh: tableName ? handleRefresh : undefined,
     onRemove: handleRemove,
+    onEdit: handleEdit,
     isRefreshing,
     error: errorMessage,
   };
@@ -904,23 +996,48 @@ const WidgetRenderer = ({
     calls_done: 'Ligações',
     cpl: 'CPL',
     total: 'Total',
-    // Campos Kommo
-    hermes_entrada: 'Entrada',
-    hermes_encaminhado: 'Encaminhado',
-    encaminhado: 'Encaminhado',
-    atendimento_feito: 'Atendimento Feito',
-    reuniao_confirmada: 'Reunião Confirmada',
-    reuniao_realizada: 'Reunião Realizada',
-    venda: 'Venda',
-    desqualificado: 'Desqualificado',
+    // Nomes de ETAPA não são mais hardcoded aqui: vêm do banco
+    // (vw_org_stage_presentation) via rpc:crm_stage_entries_daily. config
+    // ainda pode rotular séries não-etapa de fontes legadas.
     ...(config.seriesLabels || {}),
   };
 
   switch (widget.type) {
     case 'metric_card': {
-      const metricValue = calculateMetricValue();
+      let metricValue = calculateMetricValue();
+      // percentScale: ×100 p/ exibir proporção como % — desacoplado da fórmula,
+      // então liga/desliga sem mexer no cálculo (reversível).
+      if (metricValue !== undefined && config.percentScale) metricValue = metricValue * 100;
       const format = resolveFormat(config, widget.title || '');
-      
+
+      // Publica o valor calculado no cache pra que o BAI Copilot (snapshot
+      // do dashboardContext) veja EXATAMENTE o número que o usuário vê na
+      // tela — sem precisar replicar a fórmula no servidor. Bug recorrente:
+      // IA respondia 22% pra "taxa de conversão" enquanto o widget mostrava
+      // 1,1% porque ela recomputava a partir dos 1000 leads crus.
+      if (metricValue !== undefined && !isLoading && !errorMessage) {
+        widgetQueryClient.setQueryData(['widget-snapshot', widget.id], {
+          widgetId: widget.id,
+          title: widget.title,
+          metric: config.metric,
+          dataSource: tableName,
+          aggregation: config.aggregation,
+          format,
+          value: metricValue,
+          metricLabel: getMetricSubtitle(),
+          capturedAt: new Date().toISOString(),
+        });
+      }
+
+      const explanation = buildWidgetExplanation({
+        widget: { title: widget.title, description: widget.description, type: widget.type },
+        config,
+        value: metricValue,
+        format,
+        rawCount: rawData?.length,
+        rawSample: rawData?.slice(0, 20) as Array<Record<string, unknown>> | undefined,
+      });
+
       return (
         <WidgetWrapper {...wrapperProps}>
           <MetricCard
@@ -931,6 +1048,7 @@ const WidgetRenderer = ({
             isLoading={isLoading && !errorMessage}
             showSparkline={!!metricValue}
             metricLabel={getMetricSubtitle()}
+            explanation={isEditing ? null : explanation}
           />
         </WidgetWrapper>
       );
@@ -939,14 +1057,21 @@ const WidgetRenderer = ({
     case 'area_chart':
     case 'line_chart': {
       // Multi-série: processamento especial para gráficos temporais
-      const { chartData: multiData, detectedKeys } = processMultiSeriesData(rawData, config);
+      const { chartData: multiData, detectedKeys, seriesLabels: dbLabels, seriesColors: dbColors } =
+        processMultiSeriesData(rawData, config);
       const seriesKeys = detectedKeys.length > 0 ? detectedKeys : ['value'];
-      
+
       // Traduzir labels das séries
       const translatedKeys = seriesKeys;
-      
+
+      // Label/cor das séries: banco (vw_org_stage_presentation, via RPC canônica)
+      // vence o hardcode; SERIES_LABELS fica só como fallback p/ fontes legadas
+      // (slug-coluna). config.seriesColors ainda pode sobrepor manualmente.
+      const resolvedLabels = dbLabels ? { ...SERIES_LABELS, ...dbLabels } : SERIES_LABELS;
+      const resolvedColors = { ...(dbColors || {}), ...(config.seriesColors || {}) };
+
       const ChartComponent = widget.type === 'area_chart' ? AreaChartWidget : LineChartWidget;
-      
+
       return (
         <WidgetWrapper {...wrapperProps}>
           <ChartComponent
@@ -955,7 +1080,8 @@ const WidgetRenderer = ({
             data={multiData}
             xAxisKey="label"
             dataKeys={translatedKeys}
-            seriesLabels={SERIES_LABELS}
+            seriesLabels={resolvedLabels}
+            seriesColors={resolvedColors}
             isLoading={isLoading}
           />
         </WidgetWrapper>
@@ -993,7 +1119,9 @@ const WidgetRenderer = ({
       
     case 'funnel': {
       let funnelData: any[];
-      
+      let pipelines: Array<{ id: string; label: string; data: any[] }> | undefined;
+      let stageMapped = false;
+
       // Funil baseado em campos booleanos (BF Company: funnelFields + funnelStages)
       if (config.funnelFields && config.funnelStages && rawData.length > 0) {
         funnelData = config.funnelFields.map((field, i) => {
@@ -1001,16 +1129,87 @@ const WidgetRenderer = ({
           const count = rawData.filter(row => row[field] === true).length;
           return { label, value: count, name: label, stage: label };
         });
+      } else if (rawData.length > 0 && rawData[0].stage_sort_order !== undefined) {
+        // Funil mapeado pelo CRM: snapshot exato por etapa (igual ao Kommo), na
+        // ORDEM do pipeline, com nome/cor do mapeamento — mostra todas as etapas.
+        // Quando há mais de um funil (pipeline), monta o filtro "Todos / Funil A / B".
+        stageMapped = true;
+        const toDatum = (r: Record<string, unknown>) => {
+          const label = String(r.stage_name ?? r.stage_external_id ?? '');
+          return {
+            stage: label, name: label, label,
+            value: Number(r.lead_count ?? r.value ?? 0),
+            color: (r.stage_color as string) || undefined,
+            sort: Number(r.stage_sort_order) || 0,
+          };
+        };
+        const byPipe = new Map<string, Record<string, unknown>[]>();
+        for (const r of rawData) {
+          const pid = String(r.pipeline_external_id ?? '—');
+          if (!byPipe.has(pid)) byPipe.set(pid, []);
+          byPipe.get(pid)!.push(r);
+        }
+        const perPipeline = [...byPipe.entries()].map(([pid, rows]) => ({
+          id: pid,
+          label: String(rows[0].pipeline_name ?? `Funil ${pid}`),
+          data: rows.map(toDatum).sort((a, b) => a.sort - b.sort).map(({ sort: _s, ...d }) => d),
+        }));
+        // "Todos os funis": soma os leads por etapa (nome) entre os funis.
+        const allMap = new Map<string, { value: number; sort: number; color?: string }>();
+        for (const r of rawData) {
+          const d = toDatum(r);
+          const prev = allMap.get(d.name) ?? { value: 0, sort: d.sort, color: d.color };
+          prev.value += d.value;
+          prev.sort = Math.min(prev.sort, d.sort);
+          if (!prev.color && d.color) prev.color = d.color;
+          allMap.set(d.name, prev);
+        }
+        const allData = [...allMap.entries()]
+          .map(([name, v]) => ({ stage: name, name, label: name, value: v.value, color: v.color, sort: v.sort }))
+          .sort((a, b) => a.sort - b.sort)
+          .map(({ sort: _s, ...d }) => d);
+
+        // "Todos os funis" sempre presente como opção (padrão) → o filtro de funil
+        // aparece mesmo com um único funil; com vários, "Todos" agrega de verdade.
+        pipelines = [{ id: '__all__', label: 'Todos os funis', data: allData }, ...perPipeline];
+        funnelData = allData;
       } else {
         funnelData = processGroupedData(rawData, config);
+
+        // Multi-funil — quando os dados crus têm campo de pipeline (caso Kitou:
+        // 2 funis "disparos" e "tráfego pago" no Kommo), agrupar antes de
+        // processar. O usuário escolhe qual ver via dropdown no widget.
+        const pipelineField = (config as WidgetConfig & { pipelineField?: string }).pipelineField
+          ?? (rawData[0] && (rawData[0].pipeline_id_name ?? rawData[0].pipeline_name ?? rawData[0].funnel_name) !== undefined
+              ? (rawData[0].pipeline_id_name !== undefined ? 'pipeline_id_name'
+                : rawData[0].pipeline_name !== undefined ? 'pipeline_name'
+                : 'funnel_name')
+              : null);
+        if (pipelineField && rawData.length > 0) {
+          const byPipeline = new Map<string, Record<string, unknown>[]>();
+          for (const row of rawData) {
+            const key = String(row[pipelineField] ?? '—');
+            if (!byPipeline.has(key)) byPipeline.set(key, []);
+            byPipeline.get(key)!.push(row);
+          }
+          if (byPipeline.size > 1) {
+            pipelines = Array.from(byPipeline.entries()).map(([id, rows]) => ({
+              id,
+              label: id,
+              data: processGroupedData(rows, config),
+            }));
+          }
+        }
       }
-      
+
       return (
         <WidgetWrapper {...wrapperProps}>
           <FunnelWidget
             title={widget.title}
             description={widget.description || ''}
             data={funnelData}
+            pipelines={pipelines}
+            showEmptyStages={stageMapped}
             isLoading={isLoading}
           />
         </WidgetWrapper>
@@ -1069,18 +1268,27 @@ const WidgetRenderer = ({
 
 const DashboardEngine = ({ dashboardId, isEditing = false }: { dashboardId: string; isEditing?: boolean }) => {
   // Log básico que sempre aparece
-  console.log('[DashboardEngine] STARTED', dashboardId);
+  dbg('[DashboardEngine] STARTED', dashboardId);
   
   const { orgId } = useParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  console.log('[DashboardEngine] Component mounted:', { dashboardId, orgId });
+  // Construtor de dashboard: quando a org tem fonte sincronizada e o dashboard
+  // está vazio, oferece montar (abre automático na 1ª vez; botão sempre disponível).
+  const firstSync = useFirstSyncDetector(orgId);
+  const [buildOpen, setBuildOpen] = useState(false);
+  const [buildDismissed, setBuildDismissed] = useState(false);
+  useEffect(() => {
+    if (firstSync.data?.ready && !buildDismissed) setBuildOpen(true);
+  }, [firstSync.data?.ready, buildDismissed]);
+
+  dbg('[DashboardEngine] Component mounted:', { dashboardId, orgId });
 
   const { data: widgets, isLoading } = useQuery({
     queryKey: ['dashboard-widgets', dashboardId],
     queryFn: async () => {
-      console.log('[DashboardEngine] Fetching widgets for dashboard:', dashboardId);
+      dbg('[DashboardEngine] Fetching widgets for dashboard:', dashboardId);
       const { data, error } = await supabase
         .from('dashboard_widgets')
         .select('*')
@@ -1093,7 +1301,7 @@ const DashboardEngine = ({ dashboardId, isEditing = false }: { dashboardId: stri
         throw error;
       }
       
-      console.log('[DashboardEngine] Widgets loaded:', {
+      dbg('[DashboardEngine] Widgets loaded:', {
         count: data?.length || 0,
         widgets: data?.map((w: any) => ({
           id: w.id,
@@ -1165,7 +1373,7 @@ const DashboardEngine = ({ dashboardId, isEditing = false }: { dashboardId: stri
     );
   }
 
-  console.log('[DashboardEngine] Render check:', {
+  dbg('[DashboardEngine] Render check:', {
     isLoading,
     widgetsCount: widgets?.length || 0,
     hasWidgets: !!(widgets && widgets.length > 0),
@@ -1174,17 +1382,34 @@ const DashboardEngine = ({ dashboardId, isEditing = false }: { dashboardId: stri
   if (!widgets || widgets.length === 0) {
     console.warn('[DashboardEngine] No widgets found!', { dashboardId, widgets });
     return (
-      <Card className="p-12 border-dashed flex flex-col items-center justify-center text-center gap-4 bg-muted/20 rounded-3xl">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-          <AlertCircle className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <div>
-          <h3 className="text-xl font-bold">Dashboard Vazio</h3>
-          <p className="text-muted-foreground max-w-xs mx-auto">
-            Ainda não há widgets configurados. A IA irá sugerir widgets assim que os dados forem integrados.
-          </p>
-        </div>
-      </Card>
+      <>
+        <Card className="p-12 border-dashed flex flex-col items-center justify-center text-center gap-4 bg-muted/20 rounded-3xl">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+            <AlertCircle className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold">Dashboard Vazio</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              {firstSync.data?.ready
+                ? 'Seus dados estão sincronizados. Monte o dashboard escolhendo a fonte e os widgets — sugerimos pelo que a fonte tem.'
+                : 'Ainda não há widgets. Conecte uma fonte de dados (Auditoria CRM / Dados) — depois você monta o dashboard escolhendo o que mostrar.'}
+            </p>
+          </div>
+          <Button onClick={() => { setBuildDismissed(false); setBuildOpen(true); }} disabled={!orgId}>
+            Montar dashboard
+          </Button>
+        </Card>
+        {orgId && (
+          <AutoBuildDashboardDialog
+            open={buildOpen}
+            orgId={orgId}
+            dashboardId={dashboardId}
+            connectedProviders={firstSync.data?.connectedProviders ?? []}
+            onClose={() => { setBuildOpen(false); setBuildDismissed(true); }}
+            onApplied={() => { setBuildOpen(false); setBuildDismissed(true); }}
+          />
+        )}
+      </>
     );
   }
 
@@ -1201,6 +1426,43 @@ const DashboardEngine = ({ dashboardId, isEditing = false }: { dashboardId: stri
     />
   );
 };
+
+// ─── Botão de edição por widget (só renderiza em modo isEditing + admin) ───────
+function WidgetEditableSlot({
+  widget,
+  orgId,
+  onDelete,
+  isEditing,
+}: {
+  widget: DashboardWidget;
+  orgId: string;
+  onDelete: (id: string) => void;
+  isEditing: boolean;
+}) {
+  const { isPlatformAdmin } = useAuth();
+  const [editing, setEditing] = useState<DashboardWidget | null>(null);
+  // Editar CONTEÚDO do widget (lápis) é independente do "Editar layout": fica
+  // disponível fora do modo de organização, pra não confundir as duas coisas.
+  // Já REMOVER o widget é ação de organização → só dentro do "Editar layout".
+  const canEdit = isPlatformAdmin;
+  return (
+    <div className="h-full">
+      <WidgetRenderer
+        widget={widget}
+        orgId={orgId}
+        isEditing={isEditing}
+        onRemove={isEditing && isPlatformAdmin ? onDelete : undefined}
+        onEdit={canEdit ? setEditing : undefined}
+      />
+      <WidgetEditorDialog
+        widget={editing}
+        orgId={orgId}
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+      />
+    </div>
+  );
+}
 
 // ─── Grid wrapper: lê/salva layout em dashboards.layout ────────────────────────
 function DashboardEngineGrid({
@@ -1220,6 +1482,15 @@ function DashboardEngineGrid({
   const [savedLayouts, setSavedLayouts] = useState<any | null>(null);
   const [pendingLayouts, setPendingLayouts] = useState<any | null>(null);
 
+  // Referência ESTÁVEL da lista de widgets do grid (id+type). Sem isto, o `.map`
+  // inline criava um array novo a cada render → o DashboardGrid resetava o layout
+  // a cada re-render (drag/resize "voltavam" pra posição inicial).
+  const gridWidgets = useMemo(
+    () => widgets.map((w) => ({ id: w.id, type: w.type as string })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [widgets.map((w) => `${w.id}:${w.type}`).join('|')],
+  );
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -1237,17 +1508,18 @@ function DashboardEngineGrid({
         // a versão limpa no Supabase imediatamente — caso contrário o
         // user veria o layout bom na tela mas o broken voltaria em
         // qualquer re-render que dependesse do dado salvo.
-        const widgetMeta = widgets.map((w) => ({ id: w.id, type: w.type as string }));
-        const cleaned = normalizeLayouts(layout, widgetMeta);
+        const cleaned = normalizeLayouts(layout, gridWidgets);
         const layoutWasBroken = layoutsDifferMaterially(layout, cleaned);
         setSavedLayouts(layoutWasBroken ? cleaned : layout);
         if (layoutWasBroken) {
-          console.log('[DashboardEngineGrid] Layout salvo estava quebrado, persistindo versão regenerada');
+          dbg('[DashboardEngineGrid] Layout salvo estava quebrado, persistindo versão regenerada');
           // Fire-and-forget: não bloqueia render. Se falhar, próxima
           // visualização reaplica o normalize e tenta de novo.
+          // Cast unknown: react-grid-layout `Layouts` é serializável mas o tipo
+          // gerado do Supabase exige `Json`. Não há transformação em runtime.
           supabase
             .from('dashboards')
-            .update({ layout: cleaned, updated_at: new Date().toISOString() })
+            .update({ layout: cleaned as unknown as never, updated_at: new Date().toISOString() })
             .eq('id', dashboardId)
             .then(() => {
               queryClient.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
@@ -1256,7 +1528,7 @@ function DashboardEngineGrid({
       }
     })();
     return () => { cancelled = true; };
-  }, [dashboardId, widgets, queryClient]);
+  }, [dashboardId, gridWidgets, queryClient]);
 
   // Auto-save (debounce) durante edição
   useEffect(() => {
@@ -1264,7 +1536,7 @@ function DashboardEngineGrid({
     const t = setTimeout(async () => {
       await supabase
         .from('dashboards')
-        .update({ layout: pendingLayouts, updated_at: new Date().toISOString() })
+        .update({ layout: pendingLayouts as unknown as never, updated_at: new Date().toISOString() })
         .eq('id', dashboardId);
       queryClient.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
     }, 600);
@@ -1274,7 +1546,7 @@ function DashboardEngineGrid({
   return (
     <div className="pb-24">
       <DashboardGrid
-        widgets={widgets.map((w) => ({ id: w.id, type: w.type as string }))}
+        widgets={gridWidgets}
         savedLayouts={savedLayouts}
         isEditing={isEditing}
         onLayoutChange={setPendingLayouts}
@@ -1282,9 +1554,12 @@ function DashboardEngineGrid({
           const widget = widgets.find((w) => w.id === gw.id);
           if (!widget) return null;
           return (
-            <div className="h-full">
-              <WidgetRenderer widget={widget} orgId={orgId} onRemove={onDelete} />
-            </div>
+            <WidgetEditableSlot
+              widget={widget}
+              orgId={orgId}
+              onDelete={onDelete}
+              isEditing={isEditing}
+            />
           );
         }}
       />

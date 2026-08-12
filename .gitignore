@@ -34,3 +34,6 @@ dist-ssr
 # Material de design fonte (assets/fontes/specs — não vai pra produção)
 Pinn Design System/
 Nova pasta/
+backend/.venv/
+._*
+**/._*

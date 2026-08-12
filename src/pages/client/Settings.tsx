@@ -141,8 +141,8 @@ const ClientSettings = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Marca Branca</h1>
-          <p className="text-muted-foreground mt-1">Personalize a identidade visual do seu dashboard</p>
+          <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
+          <p className="text-muted-foreground mt-1">Personalize a identidade visual e marca da sua organização</p>
         </div>
         <Button
           onClick={() => saveMutation.mutate()}
