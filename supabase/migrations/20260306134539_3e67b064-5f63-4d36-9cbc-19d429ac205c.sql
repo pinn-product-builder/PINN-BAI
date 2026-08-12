@@ -1,0 +1,1 @@
+UPDATE dashboard_widgets SET is_visible = false WHERE id = '5f18fc2d-e45e-4c9c-b04c-fa51caa2fc32';

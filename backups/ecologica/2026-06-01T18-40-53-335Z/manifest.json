@@ -1,0 +1,15 @@
+{
+  "org_id": "f511e4f6-e94e-4581-a088-44377e67d5ba",
+  "project": "bkgwzxrutzmmxmxzfhmw",
+  "created_at": "2026-06-01T18:40:53.343Z",
+  "tables": {
+    "organizations": 1,
+    "integrations": 1,
+    "dashboards": 1,
+    "dashboard_widgets": 15,
+    "dashboard_shares": 0,
+    "data_mappings": 0,
+    "dashboard_data_sources": 0,
+    "dashboard_uploaded_datasets": 0
+  }
+}

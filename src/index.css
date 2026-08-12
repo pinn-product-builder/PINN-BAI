@@ -1,0 +1,269 @@
+/* ============================================================================
+   PINN-BAI — Design System v1.0 · Pinn Identity (oficial)
+   Source: Pinn Design System v1.0 (Maio/2026) — colors_and_type.css canônico
+   Família: produto irmão de Hermes (mesma identidade visual)
+   Modo: light-only (decisão UX — clientes existentes)
+   ============================================================================ */
+
+/* JetBrains Mono Variable — self-hosted via fontsource (mono accent: stats, métricas) */
+@import "@fontsource-variable/jetbrains-mono/index.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Inter Variable — brand-supplied, local (zero dep externa) ─────────────── */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-VariableFont_opsz_wght.ttf") format("truetype-variations");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Inter-Italic-VariableFont_opsz_wght.ttf") format("truetype-variations");
+}
+
+@layer base {
+  :root {
+    /* ════════════════════════════════════════════════════════════════════════
+       PINN BRAND TOKENS — diretos do DS oficial (hex)
+       ════════════════════════════════════════════════════════════════════════ */
+
+    /* Orange (alma da marca) */
+    --pinn-orange:        #FF6B35;
+    --pinn-orange-dark:   #E55A2B;
+    --pinn-orange-light:  #FFF3ED;
+    --pinn-orange-700:    #B8431F;
+    --pinn-orange-50:     #FFF8F4;
+
+    /* Neutrals (premium B2B; nunca #000) */
+    --pinn-ink:           #1A1A1A;
+    --pinn-ink-2:         #2C2C2C;
+    --pinn-graphite:      #555555;
+    --pinn-mute:          #999999;
+    --pinn-rule:          #E6E4E0;
+    --pinn-surface:       #F6F4EF;
+    --pinn-paper:         #FAF8F4;
+    --pinn-white:         #FFFFFF;
+
+    /* Functional */
+    --pinn-success:       #2E7D32;
+    --pinn-error:         #C62828;
+    --pinn-warning:       #F57C00;
+    --pinn-info:          #2563EB;
+
+    /* ════════════════════════════════════════════════════════════════════════
+       SHADCN HSL TOKENS — mapeados aos hex DS acima
+       ════════════════════════════════════════════════════════════════════════ */
+
+    --background:        36 30% 97%;          /* #FAF8F4 paper warm */
+    --foreground:        0 0% 10%;            /* #1A1A1A ink */
+
+    --card:              0 0% 100%;           /* #FFFFFF branco puro */
+    --card-foreground:   0 0% 10%;
+
+    --popover:           0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    /* Primary — Pinn Orange #FF6B35 (HSL 16 100% 60.4% = exato) */
+    --primary:           16 100% 60.4%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary — surface warm */
+    --secondary:         36 22% 94%;          /* ≈ #F0EDE6 */
+    --secondary-foreground: 0 0% 17%;
+
+    /* Muted — paper-tone secondary */
+    --muted:             36 18% 93%;
+    --muted-foreground:  0 0% 33%;            /* #555 graphite */
+
+    /* Accent — orange-light wash (substitui Solar Amber legado) */
+    --accent:            18 100% 96%;         /* #FFF3ED */
+    --accent-foreground: 16 100% 35%;         /* #B8431F */
+
+    /* Semânticas (alinhadas ao DS) */
+    --success:           122 44% 33%;         /* #2E7D32 */
+    --success-foreground: 0 0% 100%;
+    --warning:           29 100% 48%;         /* #F57C00 */
+    --warning-foreground: 0 0% 10%;
+    --destructive:       0 65% 47%;           /* #C62828 */
+    --destructive-foreground: 0 0% 100%;
+    --info:              221 83% 53%;         /* #2563EB */
+    --info-foreground:   0 0% 100%;
+
+    /* Bordas */
+    --border:            36 18% 89%;          /* #E6E4E0 rule */
+    --input:             36 18% 89%;
+    --ring:              16 100% 60.4%;       /* #FF6B35 focus */
+    --radius: 0.5rem;                          /* 8px DS */
+
+    /* ── Sidebar — paper-warm, não cinza-azul ── */
+    --sidebar-background:         36 25% 96%;   /* ≈ #F4F1EA */
+    --sidebar-foreground:         0 0% 17%;
+    --sidebar-primary:            16 100% 60.4%;  /* orange #FF6B35 — ativo */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:             36 18% 91%;
+    --sidebar-accent-foreground:  0 0% 10%;
+    --sidebar-border:             36 18% 89%;
+    --sidebar-ring:               16 100% 60.4%;
+
+    /* ── Charts — paleta DS oficial ── */
+    --chart-1:  16 100% 60.4%;  /* #FF6B35 orange */
+    --chart-2:  122 44% 33%;    /* #2E7D32 success */
+    --chart-3:  221 83% 53%;    /* #2563EB info */
+    --chart-4:  29 100% 48%;    /* #F57C00 warning */
+    --chart-5:  0 0% 33%;       /* #555555 graphite */
+  }
+}
+
+/* ── Base styles ── */
+@layer base {
+  * { @apply border-border; }
+  /* Reserva espaco pra scrollbar sempre — evita layout shift quando troca de
+     tab/menu e o conteudo muda de altura (ex.: Predicao de Churn vs Snapshot
+     no Arguto, ou aba Alertas vs Clientes em Saude do Cliente). */
+  html {
+    scrollbar-gutter: stable;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Inter", system-ui, sans-serif;
+    @apply font-semibold tracking-tight;
+  }
+  /* Numerals tabulares para métricas */
+  .tabular-nums, [data-tabular] {
+    font-feature-settings: 'tnum' 1, 'cv11' 1;
+  }
+}
+
+/* ── Utilitários ── */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar        { width: 4px; height: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track  { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb  {
+    background-color: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 2px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* Card com borda hairline e sombra executive-soft (DS oficial) */
+  .pinn-card {
+    @apply bg-card border border-border rounded-lg;
+    box-shadow: 0 1px 2px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04);
+  }
+
+  /* Glass card — paper translúcido */
+  .glass-card {
+    @apply bg-card/80 border border-border backdrop-blur-xl;
+    box-shadow: 0 1px 2px rgba(26,26,26,0.06), 0 0 0 1px rgba(26,26,26,0.04);
+  }
+
+  /* Light mode table enhancements */
+  :root table thead tr {
+    background-color: hsl(var(--muted) / 0.6);
+  }
+
+  /* Eyebrow — uppercase tracking-wide DS canon */
+  .pinn-eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wider text-muted-foreground;
+    letter-spacing: 0.08em;
+  }
+}
+
+/* ── Recharts overrides — alinhados aos novos tokens ── */
+.recharts-default-tooltip {
+  background-color: hsl(var(--card)) !important;
+  border-color:     hsl(var(--border)) !important;
+  border-radius:    var(--radius) !important;
+  color:            hsl(var(--foreground)) !important;
+  box-shadow: 0 4px 16px rgba(26,26,26,0.08) !important;
+  font-family: "Inter", system-ui, sans-serif !important;
+}
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical   line {
+  stroke: hsl(var(--border)) !important;
+  stroke-opacity: 0.6 !important;
+}
+.recharts-text {
+  fill: hsl(var(--muted-foreground)) !important;
+  font-size: 11px !important;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace !important;
+}
+
+/* react-grid-layout customizations */
+.react-grid-item.react-grid-placeholder {
+  background: hsl(var(--primary) / 0.15) !important;
+  border: 2px dashed hsl(var(--primary) / 0.6) !important;
+  border-radius: 0.75rem !important;
+  opacity: 1 !important;
+  transition-duration: 100ms !important;
+}
+
+/* ── Modo edição: outline laranja, cursor grab e handle bem visível ── */
+.layout.is-editing .react-grid-item {
+  outline: 2px dashed hsl(var(--primary) / 0.4);
+  outline-offset: -2px;
+  border-radius: 0.75rem;
+  cursor: grab;
+  transition: outline-color 0.15s ease, box-shadow 0.15s ease;
+}
+.layout.is-editing .react-grid-item:hover {
+  outline-color: hsl(var(--primary) / 0.75);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08), 0 4px 16px hsl(var(--primary) / 0.12);
+}
+.layout.is-editing .react-grid-item.react-draggable-dragging {
+  cursor: grabbing !important;
+  z-index: 100 !important;
+  box-shadow: 0 8px 24px hsl(var(--primary) / 0.25), 0 0 0 2px hsl(var(--primary));
+}
+
+/* Handle de resize: fora do edit-mode invisível; dentro, bola laranja sólida */
+.react-grid-item > .react-resizable-handle {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s;
+}
+.layout.is-editing .react-grid-item > .react-resizable-handle {
+  opacity: 1;
+  pointer-events: auto;
+  width: 22px;
+  height: 22px;
+  background-image: none;
+}
+.layout.is-editing .react-grid-item > .react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  border-right: 3px solid hsl(var(--primary));
+  border-bottom: 3px solid hsl(var(--primary));
+  border-bottom-right-radius: 4px;
+  background: transparent;
+}
+.layout.is-editing .react-grid-item > .react-resizable-handle:hover::after {
+  border-color: hsl(var(--primary));
+  border-width: 4px;
+}
+
+/* Bloqueia seleção de texto durante drag/resize pra evitar UX confuso */
+.layout.is-editing .react-grid-item {
+  user-select: none;
+  -webkit-user-select: none;
+}

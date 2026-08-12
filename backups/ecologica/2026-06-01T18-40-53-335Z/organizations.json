@@ -1,0 +1,17 @@
+[
+  {
+    "id": "f511e4f6-e94e-4581-a088-44377e67d5ba",
+    "name": "Ecológica Turismo",
+    "slug": "ecolgica-turismo-9269bb50",
+    "plan": 2,
+    "status": "active",
+    "logo_url": null,
+    "primary_color": "#F97316",
+    "admin_name": "ec",
+    "admin_email": "ecologicaturismodenatureza@gmail.com",
+    "settings": {},
+    "created_at": "2026-02-19T15:49:49.516898+00:00",
+    "updated_at": "2026-05-14T17:47:02.234546+00:00",
+    "trial_ends_at": null
+  }
+]
