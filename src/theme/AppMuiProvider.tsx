@@ -1,18 +1,27 @@
 import { useMemo, type ReactNode } from "react";
-import { ThemeProvider, CssBaseline } from "@mui/material";
+import { ThemeProvider as MuiThemeProvider, CssBaseline } from "@mui/material";
 import { useOrganizationBranding } from "@/contexts/OrganizationBrandingContext";
-import { createPinnThemeLight } from "./pinnTheme";
+import { createPinnTheme, createPinnThemeLight } from "./pinnTheme";
+import { useTheme } from "./ThemeProvider";
 
-/** Provedor MUI: tema PINN Growth claro; cor primária opcional vinda do branding da organização. */
+/**
+ * Provedor MUI: segue o tema único do produto (ThemeProvider) enquanto os
+ * shells MUI existirem. Light aceita cor primária da organização (white-label);
+ * o dark ainda não propaga o override de primária — TODO na migração shadcn-first.
+ */
 export function AppMuiProvider({ children }: { children: ReactNode }) {
   const { organization } = useOrganizationBranding();
+  const { theme: uiTheme } = useTheme();
   const primary = organization?.primary_color ?? null;
-  const theme = useMemo(() => createPinnThemeLight(primary), [primary]);
+  const theme = useMemo(
+    () => (uiTheme === "dark" ? createPinnTheme("dark") : createPinnThemeLight(primary)),
+    [uiTheme, primary],
+  );
 
   return (
-    <ThemeProvider theme={theme}>
+    <MuiThemeProvider theme={theme}>
       <CssBaseline />
       {children}
-    </ThemeProvider>
+    </MuiThemeProvider>
   );
 }

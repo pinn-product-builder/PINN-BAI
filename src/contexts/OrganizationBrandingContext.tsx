@@ -181,12 +181,14 @@ export const OrganizationBrandingProvider: React.FC<{ children: React.ReactNode 
 
     if (org.primary_color) {
       const hsl = hexToHSL(org.primary_color);
+      /* Só tokens de IDENTIDADE recebem a cor da org — válidos em light e dark.
+         Os washes (--accent, --sidebar-accent) ficam nos defaults do tema:
+         sobrescrevê-los com a cor cheia quebrava o contraste do par
+         accent/accent-foreground (chips, hovers). */
       root.style.setProperty("--primary", hsl);
-      root.style.setProperty("--accent", hsl);
       root.style.setProperty("--ring", hsl);
       root.style.setProperty("--sidebar-primary", hsl);
       root.style.setProperty("--sidebar-ring", hsl);
-      root.style.setProperty("--sidebar-accent", hsl);
       root.style.setProperty("--chart-1", hsl);
     }
   };

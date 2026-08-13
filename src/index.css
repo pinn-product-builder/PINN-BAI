@@ -119,6 +119,63 @@
     --chart-4:  29 100% 48%;    /* #F57C00 warning */
     --chart-5:  0 0% 33%;       /* #555555 graphite */
   }
+
+  /* ════════════════════════════════════════════════════════════════════════
+     DARK — "Command Center" (repaginação ago/2026, protótipo aprovado)
+     Neutros QUENTES (base #121110, nunca cinza-azulado); laranja intacto;
+     funcionais clareados p/ contraste em superfície escura. Opt-in via
+     classe `dark` no <html> (ThemeProvider) — default segue light.
+     ════════════════════════════════════════════════════════════════════════ */
+  .dark {
+    --background:        30 6% 7%;            /* #121110 warm ink */
+    --foreground:        43 23% 94%;          /* #F3F1EC */
+
+    --card:              30 4% 10%;           /* #1A1918 */
+    --card-foreground:   43 23% 94%;
+
+    --popover:           30 6% 12%;           /* #211F1D */
+    --popover-foreground: 43 23% 94%;
+
+    --primary:           16 100% 60.4%;       /* #FF6B35 — a marca não muda */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary:         30 5% 13%;
+    --secondary-foreground: 43 15% 85%;
+
+    --muted:             30 5% 14%;
+    --muted-foreground:  36 7% 62%;           /* ≈ #A29D94 */
+
+    --accent:            18 40% 14%;          /* wash laranja escuro */
+    --accent-foreground: 16 100% 66%;
+
+    --success:           156 31% 51%;         /* #5CA98A */
+    --success-foreground: 30 6% 7%;
+    --warning:           33 100% 55%;
+    --warning-foreground: 30 6% 7%;
+    --destructive:       15 63% 60%;          /* #D97757 terracota claro */
+    --destructive-foreground: 30 6% 7%;
+    --info:              217 91% 68%;
+    --info-foreground:   30 6% 7%;
+
+    --border:            30 7% 16%;           /* #2B2825 hairline quente */
+    --input:             30 7% 16%;
+    --ring:              16 100% 60.4%;
+
+    --sidebar-background:         30 5% 8%;   /* #161514 */
+    --sidebar-foreground:         43 15% 85%;
+    --sidebar-primary:            16 100% 60.4%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:             30 5% 13%;
+    --sidebar-accent-foreground:  43 23% 94%;
+    --sidebar-border:             30 6% 12%;
+    --sidebar-ring:               16 100% 60.4%;
+
+    --chart-1:  16 100% 60.4%;
+    --chart-2:  156 31% 51%;
+    --chart-3:  217 91% 68%;
+    --chart-4:  33 100% 55%;
+    --chart-5:  40 8% 70%;
+  }
 }
 
 /* ── Base styles ── */

@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { OrganizationBrandingProvider } from "@/contexts/OrganizationBrandingContext";
 import { FilterProvider } from "@/contexts/FilterContext";
 import { AppMuiProvider } from "@/theme/AppMuiProvider";
+import { ThemeProvider as UiThemeProvider } from "@/theme/ThemeProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 // Pages
@@ -112,6 +113,7 @@ const MockScreenGate = ({
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <UiThemeProvider>
     <AuthProvider>
         <TooltipProvider>
           <Toaster />
@@ -194,6 +196,7 @@ const App = () => (
           </BrowserRouter>
         </TooltipProvider>
     </AuthProvider>
+    </UiThemeProvider>
   </QueryClientProvider>
 );
 
